@@ -86,6 +86,7 @@ export async function getAuthUrl(state?: string): Promise<string> {
   const xero = createXeroClient();
   await xero.initialize();
   
-  const authUrl = await xero.buildConsentUrl();
+  // buildConsentUrl() accepts state as an optional parameter
+  const authUrl = await xero.buildConsentUrl(state);
   return authUrl;
 }
