@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createXeroClient, storeTokenSet } from '@/lib/xero-client';
+import { stateStore } from '../route';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -22,8 +23,27 @@ export async function GET(request: NextRequest) {
   
   // Verify state (CSRF protection)
   const storedState = request.cookies.get('xero_state')?.value;
-  if (state !== storedState) {
+  const stateInMemory = state ? stateStore.has(state) : false;
+  
+  console.log('Callback received - state:', state);
+  console.log('State in cookie:', storedState);
+  console.log('State in memory:', stateInMemory);
+  console.log('All states in memory:', Array.from(stateStore.keys()));
+  
+  // Check both cookie and memory store
+  const isValidState = (storedState && state === storedState) || stateInMemory;
+  
+  if (!state || !isValidState) {
+    console.error('State validation failed');
+    console.error('Received state:', state);
+    console.error('Cookie state:', storedState);
+    console.error('Memory has state:', stateInMemory);
     return NextResponse.redirect(`${baseUrl}/bookkeeping?error=invalid_state`);
+  }
+  
+  // Clean up the state from memory
+  if (state) {
+    stateStore.delete(state);
   }
   
   try {

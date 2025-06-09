@@ -1,23 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUrl } from '@/lib/xero-client';
 
+// Store states in memory for development (in production, use Redis or similar)
+export const stateStore = new Map<string, { timestamp: number }>();
+
+// Clean up old states
+function cleanupStates() {
+  const now = Date.now();
+  for (const [state, data] of stateStore.entries()) {
+    if (now - data.timestamp > 10 * 60 * 1000) { // 10 minutes
+      stateStore.delete(state);
+    }
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
+    // Clean up old states
+    cleanupStates();
+    
     // Generate a random state for CSRF protection
     const state = Math.random().toString(36).substring(7);
+    
+    // Store state in memory
+    stateStore.set(state, { timestamp: Date.now() });
     
     // Get the authorization URL
     const authUrl = await getAuthUrl(state);
     
-    // Store state in cookie for verification later
+    // Also try to store state in cookie as backup
     const response = NextResponse.redirect(authUrl);
     response.cookies.set('xero_state', state, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // Set to false for local development
       sameSite: 'lax',
       maxAge: 60 * 10, // 10 minutes
       path: '/'
     });
+    
+    console.log('OAuth initiated with state:', state);
+    console.log('States in memory:', Array.from(stateStore.keys()));
     
     return response;
   } catch (error) {
