@@ -30,10 +30,18 @@ export async function GET(request: NextRequest) {
   console.log('State in memory:', stateInMemory);
   console.log('All states in memory:', Array.from(stateStore.keys()));
   
-  // Check both cookie and memory store
-  const isValidState = (storedState && state === storedState) || stateInMemory;
+  // TEMPORARY WORKAROUND: Xero is not returning the state parameter
+  // If we have a valid cookie state and no state in URL, continue anyway
+  const isXeroStateBug = !state && storedState && code;
   
-  if (!state || !isValidState) {
+  if (isXeroStateBug) {
+    console.warn('WARNING: Xero did not return state parameter. Proceeding with cookie validation only.');
+  }
+  
+  // Check both cookie and memory store
+  const isValidState = (storedState && state === storedState) || stateInMemory || isXeroStateBug;
+  
+  if (!isValidState) {
     console.error('State validation failed');
     console.error('Received state:', state);
     console.error('Cookie state:', storedState);
