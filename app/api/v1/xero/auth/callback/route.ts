@@ -57,28 +57,101 @@ export async function GET(request: NextRequest) {
   try {
     // Exchange code for token
     const xero = createXeroClient();
-    await xero.initialize();
     
     console.log('Exchanging code for token...');
     console.log('Code:', code);
+    console.log('Redirect URI:', xeroConfig.redirectUris[0]);
     
-    // The apiCallback method expects just the code
-    const tokenSet = await xero.apiCallback(code);
+    // The Xero SDK requires openid-client to be initialized first
+    await xero.initialize();
     
-    console.log('Token exchange successful!');
-    console.log('Access token:', tokenSet.access_token ? 'present' : 'missing');
-    console.log('Refresh token:', tokenSet.refresh_token ? 'present' : 'missing');
+    // Get the full callback URL (including code and state)
+    const fullCallbackUrl = request.url;
+    console.log('Full callback URL:', fullCallbackUrl);
     
-    // Store token in secure cookie
-    await storeTokenSet(tokenSet);
-    
-    // Clear state cookie
-    const response = NextResponse.redirect(`${baseUrl}/bookkeeping?connected=true`);
-    response.cookies.delete('xero_state');
-    
-    return response;
+    try {
+      // The apiCallback expects the full callback URL with code
+      const tokenSet = await xero.apiCallback(fullCallbackUrl);
+      
+      console.log('Token exchange successful!');
+      console.log('Access token:', tokenSet.access_token ? 'present' : 'missing');
+      console.log('Refresh token:', tokenSet.refresh_token ? 'present' : 'missing');
+      console.log('Expires at:', tokenSet.expires_at);
+      
+      // Store token in secure cookie
+      await storeTokenSet(tokenSet);
+      
+      // Clear state cookie
+      const response = NextResponse.redirect(`${baseUrl}/bookkeeping?connected=true`);
+      response.cookies.delete('xero_state');
+      
+      return response;
+    } catch (tokenError: any) {
+      console.error('Token exchange error details:', tokenError);
+      console.error('Error message:', tokenError.message);
+      console.error('Error stack:', tokenError.stack);
+      
+      // Try alternative approach
+      if (tokenError.message.includes('Access token is undefined')) {
+        console.log('Trying manual token exchange...');
+        
+        // Build token exchange request manually
+        const tokenUrl = 'https://identity.xero.com/connect/token';
+        const params = new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: code,
+          redirect_uri: 'http://localhost:3003/api/v1/xero/auth/callback',
+          client_id: '781184D1AD314CB6989EB8D2291AB453',
+          client_secret: '2JSfxkxgSExV-DKdg8WcXn87lM_IbpmRhLhi5QbiVXQWXmvg'
+        });
+        
+        const tokenResponse = await fetch(tokenUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: params.toString()
+        });
+        
+        if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          console.error('Manual token exchange failed:', tokenResponse.status, errorText);
+          throw new Error(`Token exchange failed: ${errorText}`);
+        }
+        
+        const tokenData = await tokenResponse.json();
+        console.log('Manual token exchange successful!');
+        
+        // Create TokenSet object
+        const tokenSet = {
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
+          expires_in: tokenData.expires_in,
+          token_type: tokenData.token_type,
+          scope: tokenData.scope,
+          expires_at: Math.floor(Date.now() / 1000) + tokenData.expires_in
+        };
+        
+        await storeTokenSet(tokenSet);
+        
+        const response = NextResponse.redirect(`${baseUrl}/bookkeeping?connected=true`);
+        response.cookies.delete('xero_state');
+        
+        return response;
+      }
+      
+      throw tokenError;
+    }
   } catch (error) {
     console.error('Error exchanging code for token:', error);
     return NextResponse.redirect(`${baseUrl}/bookkeeping?error=token_exchange_failed`);
   }
 }
+
+// Add missing import
+const xeroConfig = {
+  clientId: '781184D1AD314CB6989EB8D2291AB453',
+  clientSecret: '2JSfxkxgSExV-DKdg8WcXn87lM_IbpmRhLhi5QbiVXQWXmvg',
+  redirectUris: ['http://localhost:3003/api/v1/xero/auth/callback'],
+  scopes: 'accounting.transactions accounting.settings offline_access'
+};
