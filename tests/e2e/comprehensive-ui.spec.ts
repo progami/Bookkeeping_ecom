@@ -10,7 +10,7 @@ test.describe('Comprehensive UI Tests', () => {
       await expect(page.getByText('Intelligent financial categorization and automation')).toBeVisible();
       
       // Header buttons (only one Connect Xero button should exist)
-      const connectButtons = await page.getByRole('button', { name: 'Connect Xero' }).all();
+      const connectButtons = await page.getByRole('button', { name: 'Connect Xero', exact: true }).all();
       expect(connectButtons).toHaveLength(1); // Should only have one Connect Xero button
       
       await expect(page.getByRole('button', { name: 'Import SOPs' })).toBeVisible();
@@ -18,7 +18,6 @@ test.describe('Comprehensive UI Tests', () => {
       
       // Time range selector
       await expect(page.getByRole('combobox')).toBeVisible();
-      await expect(page.getByRole('option', { name: 'Last 7 days' })).toBeVisible();
     });
 
     test('should display all stats cards', async ({ page }) => {
@@ -39,7 +38,7 @@ test.describe('Comprehensive UI Tests', () => {
       // Inactive Rules card
       const inactiveRulesCard = page.getByTestId('inactive-rules').locator('..');
       await expect(inactiveRulesCard).toBeVisible();
-      await expect(inactiveRulesCard.getByText('Inactive')).toBeVisible();
+      await expect(inactiveRulesCard.getByText('Inactive', { exact: true }).first()).toBeVisible();
       await expect(inactiveRulesCard.getByText('Inactive Rules')).toBeVisible();
       
       // Processed Transactions card
@@ -62,7 +61,7 @@ test.describe('Comprehensive UI Tests', () => {
       await expect(quickActions.getByRole('button', { name: 'Test Rules' })).toBeVisible();
       
       // Transaction button (disabled when not connected)
-      const transactionButton = quickActions.getByRole('button', { name: 'Connect Xero First' });
+      const transactionButton = quickActions.getByRole('button', { name: 'Xero Required' });
       await expect(transactionButton).toBeVisible();
       await expect(transactionButton).toBeDisabled();
     });

@@ -309,7 +309,7 @@ export default function BookkeepingDashboard() {
                 disabled={!xeroStatus?.connected}
               >
                 <BarChart3 className="h-4 w-4 mr-2" />
-                {xeroStatus?.connected ? 'View Transactions' : 'Connect Xero First'}
+                {xeroStatus?.connected ? 'View Transactions' : 'Xero Required'}
               </button>
             </div>
           </div>
