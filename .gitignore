@@ -49,3 +49,6 @@ playwright/.cache/
 # IDE
 .vscode/
 .idea/
+
+# logs
+/logs
