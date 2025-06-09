@@ -205,10 +205,6 @@ export default function BookkeepingDashboard() {
               </div>
               <div className="text-3xl font-bold text-white" data-testid="total-rules">{stats?.totalRules || 0}</div>
               <div className="text-sm text-gray-400 mt-1">Categorization Rules</div>
-              <div className="mt-3 text-xs text-emerald-400">
-                <TrendingUp className="h-3 w-3 inline mr-1" />
-                +12% from last month
-              </div>
             </div>
           </div>
 
@@ -223,10 +219,6 @@ export default function BookkeepingDashboard() {
               </div>
               <div className="text-3xl font-bold text-white" data-testid="active-rules">{stats?.activeRules || 0}</div>
               <div className="text-sm text-gray-400 mt-1">Active Rules</div>
-              <div className="mt-3 text-xs text-cyan-400">
-                <Activity className="h-3 w-3 inline mr-1" />
-                Processing transactions
-              </div>
             </div>
           </div>
 
@@ -241,10 +233,6 @@ export default function BookkeepingDashboard() {
               </div>
               <div className="text-3xl font-bold text-white" data-testid="inactive-rules">{stats?.inactiveRules || 0}</div>
               <div className="text-sm text-gray-400 mt-1">Inactive Rules</div>
-              <div className="mt-3 text-xs text-amber-400">
-                <TrendingDown className="h-3 w-3 inline mr-1" />
-                Review needed
-              </div>
             </div>
           </div>
 
@@ -438,7 +426,7 @@ export default function BookkeepingDashboard() {
                 </div>
               </div>
               <div className="h-1 bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-purple-500 rounded-full" style={{width: '75%'}} />
+                <div className="h-full bg-purple-500 rounded-full" style={{width: stats?.systemStatus?.lastSync ? '100%' : '0%'}} />
               </div>
             </div>
           </div>
