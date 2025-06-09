@@ -58,7 +58,12 @@ export async function GET(request: NextRequest) {
     // Exchange code for token
     const xero = createXeroClient();
     await xero.initialize();
-    const tokenSet = await xero.apiCallback(code);
+    
+    // Xero needs the full callback URL for token exchange
+    const callbackUrl = `${baseUrl}/api/v1/xero/auth/callback`;
+    console.log('Exchanging code for token with callback URL:', callbackUrl);
+    
+    const tokenSet = await xero.apiCallback(callbackUrl + '?code=' + code);
     
     // Store token in secure cookie
     await storeTokenSet(tokenSet);
