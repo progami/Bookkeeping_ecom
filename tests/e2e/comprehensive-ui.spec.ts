@@ -60,10 +60,9 @@ test.describe('Comprehensive UI Tests', () => {
       await expect(quickActions.getByRole('button', { name: 'Import Rules' })).toBeVisible();
       await expect(quickActions.getByRole('button', { name: 'Test Rules' })).toBeVisible();
       
-      // Transaction button (disabled when not connected)
-      const transactionButton = quickActions.getByRole('button', { name: 'Xero Required' });
-      await expect(transactionButton).toBeVisible();
-      await expect(transactionButton).toBeDisabled();
+      // Transaction button should not be visible when not connected
+      const transactionButton = quickActions.getByRole('button', { name: 'View Transactions' });
+      await expect(transactionButton).not.toBeVisible();
     });
 
     test('should display recent activity section', async ({ page }) => {

@@ -303,14 +303,15 @@ export default function BookkeepingDashboard() {
                 <Filter className="h-4 w-4 mr-2" />
                 Test Rules
               </button>
-              <button
-                onClick={() => router.push('/bookkeeping/transactions')}
-                className="w-full px-4 py-3 bg-cyan-600/20 text-cyan-400 rounded-xl hover:bg-cyan-600/30 transition-all duration-200 flex items-center justify-center"
-                disabled={!xeroStatus?.connected}
-              >
-                <BarChart3 className="h-4 w-4 mr-2" />
-                {xeroStatus?.connected ? 'View Transactions' : 'Xero Required'}
-              </button>
+              {xeroStatus?.connected && (
+                <button
+                  onClick={() => router.push('/bookkeeping/transactions')}
+                  className="w-full px-4 py-3 bg-cyan-600/20 text-cyan-400 rounded-xl hover:bg-cyan-600/30 transition-all duration-200 flex items-center justify-center"
+                >
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  View Transactions
+                </button>
+              )}
             </div>
           </div>
 
