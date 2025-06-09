@@ -1,0 +1,20 @@
+{
+  "sample_data": {
+    "2025": [
+      {
+        "pattern": "STRIPE",
+        "reference": "STRIPE-PAYMENT",
+        "description": "Stripe Payment Processing",
+        "category": "200",
+        "active": true
+      },
+      {
+        "pattern": "AMAZON",
+        "reference": "AWS-SERVICES",
+        "description": "Amazon Web Services",
+        "category": "400",
+        "active": true
+      }
+    ]
+  }
+}
