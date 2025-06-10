@@ -32,3 +32,87 @@ model CategorizationRule {
   
   @@index([isActive, priority])
 }
+
+model BankAccount {
+  id            String   @id @default(cuid())
+  xeroAccountId String   @unique
+  name          String
+  code          String?
+  currencyCode  String?
+  status        String?
+  bankName      String?
+  accountNumber String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  transactions  BankTransaction[]
+  
+  @@index([xeroAccountId])
+}
+
+model BankTransaction {
+  id                String   @id @default(cuid())
+  xeroTransactionId String   @unique
+  bankAccountId     String
+  date              DateTime
+  amount            Float
+  currencyCode      String?
+  type              String   // 'SPEND' or 'RECEIVE'
+  status            String   // 'AUTHORISED', 'DELETED', etc
+  isReconciled      Boolean  @default(false)
+  reference         String?
+  description       String?
+  contactName       String?
+  lineItems         String?  // Store line items as JSON string
+  hasAttachments    Boolean  @default(false)
+  
+  // Categorization
+  matchedRuleId     String?
+  accountCode       String?
+  taxType           String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastSyncedAt      DateTime @default(now())
+  
+  bankAccount       BankAccount @relation(fields: [bankAccountId], references: [id])
+  
+  @@index([xeroTransactionId])
+  @@index([bankAccountId])
+  @@index([date])
+  @@index([isReconciled])
+}
+
+model SyncLog {
+  id             String   @id @default(cuid())
+  syncType       String   // 'bank_accounts', 'transactions'
+  status         String   // 'success', 'failed', 'partial'
+  startedAt      DateTime
+  completedAt    DateTime?
+  recordsCreated Int      @default(0)
+  recordsUpdated Int      @default(0)
+  errorMessage   String?
+  details        String? // Store details as JSON string
+  
+  @@index([syncType, startedAt])
+}
+
+model StandardOperatingProcedure {
+  id                    String   @id @default(cuid())
+  year                  String   // '2024' or '2025'
+  chartOfAccount        String   // e.g., '321 - Contract Salaries'
+  pointOfInvoice        String?  // Only for 2025
+  serviceType           String
+  referenceTemplate     String
+  referenceExample      String
+  descriptionTemplate   String
+  descriptionExample    String
+  note                  String?
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@unique([year, chartOfAccount, serviceType])
+  @@index([year, chartOfAccount])
+  @@index([isActive])
+}
