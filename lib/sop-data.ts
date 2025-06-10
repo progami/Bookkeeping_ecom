@@ -1,6 +1,7 @@
 // SOP Data extracted from the Excel file
 export const sopData = {
   2025: {
+  "103 - Investment Hammad": [],
   "321 - Contract Salaries": [
     {
       "pointOfInvoice": "Any",
@@ -246,6 +247,8 @@ export const sopData = {
       "note": "Any adhoc services"
     }
   ],
+  "456 - Travel": [],
+  "458 - Office Supplies": [],
   "459 - Overseas VAT": [
     {
       "pointOfInvoice": "Amazon de, fr",
@@ -257,6 +260,7 @@ export const sopData = {
       "note": "Overseas VAT not claimed"
     }
   ],
+  "460 - Subsistence": [],
   "463 - IT Software": [
     {
       "pointOfInvoice": "CaptainAMZ, DataDive",
@@ -299,6 +303,7 @@ export const sopData = {
       "note": "For moving prepaid amounts from an asset account into expenses (e.g., monthly portion of an annual subscription). Use the MJ # as ref."
     }
   ],
+  "814 - Wages Payable - Payroll": [],
   "820 - VAT": [
     {
       "pointOfInvoice": "HMRC",
@@ -309,9 +314,13 @@ export const sopData = {
       "descriptionExample": "Quarterly_Jan25_Mar25",
       "note": "VAT Account, we just follow the template when making payments for payments received into vat account they use existing trx template"
     }
-  ]
+  ],
+  "825 - PAYE & NIC Payable": [],
+  "830 - Provision for Corporation Tax": [],
+  "835 - Director's Loan Account": []
 },
   2024: {
+  "103 - Investment Hammad": [],
   "321 - Contract Salaries": [
     {
       "serviceType": "Compensation",
@@ -336,116 +345,6 @@ export const sopData = {
       "descriptionTemplate": "<Department> - <Service> - <ShortTag>",
       "descriptionExample": "Operations - Salary - <ShortTag>",
       "note": "For active contract employees i.e. general staff"
-    }
-  ],
-  "429 - General Operating Expenses": [
-    {
-      "serviceType": "Adhoc",
-      "referenceTemplate": "<Invoice#>",
-      "referenceExample": "284755853",
-      "descriptionTemplate": "<Department> - <Service> - <ShortTag>",
-      "descriptionExample": "Admin - CourierCharges",
-      "note": "General expenses catch all category"
-    }
-  ],
-  "463 - IT Software": [
-    {
-      "serviceType": "Amazon Subscription",
-      "referenceTemplate": "<Invoice#> - <Frequency> - <PeriodMonthYear>",
-      "referenceExample": "BB3039760018 - Yearly - Dec24",
-      "descriptionTemplate": "<Department> - <Service> - <ShortTag>",
-      "descriptionExample": "Marketing - AmazonSubscription - <ShortTag>",
-      "note": "For all subscriptions strictly related to amazon/store"
-    },
-    {
-      "serviceType": "Operating Subscription",
-      "referenceTemplate": "<Invoice#> - <Frequency> - <PeriodMonthYear>",
-      "referenceExample": "EUINGB24-5689827 - Monthly - Dec24",
-      "descriptionTemplate": "<Department> - <Service> - <ShortTag>",
-      "descriptionExample": "Sales - OperatingSubscription - <ShortTag>",
-      "note": "For all subscriptions strictly related to the operating subscriptions"
-    }
-  ],
-  "820 - VAT": [
-    {
-      "serviceType": "VAT Paid",
-      "referenceTemplate": "<Invoice#>",
-      "referenceExample": "67734",
-      "descriptionTemplate": "<Frequency> - <PeriodStartMonthYear> - <PeriodEndMonthYear> - <ShortTag>",
-      "descriptionExample": "Quarterly - Jan25 - Mar25",
-      "note": "VAT Account, we just follow the template when making payments for payments received into vat account they use existing trx template"
-    }
-  ],
-  "401 - Accounting": [
-    {
-      "serviceType": "Adhoc",
-      "referenceTemplate": "<Invoice#> - <PeriodMonthYear>",
-      "referenceExample": "INV-4004 - Dec24",
-      "descriptionTemplate": "<Region> - <Service> - <ShortTag>",
-      "descriptionExample": "UK - Adhoc - confirmation statement - <ShortTag>",
-      "note": "One-off tasks (reviews, special projects, etc.)"
-    },
-    {
-      "serviceType": "Tax Management",
-      "referenceTemplate": "<Invoice#> - <PeriodMonthYear>",
-      "referenceExample": "INV-000935 - Dec24",
-      "descriptionTemplate": "<Region> - <Service> - <ShortTag>",
-      "descriptionExample": "UK - Tax Management - <ShortTag>",
-      "note": "Tax management includes bookkeeping, vat returns, tax returns, yearly accounts, CT etc."
-    },
-    {
-      "serviceType": "Software Subscription",
-      "referenceTemplate": "<Invoice#> - <PeriodMonthYear>",
-      "referenceExample": "INV-4004 - Dec24",
-      "descriptionTemplate": "<Service> - <ShortTag>",
-      "descriptionExample": "Software Subscription - <ShortTag>",
-      "note": "Software subscriptions strictly for accounting purposes"
-    }
-  ],
-  "437 - Interest Paid": [
-    {
-      "serviceType": "Adhoc",
-      "referenceTemplate": "<Invoice#>",
-      "referenceExample": "284755853",
-      "descriptionTemplate": "<Region> - <Service> - <ShortTag>",
-      "descriptionExample": "UK - Adhoc - HMRC Interest",
-      "note": "General expenses catch all category"
-    }
-  ],
-  "441 - Legal and Compliance": [
-    {
-      "serviceType": "Adhoc",
-      "referenceTemplate": "<Invoice#>",
-      "referenceExample": "284755853",
-      "descriptionTemplate": "<Region> - <Service> - <ShortTag>",
-      "descriptionExample": "UK - Adhoc - Copyright",
-      "note": "Any adhoc services"
-    },
-    {
-      "serviceType": "EPR",
-      "referenceTemplate": "<Invoice#>",
-      "referenceExample": "INV1000048826",
-      "descriptionTemplate": "<Region> - <Service> - <ShortTag>",
-      "descriptionExample": "FR - EPR - <ShortTag>",
-      "note": "EPR Services"
-    },
-    {
-      "serviceType": "Trademark",
-      "referenceTemplate": "<Invoice#>",
-      "referenceExample": "1024185088",
-      "descriptionTemplate": "<Region> - <Service> - <ShortTag>",
-      "descriptionExample": "UK - Trademark - <ShortTag>",
-      "note": "Trademark Services"
-    }
-  ],
-  "459 - Overseas VAT": [
-    {
-      "serviceType": "Overseas VAT",
-      "referenceTemplate": "<Invoice#> - <Frequency> - <PeriodMonthYear>",
-      "referenceExample": "eh3447hivi31gi3jq3vaoz66dh2geqhx - Monthly - Nov24",
-      "descriptionTemplate": "<Region> - <Service> - <ShortTag>",
-      "descriptionExample": "DE - Overseas VAT - AVASK Payment",
-      "note": "Overseas VAT not claimed"
     }
   ],
   "325 - Research & Development": [
@@ -562,14 +461,107 @@ export const sopData = {
       "note": "freight, documentation and all related costs"
     }
   ],
-  "620 - Prepayments": [
+  "401 - Accounting": [
     {
-      "serviceType": "Prepayment",
-      "referenceTemplate": "<MJ#>",
-      "referenceExample": "MJ-1234",
-      "descriptionTemplate": "Follow existing format",
-      "descriptionExample": "Follow existing format",
-      "note": "For moving prepaid amounts from an asset account into expenses (e.g., monthly portion of an annual subscription). Use the MJ # as ref."
+      "serviceType": "Adhoc",
+      "referenceTemplate": "<Invoice#> - <PeriodMonthYear>",
+      "referenceExample": "INV-4004 - Dec24",
+      "descriptionTemplate": "<Region> - <Service> - <ShortTag>",
+      "descriptionExample": "UK - Adhoc - confirmation statement - <ShortTag>",
+      "note": "One-off tasks (reviews, special projects, etc.)"
+    },
+    {
+      "serviceType": "Tax Management",
+      "referenceTemplate": "<Invoice#> - <PeriodMonthYear>",
+      "referenceExample": "INV-000935 - Dec24",
+      "descriptionTemplate": "<Region> - <Service> - <ShortTag>",
+      "descriptionExample": "UK - Tax Management - <ShortTag>",
+      "note": "Tax management includes bookkeeping, vat returns, tax returns, yearly accounts, CT etc."
+    },
+    {
+      "serviceType": "Software Subscription",
+      "referenceTemplate": "<Invoice#> - <PeriodMonthYear>",
+      "referenceExample": "INV-4004 - Dec24",
+      "descriptionTemplate": "<Service> - <ShortTag>",
+      "descriptionExample": "Software Subscription - <ShortTag>",
+      "note": "Software subscriptions strictly for accounting purposes"
+    }
+  ],
+  "429 - General Operating Expenses": [
+    {
+      "serviceType": "Adhoc",
+      "referenceTemplate": "<Invoice#>",
+      "referenceExample": "284755853",
+      "descriptionTemplate": "<Department> - <Service> - <ShortTag>",
+      "descriptionExample": "Admin - CourierCharges",
+      "note": "General expenses catch all category"
+    }
+  ],
+  "437 - Interest Paid": [
+    {
+      "serviceType": "Adhoc",
+      "referenceTemplate": "<Invoice#>",
+      "referenceExample": "284755853",
+      "descriptionTemplate": "<Region> - <Service> - <ShortTag>",
+      "descriptionExample": "UK - Adhoc - HMRC Interest",
+      "note": "General expenses catch all category"
+    }
+  ],
+  "441 - Legal and Compliance": [
+    {
+      "serviceType": "Adhoc",
+      "referenceTemplate": "<Invoice#>",
+      "referenceExample": "284755853",
+      "descriptionTemplate": "<Region> - <Service> - <ShortTag>",
+      "descriptionExample": "UK - Adhoc - Copyright",
+      "note": "Any adhoc services"
+    },
+    {
+      "serviceType": "EPR",
+      "referenceTemplate": "<Invoice#>",
+      "referenceExample": "INV1000048826",
+      "descriptionTemplate": "<Region> - <Service> - <ShortTag>",
+      "descriptionExample": "FR - EPR - <ShortTag>",
+      "note": "EPR Services"
+    },
+    {
+      "serviceType": "Trademark",
+      "referenceTemplate": "<Invoice#>",
+      "referenceExample": "1024185088",
+      "descriptionTemplate": "<Region> - <Service> - <ShortTag>",
+      "descriptionExample": "UK - Trademark - <ShortTag>",
+      "note": "Trademark Services"
+    }
+  ],
+  "456 - Travel": [],
+  "458 - Office Supplies": [],
+  "459 - Overseas VAT": [
+    {
+      "serviceType": "Overseas VAT",
+      "referenceTemplate": "<Invoice#> - <Frequency> - <PeriodMonthYear>",
+      "referenceExample": "eh3447hivi31gi3jq3vaoz66dh2geqhx - Monthly - Nov24",
+      "descriptionTemplate": "<Region> - <Service> - <ShortTag>",
+      "descriptionExample": "DE - Overseas VAT - AVASK Payment",
+      "note": "Overseas VAT not claimed"
+    }
+  ],
+  "460 - Subsistence": [],
+  "463 - IT Software": [
+    {
+      "serviceType": "Amazon Subscription",
+      "referenceTemplate": "<Invoice#> - <Frequency> - <PeriodMonthYear>",
+      "referenceExample": "BB3039760018 - Yearly - Dec24",
+      "descriptionTemplate": "<Department> - <Service> - <ShortTag>",
+      "descriptionExample": "Marketing - AmazonSubscription - <ShortTag>",
+      "note": "For all subscriptions strictly related to amazon/store"
+    },
+    {
+      "serviceType": "Operating Subscription",
+      "referenceTemplate": "<Invoice#> - <Frequency> - <PeriodMonthYear>",
+      "referenceExample": "EUINGB24-5689827 - Monthly - Dec24",
+      "descriptionTemplate": "<Department> - <Service> - <ShortTag>",
+      "descriptionExample": "Sales - OperatingSubscription - <ShortTag>",
+      "note": "For all subscriptions strictly related to the operating subscriptions"
     }
   ],
   "489 - Telephone & Internet": [
@@ -581,7 +573,33 @@ export const sopData = {
       "descriptionExample": "",
       "note": ""
     }
-  ]
+  ],
+  "620 - Prepayments": [
+    {
+      "serviceType": "Prepayment",
+      "referenceTemplate": "<MJ#>",
+      "referenceExample": "MJ-1234",
+      "descriptionTemplate": "Follow existing format",
+      "descriptionExample": "Follow existing format",
+      "note": "For moving prepaid amounts from an asset account into expenses (e.g., monthly portion of an annual subscription). Use the MJ # as ref."
+    }
+  ],
+  "710 - Office Equipment": [],
+  "774 - Use of Home as Office": [],
+  "814 - Wages Payable - Payroll": [],
+  "820 - VAT": [
+    {
+      "serviceType": "VAT Paid",
+      "referenceTemplate": "<Invoice#>",
+      "referenceExample": "67734",
+      "descriptionTemplate": "<Frequency> - <PeriodStartMonthYear> - <PeriodEndMonthYear> - <ShortTag>",
+      "descriptionExample": "Quarterly - Jan25 - Mar25",
+      "note": "VAT Account, we just follow the template when making payments for payments received into vat account they use existing trx template"
+    }
+  ],
+  "825 - PAYE & NIC Payable": [],
+  "830 - Provision for Corporation Tax": [],
+  "835 - Director's Loan Account": []
 }
 }
 
@@ -597,6 +615,10 @@ export const rules = [
 ]
 
 export const chartOfAccounts = [
+  {
+    "code": "103",
+    "name": "Investment Hammad"
+  },
   {
     "code": "321",
     "name": "Contract Salaries"
@@ -642,8 +664,20 @@ export const chartOfAccounts = [
     "name": "Legal and Compliance"
   },
   {
+    "code": "456",
+    "name": "Travel"
+  },
+  {
+    "code": "458",
+    "name": "Office Supplies"
+  },
+  {
     "code": "459",
     "name": "Overseas VAT"
+  },
+  {
+    "code": "460",
+    "name": "Subsistence"
   },
   {
     "code": "463",
@@ -658,8 +692,32 @@ export const chartOfAccounts = [
     "name": "Prepayments"
   },
   {
+    "code": "710",
+    "name": "Office Equipment"
+  },
+  {
+    "code": "774",
+    "name": "Use of Home as Office"
+  },
+  {
+    "code": "814",
+    "name": "Wages Payable - Payroll"
+  },
+  {
     "code": "820",
     "name": "VAT"
+  },
+  {
+    "code": "825",
+    "name": "PAYE & NIC Payable"
+  },
+  {
+    "code": "830",
+    "name": "Provision for Corporation Tax"
+  },
+  {
+    "code": "835",
+    "name": "Director's Loan Account"
   }
 ]
 
