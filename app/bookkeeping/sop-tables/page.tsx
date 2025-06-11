@@ -51,19 +51,20 @@ export default function SOPTablesPage() {
         
         dbSops.forEach((sop: SOP) => {
           const year = sop.year as '2024' | '2025'
-          if (!mergedData[year][sop.chartOfAccount]) {
-            mergedData[year][sop.chartOfAccount] = []
+          const yearData = mergedData[year] as any
+          if (!yearData[sop.chartOfAccount]) {
+            yearData[sop.chartOfAccount] = []
           }
           
           // Replace or add the SOP
-          const existingIndex = mergedData[year][sop.chartOfAccount].findIndex(
-            s => s.serviceType === sop.serviceType
+          const existingIndex = yearData[sop.chartOfAccount].findIndex(
+            (s: any) => s.serviceType === sop.serviceType
           )
           
           if (existingIndex >= 0) {
-            mergedData[year][sop.chartOfAccount][existingIndex] = sop
+            yearData[sop.chartOfAccount][existingIndex] = sop
           } else {
-            mergedData[year][sop.chartOfAccount].push(sop)
+            yearData[sop.chartOfAccount].push(sop)
           }
         })
         
@@ -74,8 +75,9 @@ export default function SOPTablesPage() {
     }
   }
 
-  const accounts = Object.keys(sopData[year])
-  const selectedData = selectedAccount ? sopData[year][selectedAccount] || [] : []
+  const yearData = sopData[year] as any
+  const accounts = Object.keys(yearData)
+  const selectedData = selectedAccount ? yearData[selectedAccount] || [] : []
 
   const handleEdit = (sop: any, index: number) => {
     setEditingRow({
@@ -141,10 +143,11 @@ export default function SOPTablesPage() {
         
         // Update local state
         const updatedData = { ...sopData }
-        if (!updatedData[year][selectedAccount]) {
-          updatedData[year][selectedAccount] = []
+        const updatedYearData = updatedData[year] as any
+        if (!updatedYearData[selectedAccount]) {
+          updatedYearData[selectedAccount] = []
         }
-        updatedData[year][selectedAccount].push(newSop)
+        updatedYearData[selectedAccount].push(newSop)
         setSopData(updatedData)
         
         toast.success('SOP created successfully')
@@ -164,7 +167,8 @@ export default function SOPTablesPage() {
         
         // Update local state
         const updatedData = { ...sopData }
-        updatedData[year][selectedAccount][index] = updatedSop
+        const updatedYearData = updatedData[year] as any
+        updatedYearData[selectedAccount][index] = updatedSop
         setSopData(updatedData)
         
         toast.success('SOP updated successfully')
@@ -198,7 +202,8 @@ export default function SOPTablesPage() {
 
       // Update local state
       const updatedData = { ...sopData }
-      updatedData[year][selectedAccount].splice(index, 1)
+      const updatedYearData = updatedData[year] as any
+      updatedYearData[selectedAccount].splice(index, 1)
       setSopData(updatedData)
       
       toast.success('SOP deleted successfully')
@@ -435,7 +440,7 @@ export default function SOPTablesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/50">
-                  {selectedData.map((item, index) => (
+                  {selectedData.map((item: any, index: number) => (
                     <tr key={index} className="hover:bg-slate-800/50 transition-colors">
                       {editingRow?.index === index && !editingRow.isNew ? (
                         // Edit mode
@@ -695,7 +700,7 @@ export default function SOPTablesPage() {
         /* All Accounts Summary */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {accounts.map(account => {
-            const data = sopData[year][account]
+            const data = yearData[account]
             const sopCount = data?.length || 0
             
             return (
@@ -710,7 +715,7 @@ export default function SOPTablesPage() {
                 </h3>
                 {sopCount > 0 ? (
                   <div className="space-y-2">
-                    {data.slice(0, 3).map((item, idx) => (
+                    {data.slice(0, 3).map((item: any, idx: number) => (
                       <div key={idx} className="text-sm">
                         <span className="text-indigo-400">{item.serviceType}</span>
                       </div>

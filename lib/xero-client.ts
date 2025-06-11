@@ -10,12 +10,13 @@ const xeroConfig = {
   scopes: 'accounting.transactions accounting.settings offline_access'
 };
 
-export function createXeroClient() {
+export function createXeroClient(state?: string) {
   const xero = new XeroClient({
     clientId: xeroConfig.clientId,
     clientSecret: xeroConfig.clientSecret,
     redirectUris: xeroConfig.redirectUris,
-    scopes: xeroConfig.scopes.split(' ')
+    scopes: xeroConfig.scopes.split(' '),
+    state: state
   });
   
   return xero;
@@ -36,16 +37,20 @@ export async function getStoredTokenSet(): Promise<TokenSet | null> {
   }
 }
 
-export async function storeTokenSet(tokenSet: TokenSet) {
+export async function storeTokenSet(tokenSet: TokenSet | any) {
   const cookieStore = await cookies();
+  
+  console.log('Storing token set...');
   
   cookieStore.set('xero_token', JSON.stringify(tokenSet), {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: false, // Set to false for local development
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 30, // 30 days
     path: '/'
   });
+  
+  console.log('Token set stored successfully');
 }
 
 export async function clearTokenSet() {
@@ -54,11 +59,19 @@ export async function clearTokenSet() {
 }
 
 export async function getXeroClient(): Promise<XeroClient | null> {
+  console.log('Getting Xero client...');
   const tokenSet = await getStoredTokenSet();
   
   if (!tokenSet) {
+    console.log('No token set found in cookies');
     return null;
   }
+  
+  console.log('Token set found:', {
+    hasAccessToken: !!tokenSet.access_token,
+    hasRefreshToken: !!tokenSet.refresh_token,
+    expiresAt: tokenSet.expires_at
+  });
   
   const xero = createXeroClient();
   xero.setTokenSet(tokenSet);
@@ -67,11 +80,15 @@ export async function getXeroClient(): Promise<XeroClient | null> {
   const expiresAt = tokenSet.expires_at || 0;
   const now = Math.floor(Date.now() / 1000);
   
+  console.log('Token expiry check:', { expiresAt, now, needsRefresh: expiresAt < now });
+  
   if (expiresAt < now) {
     try {
+      console.log('Refreshing expired token...');
       const newTokenSet = await xero.refreshWithRefreshToken(xeroConfig.clientId, xeroConfig.clientSecret, tokenSet.refresh_token);
       await storeTokenSet(newTokenSet);
       xero.setTokenSet(newTokenSet);
+      console.log('Token refreshed successfully');
     } catch (error) {
       console.error('Failed to refresh token:', error);
       await clearTokenSet();
@@ -83,19 +100,14 @@ export async function getXeroClient(): Promise<XeroClient | null> {
 }
 
 export async function getAuthUrl(state?: string): Promise<string> {
-  const xero = createXeroClient();
+  // Pass the state to createXeroClient so it's included in the config
+  const xero = createXeroClient(state);
   await xero.initialize();
   
-  // Get the base consent URL
-  let authUrl = await xero.buildConsentUrl();
+  // Get the consent URL - the state will be included automatically
+  const authUrl = await xero.buildConsentUrl();
   
-  // Manually append state if provided since buildConsentUrl might not handle it properly
-  if (state) {
-    const url = new URL(authUrl);
-    url.searchParams.append('state', state);
-    authUrl = url.toString();
-    console.log('Built auth URL with state:', authUrl);
-  }
+  console.log('Built auth URL:', authUrl);
   
   return authUrl;
 }

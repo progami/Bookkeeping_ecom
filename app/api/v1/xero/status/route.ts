@@ -3,14 +3,18 @@ import { getXeroClient } from '@/lib/xero-client';
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('Checking Xero status...');
     const xero = await getXeroClient();
     
     if (!xero) {
+      console.log('No Xero client available - not connected');
       return NextResponse.json({
         connected: false,
         organization: null
       });
     }
+    
+    console.log('Xero client obtained, checking tenants...');
     
     // Get organization info
     try {

@@ -12,6 +12,10 @@ export interface Transaction {
   isReconciled: boolean;
   hasAttachments?: boolean;
   lineItems?: any[];
+  currencyCode?: string;
+  accountCode?: string;
+  accountName?: string;
+  taxType?: string;
   
   // Matching info
   matchedRule?: {
@@ -26,7 +30,7 @@ export interface Transaction {
 }
 
 export interface TransactionFilter {
-  status?: 'all' | 'matched' | 'unmatched';
+  status?: 'all' | 'matched' | 'unmatched' | 'reconciled' | 'unreconciled';
   search?: string;
   dateFrom?: string;
   dateTo?: string;

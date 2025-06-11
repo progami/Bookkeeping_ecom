@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { setupXeroMocks } from '../helpers/mock-api'
 
 test.describe('Transaction Management', () => {
   test.beforeEach(async ({ page }) => {
-    // Assume user is connected to Xero
-    await page.goto('/api/v1/xero/auth/callback?code=test_auth_code&state=test_state');
-    await page.waitForURL('/bookkeeping');
+    // Set up Xero mocks
+    await setupXeroMocks(page)
+    await page.goto('/bookkeeping');
   });
 
   test('should navigate to transactions page', async ({ page }) => {

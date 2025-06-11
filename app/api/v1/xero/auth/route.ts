@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUrl } from '@/lib/xero-client';
-
-// Store states in memory for development (in production, use Redis or similar)
-export const stateStore = new Map<string, { timestamp: number }>();
-
-// Clean up old states
-function cleanupStates() {
-  const now = Date.now();
-  for (const [state, data] of stateStore.entries()) {
-    if (now - data.timestamp > 10 * 60 * 1000) { // 10 minutes
-      stateStore.delete(state);
-    }
-  }
-}
+import { stateStore, cleanupStates } from '@/lib/oauth-state';
 
 export async function GET(request: NextRequest) {
   try {

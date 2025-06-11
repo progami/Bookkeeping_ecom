@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Xero Connection</title>
+</head>
+<body>
+    <h1>Test Xero Connection</h1>
+    <button onclick="testConnection()">Test Connection</button>
+    <button onclick="testTransactions()">Test Transactions</button>
+    <pre id="output"></pre>
+
+    <script>
+        const output = document.getElementById('output');
+        
+        async function testConnection() {
+            output.textContent = 'Testing connection...\n';
+            
+            try {
+                const response = await fetch('/api/v1/xero/status');
+                const data = await response.json();
+                
+                output.textContent += 'Status response: ' + JSON.stringify(data, null, 2) + '\n';
+                
+                if (data.connected) {
+                    output.textContent += '\n✅ Connected to Xero!\n';
+                    output.textContent += 'Organization: ' + data.organization?.tenantName + '\n';
+                } else {
+                    output.textContent += '\n❌ Not connected to Xero\n';
+                }
+            } catch (error) {
+                output.textContent += 'Error: ' + error.message + '\n';
+            }
+        }
+        
+        async function testTransactions() {
+            output.textContent = 'Testing transactions...\n';
+            
+            try {
+                const response = await fetch('/api/v1/xero/transactions');
+                const data = await response.json();
+                
+                output.textContent += '\nResponse status: ' + response.status + '\n';
+                
+                if (response.ok) {
+                    output.textContent += 'Total transactions: ' + (data.transactions?.length || 0) + '\n\n';
+                    
+                    if (data.transactions && data.transactions.length > 0) {
+                        output.textContent += 'First 3 transactions:\n';
+                        data.transactions.slice(0, 3).forEach((tx, i) => {
+                            output.textContent += `\n${i + 1}. ${tx.description}\n`;
+                            output.textContent += `   Amount: $${tx.amount} (${tx.type})\n`;
+                            output.textContent += `   Date: ${tx.date}\n`;
+                            output.textContent += `   Matched: ${tx.matchedRule ? tx.matchedRule.ruleName : 'No'}\n`;
+                        });
+                    }
+                } else {
+                    output.textContent += 'Error: ' + JSON.stringify(data, null, 2) + '\n';
+                }
+            } catch (error) {
+                output.textContent += 'Error: ' + error.message + '\n';
+            }
+        }
+        
+        // Test on load
+        testConnection();
+    </script>
+</body>
+</html>

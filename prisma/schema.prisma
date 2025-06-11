@@ -97,6 +97,27 @@ model SyncLog {
   @@index([syncType, startedAt])
 }
 
+model GLAccount {
+  id                    String   @id @default(cuid())
+  code                  String   @unique
+  name                  String
+  type                  String   // 'EXPENSE', 'REVENUE', 'ASSET', 'LIABILITY', etc.
+  status                String?  // 'ACTIVE', 'ARCHIVED'
+  description           String?
+  systemAccount         Boolean  @default(false)
+  showInExpenseClaims   Boolean  @default(false)
+  enablePaymentsToAccount Boolean @default(false)
+  class                 String?  // 'ASSET', 'EQUITY', 'EXPENSE', 'LIABILITY', 'REVENUE'
+  reportingCode         String?
+  reportingCodeName     String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([code])
+  @@index([type])
+  @@index([status])
+}
+
 model StandardOperatingProcedure {
   id                    String   @id @default(cuid())
   year                  String   // '2024' or '2025'

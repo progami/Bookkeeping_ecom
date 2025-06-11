@@ -4,9 +4,20 @@ import { prisma } from '@/lib/prisma'
 export async function GET(request: NextRequest) {
   try {
     // Get rule counts
-    const [totalRules, activeRules] = await Promise.all([
+    const [totalRules, activeRules, recentTransactions] = await Promise.all([
       prisma.categorizationRule.count(),
-      prisma.categorizationRule.count({ where: { isActive: true } })
+      prisma.categorizationRule.count({ where: { isActive: true } }),
+      prisma.bankTransaction.findMany({
+        take: 10,
+        orderBy: { date: 'desc' },
+        include: {
+          bankAccount: {
+            select: {
+              name: true
+            }
+          }
+        }
+      })
     ])
 
     const inactiveRules = totalRules - activeRules
@@ -31,19 +42,24 @@ export async function GET(request: NextRequest) {
       timestamp: rule.updatedAt.toISOString()
     }))
 
-    // Mock system status for now
-    const systemStatus = {
-      xeroConnected: false, // Will be implemented when Xero OAuth is added
-      lastSync: null,
-      automationEnabled: false
-    }
+    // Calculate match rate based on actual rule performance
+    const matchRate = 0 // Will be calculated when rules are actually applied to transactions
 
     return NextResponse.json({
       totalRules,
       activeRules,
       inactiveRules,
+      matchRate,
       recentActivity,
-      systemStatus
+      recentTransactions: recentTransactions.map(tx => ({
+        id: tx.id,
+        date: tx.date,
+        description: tx.description || 'No description',
+        amount: tx.amount,
+        type: tx.type,
+        status: tx.isReconciled ? 'reconciled' : 'unreconciled',
+        bankAccount: tx.bankAccount?.name || 'Unknown'
+      }))
     })
   } catch (error) {
     console.error('Error fetching bookkeeping stats:', error)

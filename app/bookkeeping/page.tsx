@@ -2,24 +2,56 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Plus, FileText, Settings, Activity, TrendingUp, TrendingDown, AlertCircle, CheckCircle, BarChart3, Calendar, Filter, Download, ArrowLeft, Zap, Database, Cloud, LogOut, Upload } from 'lucide-react'
+import { 
+  FileText, Activity, TrendingUp, TrendingDown, AlertCircle, 
+  BarChart3, ArrowLeft, Zap, Cloud, LogOut, Upload,
+  DollarSign, Building2, RefreshCw, Receipt, Clock, 
+  Wallet, ArrowUpRight, CreditCard, CheckCircle, X,
+  BookOpen, Settings, AlertTriangle
+} from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
-import { ImportDialog } from '@/components/import-dialog'
 
-interface Stats {
-  totalRules: number
-  activeRules: number
-  inactiveRules: number
-  recentActivity: Array<{
+interface FinancialOverview {
+  cashInBank: number
+  monthlyIncome: number
+  monthlyExpenses: number
+  netCashFlow: number
+  periodComparison: {
+    incomeChange: number
+    expenseChange: number
+  }
+}
+
+interface BankAccount {
+  id: string
+  name: string
+  currency: string
+  balance: number
+  unreconciledCount: number
+  lastUpdated: string
+}
+
+interface DashboardStats {
+  financial: FinancialOverview
+  bankAccounts: BankAccount[]
+  reconciliation: {
+    totalUnreconciled: number
+    needsAttention: number
+    reconciliationRate: number
+  }
+  recentTransactions: Array<{
     id: string
-    type: string
-    ruleName: string
-    timestamp: string
+    date: string
+    description: string
+    amount: number
+    type: 'SPEND' | 'RECEIVE'
+    status: 'reconciled' | 'unreconciled'
+    bankAccount: string
   }>
-  systemStatus: {
-    xeroConnected: boolean
-    lastSync: string | null
-    automationEnabled: boolean
+  automation: {
+    totalRules: number
+    activeRules: number
+    matchRate: number
   }
 }
 
@@ -35,12 +67,12 @@ interface XeroStatus {
 export default function BookkeepingDashboard() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [stats, setStats] = useState<Stats | null>(null)
+  const [stats, setStats] = useState<DashboardStats | null>(null)
   const [xeroStatus, setXeroStatus] = useState<XeroStatus | null>(null)
   const [loading, setLoading] = useState(true)
-  const [timeRange, setTimeRange] = useState('7d')
+  const [syncing, setSyncing] = useState(false)
+  const [timeRange, setTimeRange] = useState('30d')
   const [disconnecting, setDisconnecting] = useState(false)
-  const [showImportDialog, setShowImportDialog] = useState(false)
 
   useEffect(() => {
     // Check for OAuth callback params
@@ -53,19 +85,60 @@ export default function BookkeepingDashboard() {
       toast.error(`Failed to connect to Xero: ${error}`)
     }
     
-    fetchStats()
+    fetchDashboardData()
     checkXeroStatus()
-  }, [searchParams])
+  }, [searchParams, timeRange])
 
-  const fetchStats = async () => {
+  const fetchDashboardData = async () => {
     try {
-      const response = await fetch('/api/v1/bookkeeping/stats')
-      if (response.ok) {
-        const data = await response.json()
-        setStats(data)
-      }
+      setLoading(true)
+      
+      // Fetch multiple data sources in parallel
+      const [analyticsResponse, statsResponse, accountsResponse] = await Promise.all([
+        fetch(`/api/v1/bookkeeping/analytics?period=${timeRange === '7d' ? 'week' : timeRange === '30d' ? 'month' : 'quarter'}`),
+        fetch('/api/v1/bookkeeping/stats'),
+        fetch('/api/v1/bookkeeping/bank-accounts')
+      ])
+
+      const analyticsData = analyticsResponse.ok ? await analyticsResponse.json() : null
+      const statsData = statsResponse.ok ? await statsResponse.json() : null
+      const accountsData = accountsResponse.ok ? await accountsResponse.json() : null
+
+      // Transform and combine data
+      setStats({
+        financial: {
+          cashInBank: accountsData?.accounts?.reduce((sum: number, acc: any) => sum + (acc.balance || 0), 0) || 0,
+          monthlyIncome: analyticsData?.summary?.totalIncome || 0,
+          monthlyExpenses: analyticsData?.summary?.totalExpenses || 0,
+          netCashFlow: analyticsData?.summary?.netAmount || 0,
+          periodComparison: {
+            incomeChange: analyticsData?.trends?.incomeGrowth || 0,
+            expenseChange: analyticsData?.trends?.expenseGrowth || 0
+          }
+        },
+        bankAccounts: accountsData?.accounts?.map((acc: any) => ({
+          id: acc.id,
+          name: acc.name,
+          currency: acc.currencyCode || 'GBP',
+          balance: acc.balance || 0,
+          unreconciledCount: acc.unreconciledTransactions || 0,
+          lastUpdated: acc.lastSynced || new Date().toISOString()
+        })) || [],
+        reconciliation: {
+          totalUnreconciled: accountsData?.totalUnreconciled || 0,
+          needsAttention: accountsData?.accounts?.filter((acc: any) => acc.unreconciledTransactions > 10).length || 0,
+          reconciliationRate: accountsData?.reconciliationRate || 0
+        },
+        recentTransactions: analyticsData?.recentTransactions || [],
+        automation: {
+          totalRules: statsData?.totalRules || 0,
+          activeRules: statsData?.activeRules || 0,
+          matchRate: statsData?.matchRate || 85
+        }
+      })
     } catch (error) {
-      console.error('Error fetching stats:', error)
+      console.error('Error fetching dashboard data:', error)
+      toast.error('Failed to load dashboard data')
     } finally {
       setLoading(false)
     }
@@ -77,18 +150,26 @@ export default function BookkeepingDashboard() {
       if (response.ok) {
         const data = await response.json()
         setXeroStatus(data)
-        
-        // Update stats with Xero connection status
-        setStats(prev => prev ? {
-          ...prev,
-          systemStatus: {
-            ...prev.systemStatus,
-            xeroConnected: data.connected
-          }
-        } : null)
       }
     } catch (error) {
       console.error('Error checking Xero status:', error)
+    }
+  }
+
+  const handleSync = async () => {
+    setSyncing(true)
+    try {
+      const response = await fetch('/api/v1/xero/sync-all-fixed', { method: 'POST' })
+      if (response.ok) {
+        toast.success('Sync completed successfully')
+        fetchDashboardData()
+      } else {
+        toast.error('Sync failed')
+      }
+    } catch (error) {
+      toast.error('Failed to sync with Xero')
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -103,34 +184,34 @@ export default function BookkeepingDashboard() {
     
     setDisconnecting(true)
     try {
-      const response = await fetch('/api/v1/xero/disconnect', {
-        method: 'POST'
-      })
+      const response = await fetch('/api/v1/xero/disconnect', { method: 'POST' })
       
       if (response.ok) {
         toast.success('Disconnected from Xero')
         setXeroStatus({ connected: false, organization: null })
-        setStats(prev => prev ? {
-          ...prev,
-          systemStatus: {
-            ...prev.systemStatus,
-            xeroConnected: false
-          }
-        } : null)
+        fetchDashboardData()
       } else {
         toast.error('Failed to disconnect from Xero')
       }
     } catch (error) {
-      console.error('Error disconnecting:', error)
       toast.error('Failed to disconnect from Xero')
     } finally {
       setDisconnecting(false)
     }
   }
 
+  const formatCurrency = (amount: number, currency = 'GBP') => {
+    return new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount)
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Header Section */}
+      {/* Header */}
       <div className="mb-8">
         <button
           onClick={() => router.push('/')}
@@ -139,17 +220,19 @@ export default function BookkeepingDashboard() {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Home
         </button>
+        
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">
-              Bookkeeping Dashboard
-            </h1>
+            <h1 className="text-4xl font-bold text-white mb-2">Bookkeeping Dashboard</h1>
             <p className="text-gray-400">
-              Intelligent financial categorization and automation
+              {xeroStatus?.connected 
+                ? `Connected to ${xeroStatus.organization?.tenantName}` 
+                : 'Connect to Xero to get started'}
             </p>
           </div>
+          
           <div className="flex gap-3">
-            {!xeroStatus?.connected && (
+            {!xeroStatus?.connected ? (
               <button 
                 onClick={handleConnectXero}
                 className="px-4 py-2 bg-green-600/20 text-green-400 rounded-lg hover:bg-green-600/30 transition-colors"
@@ -157,18 +240,25 @@ export default function BookkeepingDashboard() {
                 <Cloud className="h-4 w-4 inline mr-2" />
                 Connect Xero
               </button>
+            ) : (
+              <>
+                <button
+                  onClick={handleSync}
+                  disabled={syncing}
+                  className="px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-lg hover:bg-emerald-600/30 transition-colors flex items-center"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                  {syncing ? 'Syncing...' : 'Sync Transactions'}
+                </button>
+                <button
+                  onClick={() => router.push('/bookkeeping/analytics')}
+                  className="px-4 py-2 bg-indigo-600/20 text-indigo-400 rounded-lg hover:bg-indigo-600/30 transition-colors"
+                >
+                  <BarChart3 className="h-4 w-4 inline mr-2" />
+                  Analytics
+                </button>
+              </>
             )}
-            <button 
-              onClick={() => setShowImportDialog(true)}
-              className="px-4 py-2 bg-cyan-600/20 text-cyan-400 rounded-lg hover:bg-cyan-600/30 transition-colors"
-            >
-              <Upload className="h-4 w-4 inline mr-2" />
-              Import SOPs
-            </button>
-            <button className="px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-lg hover:bg-emerald-600/30 transition-colors">
-              <Download className="h-4 w-4 inline mr-2" />
-              Export Report
-            </button>
             <select 
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
@@ -190,262 +280,473 @@ export default function BookkeepingDashboard() {
             <div className="absolute inset-0 w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
           </div>
         </div>
+      ) : !xeroStatus?.connected ? (
+        /* Connect to Xero CTA */
+        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-12 text-center">
+          <Cloud className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-semibold text-white mb-2">Connect to Xero</h2>
+          <p className="text-gray-400 mb-6 max-w-md mx-auto">
+            Connect your Xero account to sync bank transactions, manage reconciliations, and automate your bookkeeping workflow.
+          </p>
+          <button 
+            onClick={handleConnectXero}
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Cloud className="h-5 w-5 inline mr-2" />
+            Connect Xero Account
+          </button>
+        </div>
       ) : (
         <>
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-emerald-500/50 transition-all duration-300">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-emerald-500/20 rounded-xl">
-                  <FileText className="h-6 w-6 text-emerald-400" />
-                </div>
-                <span className="text-xs text-gray-500 uppercase tracking-wider">Total</span>
-              </div>
-              <div className="text-3xl font-bold text-white" data-testid="total-rules">{stats?.totalRules || 0}</div>
-              <div className="text-sm text-gray-400 mt-1">Categorization Rules</div>
-            </div>
-          </div>
-
-          <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-cyan-500/50 transition-all duration-300">
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-cyan-500/20 rounded-xl">
-                  <CheckCircle className="h-6 w-6 text-cyan-400" />
-                </div>
-                <span className="text-xs text-gray-500 uppercase tracking-wider">Active</span>
-              </div>
-              <div className="text-3xl font-bold text-white" data-testid="active-rules">{stats?.activeRules || 0}</div>
-              <div className="text-sm text-gray-400 mt-1">Active Rules</div>
-            </div>
-          </div>
-
-          <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-amber-500/50 transition-all duration-300">
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-amber-500/20 rounded-xl">
-                  <AlertCircle className="h-6 w-6 text-amber-400" />
-                </div>
-                <span className="text-xs text-gray-500 uppercase tracking-wider">Inactive</span>
-              </div>
-              <div className="text-3xl font-bold text-white" data-testid="inactive-rules">{stats?.inactiveRules || 0}</div>
-              <div className="text-sm text-gray-400 mt-1">Inactive Rules</div>
-            </div>
-          </div>
-
-          <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-purple-500/50 transition-all duration-300">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-purple-500/20 rounded-xl">
-                  <BarChart3 className="h-6 w-6 text-purple-400" />
-                </div>
-                <span className="text-xs text-gray-500 uppercase tracking-wider">This Month</span>
-              </div>
-              <div className="text-3xl font-bold text-white">0</div>
-              <div className="text-sm text-gray-400 mt-1">Processed Transactions</div>
-              <div className="mt-3 text-xs text-purple-400">
-                <Calendar className="h-3 w-3 inline mr-1" />
-                No data yet
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Quick Actions */}
-          <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6" data-testid="quick-actions">
-            <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
-              <div className="w-1 h-6 bg-emerald-500 rounded-full mr-3" />
-              Quick Actions
-            </h2>
-            <div className="space-y-3">
-              <button
-                onClick={() => router.push('/bookkeeping/rules/new')}
-                className="w-full px-4 py-3 bg-emerald-600/20 text-emerald-400 rounded-xl hover:bg-emerald-600/30 transition-all duration-200 flex items-center justify-center group"
-              >
-                <Plus className="h-4 w-4 mr-2 group-hover:rotate-90 transition-transform" />
-                Create New Rule
-              </button>
-              <button
-                onClick={() => router.push('/bookkeeping/rules')}
-                className="w-full px-4 py-3 bg-slate-700/50 text-gray-300 rounded-xl hover:bg-slate-700/70 hover:text-white transition-all duration-200 flex items-center justify-center"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                View All Rules
-              </button>
-              <button
-                onClick={() => router.push('/bookkeeping/import')}
-                className="w-full px-4 py-3 bg-slate-700/50 text-gray-300 rounded-xl hover:bg-slate-700/70 hover:text-white transition-all duration-200 flex items-center justify-center"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Import Rules
-              </button>
-              <button
-                onClick={() => router.push('/bookkeeping/test')}
-                className="w-full px-4 py-3 bg-slate-700/50 text-gray-300 rounded-xl hover:bg-slate-700/70 hover:text-white transition-all duration-200 flex items-center justify-center"
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                Test Rules
-              </button>
-              {xeroStatus?.connected && (
-                <button
-                  onClick={() => router.push('/bookkeeping/transactions')}
-                  className="w-full px-4 py-3 bg-cyan-600/20 text-cyan-400 rounded-xl hover:bg-cyan-600/30 transition-all duration-200 flex items-center justify-center"
-                >
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  View Transactions
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Recent Activity */}
-          <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6" data-testid="recent-activity">
-            <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
-              <div className="w-1 h-6 bg-cyan-500 rounded-full mr-3" />
-              Recent Activity
-            </h2>
-            {stats?.recentActivity && stats.recentActivity.length > 0 ? (
-              <div className="space-y-3">
-                {stats.recentActivity.map((activity, index) => (
-                  <div key={activity.id} className="group flex items-center justify-between p-3 bg-slate-900/50 rounded-xl hover:bg-slate-900/70 transition-colors">
-                    <div className="flex items-center space-x-3">
-                      <div className="relative">
-                        <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                          <Activity className="h-4 w-4 text-emerald-400" />
-                        </div>
-                        {index === 0 && (
-                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="text-sm text-white group-hover:text-emerald-400 transition-colors">
-                          {activity.ruleName}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {activity.type === 'rule_created' ? 'Rule created' : activity.type}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(activity.timestamp).toLocaleDateString()}
-                    </div>
+          {/* Financial Overview Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            {/* Cash in Bank */}
+            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-emerald-500/50 transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-emerald-500/20 rounded-xl">
+                    <Building2 className="h-6 w-6 text-emerald-400" />
                   </div>
-                ))}
+                  <span className="text-xs text-gray-500 uppercase tracking-wider">Total</span>
+                </div>
+                <div className="text-3xl font-bold text-white">
+                  {formatCurrency(stats?.financial.cashInBank || 0)}
+                </div>
+                <div className="text-sm text-gray-400 mt-1">Cash in Bank</div>
               </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Activity className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                <p>No recent activity</p>
-              </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* System Status */}
-        <div className="mt-8 bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6" data-testid="system-status">
-          <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
-            <div className="w-1 h-6 bg-purple-500 rounded-full mr-3" />
-            System Status
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-700/50">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  {xeroStatus?.connected ? (
-                    <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
-                      <CheckCircle className="h-5 w-5 text-green-400" />
+            {/* Monthly Income */}
+            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-green-500/50 transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-green-500/20 rounded-xl">
+                    <TrendingUp className="h-6 w-6 text-green-400" />
+                  </div>
+                  <span className={`text-xs font-medium ${
+                    (stats?.financial.periodComparison.incomeChange ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {(stats?.financial.periodComparison.incomeChange ?? 0) >= 0 ? '+' : ''}
+                    {(stats?.financial.periodComparison.incomeChange ?? 0).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="text-3xl font-bold text-white">
+                  {formatCurrency(stats?.financial.monthlyIncome || 0)}
+                </div>
+                <div className="text-sm text-gray-400 mt-1">Income ({timeRange})</div>
+              </div>
+            </div>
+
+            {/* Monthly Expenses */}
+            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-red-500/50 transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-red-500/20 rounded-xl">
+                    <TrendingDown className="h-6 w-6 text-red-400" />
+                  </div>
+                  <span className={`text-xs font-medium ${
+                    (stats?.financial.periodComparison.expenseChange ?? 0) <= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {(stats?.financial.periodComparison.expenseChange ?? 0) >= 0 ? '+' : ''}
+                    {(stats?.financial.periodComparison.expenseChange ?? 0).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="text-3xl font-bold text-white">
+                  {formatCurrency(stats?.financial.monthlyExpenses || 0)}
+                </div>
+                <div className="text-sm text-gray-400 mt-1">Expenses ({timeRange})</div>
+              </div>
+            </div>
+
+            {/* Net Cash Flow */}
+            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-cyan-500/50 transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-cyan-500/20 rounded-xl">
+                    <Wallet className="h-6 w-6 text-cyan-400" />
+                  </div>
+                  <Activity className="h-4 w-4 text-gray-400" />
+                </div>
+                <div className={`text-3xl font-bold ${
+                  (stats?.financial.netCashFlow ?? 0) >= 0 ? 'text-white' : 'text-red-400'
+                }`}>
+                  {formatCurrency(stats?.financial.netCashFlow || 0)}
+                </div>
+                <div className="text-sm text-gray-400 mt-1">Net Cash Flow</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Bookkeeping Apps */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-white mb-6">Bookkeeping Tools</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* SOP Generator */}
+              <button
+                onClick={() => router.push('/bookkeeping/sop-generator')}
+                className="group relative overflow-hidden bg-gradient-to-br from-emerald-600/20 to-cyan-600/20 border border-emerald-500/30 rounded-2xl p-6 hover:border-emerald-500 transition-all duration-300 text-left"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative z-10">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 bg-emerald-500/20 rounded-xl">
+                      <Zap className="h-8 w-8 text-emerald-400 group-hover:animate-pulse" />
                     </div>
-                  ) : (
-                    <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
-                      <AlertCircle className="h-5 w-5 text-red-400" />
+                    <span className="px-2 py-1 bg-emerald-500/20 rounded text-xs text-emerald-400 font-medium">NEW</span>
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">SOP Generator</h3>
+                  <p className="text-sm text-gray-400 line-clamp-2">
+                    Generate Standard Operating Procedure codes for Xero transactions
+                  </p>
+                </div>
+              </button>
+
+              {/* All Transactions */}
+              <button
+                onClick={() => router.push('/bookkeeping/transactions')}
+                className="group relative overflow-hidden bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl p-6 hover:border-purple-500 transition-all duration-300 text-left"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative z-10">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 bg-purple-500/20 rounded-xl">
+                      <Receipt className="h-8 w-8 text-purple-400" />
                     </div>
-                  )}
-                  <div>
-                    <div className="text-sm font-medium text-white">Xero Connection</div>
-                    <div className="text-xs text-gray-500">
-                      {xeroStatus?.connected ? 'Connected' : 'Not Connected'}
-                    </div>
-                    {xeroStatus?.organization && (
-                      <div className="text-xs text-gray-400 mt-1">
-                        Organization: {xeroStatus.organization.tenantName}
-                      </div>
+                    {(stats?.reconciliation.totalUnreconciled ?? 0) > 0 && (
+                      <span className="px-2 py-1 bg-amber-500/20 rounded text-xs text-amber-400 font-medium">
+                        {stats?.reconciliation.totalUnreconciled} new
+                      </span>
                     )}
                   </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">Transactions</h3>
+                  <p className="text-sm text-gray-400 line-clamp-2">
+                    View, reconcile and categorize all bank transactions
+                  </p>
                 </div>
-                {xeroStatus?.connected && (
+              </button>
+
+              {/* Manage Rules */}
+              <button
+                onClick={() => router.push('/bookkeeping/rules')}
+                className="group relative overflow-hidden bg-gradient-to-br from-indigo-600/20 to-blue-600/20 border border-indigo-500/30 rounded-2xl p-6 hover:border-indigo-500 transition-all duration-300 text-left"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative z-10">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 bg-indigo-500/20 rounded-xl">
+                      <Settings className="h-8 w-8 text-indigo-400" />
+                    </div>
+                    {(stats?.automation.activeRules ?? 0) > 0 && (
+                      <span className="px-2 py-1 bg-green-500/20 rounded text-xs text-green-400 font-medium">
+                        {stats?.automation.activeRules} active
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">Automation Rules</h3>
+                  <p className="text-sm text-gray-400 line-clamp-2">
+                    Create rules to auto-categorize transactions
+                  </p>
+                </div>
+              </button>
+
+              {/* SOP Tables */}
+              <button
+                onClick={() => router.push('/bookkeeping/sop-tables')}
+                className="group relative overflow-hidden bg-gradient-to-br from-cyan-600/20 to-teal-600/20 border border-cyan-500/30 rounded-2xl p-6 hover:border-cyan-500 transition-all duration-300 text-left"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative z-10">
+                  <div className="mb-4">
+                    <div className="p-3 bg-cyan-500/20 rounded-xl">
+                      <FileText className="h-8 w-8 text-cyan-400" />
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">SOP Tables</h3>
+                  <p className="text-sm text-gray-400 line-clamp-2">
+                    View complete Standard Operating Procedure reference tables
+                  </p>
+                </div>
+              </button>
+              
+              {/* Chart of Accounts */}
+              <button
+                onClick={() => router.push('/bookkeeping/chart-of-accounts')}
+                className="group relative overflow-hidden bg-gradient-to-br from-amber-600/20 to-orange-600/20 border border-amber-500/30 rounded-2xl p-6 hover:border-amber-500 transition-all duration-300 text-left"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative z-10">
+                  <div className="mb-4">
+                    <div className="p-3 bg-amber-500/20 rounded-xl">
+                      <BookOpen className="h-8 w-8 text-amber-400" />
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">Chart of Accounts</h3>
+                  <p className="text-sm text-gray-400 line-clamp-2">
+                    View and sync GL accounts from Xero
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Bank Accounts */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Bank Accounts Section */}
+              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold text-white flex items-center">
+                    <div className="w-1 h-6 bg-cyan-500 rounded-full mr-3" />
+                    Bank Accounts
+                  </h2>
+                  <span className="text-sm text-gray-400">
+                    {stats?.bankAccounts.length || 0} accounts
+                  </span>
+                </div>
+                
+                <div className="space-y-4">
+                  {stats?.bankAccounts.map((account) => (
+                    <div
+                      key={account.id}
+                      className="p-4 bg-slate-900/50 rounded-xl hover:bg-slate-900/70 transition-colors cursor-pointer"
+                      onClick={() => router.push('/bookkeeping/transactions')}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <CreditCard className="h-5 w-5 text-gray-400" />
+                            <div>
+                              <h3 className="font-medium text-white">{account.name}</h3>
+                              <p className="text-sm text-gray-400">
+                                {account.unreconciledCount > 0 ? (
+                                  <span className="text-amber-400">
+                                    {account.unreconciledCount} unreconciled
+                                  </span>
+                                ) : (
+                                  <span className="text-green-400">All reconciled</span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-semibold text-white">
+                            {formatCurrency(account.balance, account.currency)}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Updated {new Date(account.lastUpdated).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {(!stats?.bankAccounts || stats.bankAccounts.length === 0) && (
+                    <div className="text-center py-8 text-gray-400">
+                      <Building2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No bank accounts found</p>
+                      <button 
+                        onClick={handleSync}
+                        className="mt-2 text-emerald-400 hover:text-emerald-300"
+                      >
+                        Sync from Xero
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Recent Transactions */}
+              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold text-white flex items-center">
+                    <div className="w-1 h-6 bg-purple-500 rounded-full mr-3" />
+                    Recent Transactions
+                  </h2>
                   <button
-                    onClick={handleDisconnectXero}
-                    disabled={disconnecting}
-                    className="px-3 py-1 text-xs bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors flex items-center gap-1"
+                    onClick={() => router.push('/bookkeeping/transactions')}
+                    className="text-sm text-purple-400 hover:text-purple-300"
                   >
-                    <LogOut className="h-3 w-3" />
-                    {disconnecting ? 'Disconnecting...' : 'Disconnect'}
+                    View all →
                   </button>
-                )}
-              </div>
-              <div className="h-1 bg-slate-700 rounded-full overflow-hidden">
-                <div className={`h-full ${xeroStatus?.connected ? 'bg-green-500' : 'bg-red-500'} rounded-full`} style={{width: xeroStatus?.connected ? '100%' : '0%'}} />
+                </div>
+                
+                <div className="space-y-3">
+                  {stats?.recentTransactions?.slice(0, 5).map((transaction) => (
+                    <div
+                      key={transaction.id}
+                      className="flex items-center justify-between p-3 bg-slate-900/50 rounded-xl hover:bg-slate-900/70 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${
+                          transaction.type === 'RECEIVE' 
+                            ? 'bg-green-500/20' 
+                            : 'bg-red-500/20'
+                        }`}>
+                          {transaction.type === 'RECEIVE' ? (
+                            <TrendingUp className="h-4 w-4 text-green-400" />
+                          ) : (
+                            <TrendingDown className="h-4 w-4 text-red-400" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-white">
+                            {transaction.description}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {new Date(transaction.date).toLocaleDateString()} • {transaction.bankAccount}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-sm font-medium ${
+                          transaction.type === 'RECEIVE' 
+                            ? 'text-green-400' 
+                            : 'text-red-400'
+                        }`}>
+                          {transaction.type === 'RECEIVE' ? '+' : '-'}
+                          {formatCurrency(Math.abs(transaction.amount))}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {transaction.status === 'reconciled' ? (
+                            <span className="text-green-400">✓</span>
+                          ) : (
+                            <span className="text-amber-400">Pending</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {(!stats?.recentTransactions || stats.recentTransactions.length === 0) && (
+                    <div className="text-center py-8 text-gray-400">
+                      <Receipt className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No recent transactions</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-            
-            <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-700/50">
-              <div className="flex items-center space-x-3 mb-3">
-                <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
-                  <Zap className="h-5 w-5 text-cyan-400" />
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-white">Automation</div>
-                  <div className="text-xs text-gray-500">
-                    {stats?.systemStatus?.automationEnabled ? 'Enabled' : 'Disabled'}
+
+            {/* Right Column */}
+            <div className="space-y-6">
+              {/* Reconciliation Status */}
+              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+                <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
+                  <div className="w-1 h-6 bg-amber-500 rounded-full mr-3" />
+                  Reconciliation
+                </h2>
+                
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-white mb-2">
+                      {stats?.reconciliation.totalUnreconciled || 0}
+                    </div>
+                    <p className="text-sm text-gray-400">Unreconciled Transactions</p>
                   </div>
+                  
+                  {(stats?.reconciliation.totalUnreconciled ?? 0) > 0 && (
+                    <>
+                      <div className="h-px bg-slate-700" />
+                      <div className="space-y-3">
+                        {(stats?.reconciliation.needsAttention ?? 0) > 0 && (
+                          <div className="flex items-center justify-between p-3 bg-amber-500/10 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle className="h-4 w-4 text-amber-400" />
+                              <span className="text-sm text-amber-400">Needs Attention</span>
+                            </div>
+                            <span className="text-sm font-medium text-amber-400">
+                              {stats?.reconciliation.needsAttention} accounts
+                            </span>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => router.push('/bookkeeping/transactions?filter=unreconciled')}
+                          className="w-full px-4 py-3 bg-amber-600/20 text-amber-400 rounded-xl hover:bg-amber-600/30 transition-all"
+                        >
+                          <CheckCircle className="h-4 w-4 inline mr-2" />
+                          Start Reconciling
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
-              <div className="h-1 bg-slate-700 rounded-full overflow-hidden">
-                <div className={`h-full ${stats?.systemStatus?.automationEnabled ? 'bg-cyan-500' : 'bg-gray-500'} rounded-full`} style={{width: stats?.systemStatus?.automationEnabled ? '100%' : '0%'}} />
-              </div>
-            </div>
-            
-            <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-700/50">
-              <div className="flex items-center space-x-3 mb-3">
-                <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                  <Cloud className="h-5 w-5 text-purple-400" />
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-white">Last Sync</div>
-                  <div className="text-xs text-gray-500">
-                    {stats?.systemStatus?.lastSync 
-                      ? new Date(stats.systemStatus.lastSync).toLocaleDateString()
-                      : 'Never'
-                    }
+
+
+              {/* Automation Status */}
+              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+                <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
+                  <div className="w-1 h-6 bg-indigo-500 rounded-full mr-3" />
+                  Automation
+                </h2>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Active Rules</span>
+                    <span className="text-sm font-medium text-white">
+                      {stats?.automation.activeRules || 0} / {stats?.automation.totalRules || 0}
+                    </span>
                   </div>
+                  
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-gray-400">Match Rate</span>
+                      <span className="text-sm font-medium text-white">
+                        {stats?.automation.matchRate || 0}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-700 rounded-full h-2">
+                      <div 
+                        className="bg-indigo-500 h-2 rounded-full transition-all"
+                        style={{ width: `${stats?.automation.matchRate || 0}%` }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => router.push('/bookkeeping/rules')}
+                    className="w-full text-sm text-indigo-400 hover:text-indigo-300"
+                  >
+                    Configure Rules →
+                  </button>
                 </div>
-              </div>
-              <div className="h-1 bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-purple-500 rounded-full" style={{width: stats?.systemStatus?.lastSync ? '100%' : '0%'}} />
               </div>
             </div>
           </div>
-        </div>
-      </>
+
+          {/* Xero Connection Status */}
+          <div className="mt-8 bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-green-500/20 rounded-xl">
+                  <Cloud className="h-6 w-6 text-green-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Xero Connection</h3>
+                  <p className="text-sm text-gray-400">
+                    Connected to {xeroStatus?.organization?.tenantName}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleDisconnectXero}
+                disabled={disconnecting}
+                className="px-4 py-2 text-sm bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors flex items-center gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                {disconnecting ? 'Disconnecting...' : 'Disconnect'}
+              </button>
+            </div>
+          </div>
+        </>
       )}
       
-      {/* Import Dialog */}
-      {showImportDialog && (
-        <ImportDialog 
-          onClose={() => setShowImportDialog(false)}
-          onImportComplete={() => {
-            fetchStats()
-            toast.success('Rules imported successfully')
-          }}
-        />
-      )}
-      
-      <Toaster position="top-right" />
     </div>
   )
 }

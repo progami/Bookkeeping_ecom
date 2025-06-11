@@ -7,7 +7,7 @@ const prisma = new PrismaClient()
 // POST - Import initial SOPs from static data
 export async function POST(request: NextRequest) {
   try {
-    const allSops = []
+    const allSops: any[] = []
     
     // Convert static SOP data to database format
     Object.entries(sopData).forEach(([year, yearData]) => {
@@ -34,8 +34,7 @@ export async function POST(request: NextRequest) {
     
     // Insert all SOPs
     const result = await prisma.standardOperatingProcedure.createMany({
-      data: allSops,
-      skipDuplicates: true
+      data: allSops
     })
 
     return NextResponse.json({

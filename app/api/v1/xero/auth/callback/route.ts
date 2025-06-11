@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createXeroClient, storeTokenSet } from '@/lib/xero-client';
-import { stateStore } from '../route';
+import { stateStore } from '@/lib/oauth-state';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -56,11 +56,13 @@ export async function GET(request: NextRequest) {
   
   try {
     // Exchange code for token
-    const xero = createXeroClient();
+    // Pass the state to the XeroClient constructor
+    const xero = createXeroClient(storedState || state || undefined);
     
     console.log('Exchanging code for token...');
     console.log('Code:', code);
     console.log('Redirect URI:', xeroConfig.redirectUris[0]);
+    console.log('State configured in client:', storedState || state);
     
     // The Xero SDK requires openid-client to be initialized first
     await xero.initialize();
@@ -70,7 +72,9 @@ export async function GET(request: NextRequest) {
     console.log('Full callback URL:', fullCallbackUrl);
     
     try {
-      // The apiCallback expects the full callback URL with code
+      // The apiCallback only takes the callback URL as parameter
+      // The state is checked internally using the state configured in the XeroClient
+      console.log('Calling apiCallback...');
       const tokenSet = await xero.apiCallback(fullCallbackUrl);
       
       console.log('Token exchange successful!');
