@@ -44,38 +44,56 @@ export async function GET(request: NextRequest) {
       : 100;
 
     // Transform accounts data
-    const accounts = await Promise.all(dbAccounts.map(async (account) => {
-      // Calculate balance from transactions
-      const transactions = await prisma.bankTransaction.findMany({
-        where: {
-          bankAccountId: account.id,
-          status: { not: 'DELETED' }
-        }
-      });
-      
-      let balance = 0;
-      transactions.forEach(tx => {
-        if (tx.type === 'RECEIVE') {
-          balance += tx.amount;
-        } else {
-          balance -= tx.amount;
-        }
-      });
-
-      return {
-        id: account.id,
-        xeroAccountId: account.xeroAccountId,
-        name: account.name,
-        code: account.code,
-        currencyCode: account.currencyCode || 'GBP',
-        balance: balance,
-        status: account.status,
-        bankName: account.bankName,
-        accountNumber: account.accountNumber,
-        unreconciledTransactions: account._count.transactions,
-        lastSynced: account.updatedAt
-      };
+    const accounts = dbAccounts.map(account => ({
+      id: account.id,
+      xeroAccountId: account.xeroAccountId,
+      name: account.name,
+      code: account.code,
+      currencyCode: account.currencyCode || 'GBP',
+      balance: account.balance || 0, // Use stored balance
+      status: account.status,
+      bankName: account.bankName,
+      accountNumber: account.accountNumber,
+      unreconciledTransactions: account._count.transactions,
+      lastSynced: account.balanceLastUpdated || account.updatedAt
     }));
+
+    // Try to get actual balances from Xero
+    try {
+      const { getXeroClient } = await import('@/lib/xero-client');
+      const xero = await getXeroClient();
+      
+      if (xero) {
+        await xero.updateTenants();
+        const tenant = xero.tenants[0];
+        
+        // Get bank accounts from Xero with current balances
+        const xeroResponse = await xero.accountingApi.getAccounts(
+          tenant.tenantId,
+          undefined,
+          'Type=="BANK"',
+          undefined,
+          undefined
+        );
+        
+        if (xeroResponse.body.accounts) {
+          // Update balances from Xero
+          for (const account of accounts) {
+            const xeroAccount = xeroResponse.body.accounts.find(
+              xa => xa.accountID === account.xeroAccountId
+            );
+            
+            if (xeroAccount) {
+              // Xero provides balance in the account object
+              account.balance = xeroAccount.balance || 0;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Could not fetch Xero balances:', error);
+      // Continue with zero balances if Xero is not connected
+    }
 
     return NextResponse.json({
       accounts,
