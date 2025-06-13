@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getXeroClient } from '@/lib/xero-client';
+import { RowType } from 'xero-node';
 
 export async function GET(request: NextRequest) {
   try {
@@ -109,7 +110,7 @@ export async function GET(request: NextRequest) {
               
               // Find bank accounts section in the balance sheet
               for (const row of report.rows || []) {
-                if ((row as any).rowType === 'Section' && row.title?.includes('Bank')) {
+                if ((row as any).rowType === RowType.Section && row.title?.includes('Bank')) {
                   // Process bank account rows
                   for (const accountRow of row.rows || []) {
                     if (accountRow.cells) {

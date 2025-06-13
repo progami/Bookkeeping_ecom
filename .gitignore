@@ -19,6 +19,7 @@
 # misc
 .DS_Store
 *.pem
+certificates/
 
 # debug
 npm-debug.log*
@@ -52,3 +53,7 @@ playwright/.cache/
 
 # logs
 /logs
+
+# MCP configuration (contains sensitive credentials)
+.mcp.json
+claude-mcp-config.json

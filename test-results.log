@@ -1,0 +1,103 @@
+
+> bookkeeping-standalone@0.1.0 test
+> vitest
+
+
+ RUN  v3.2.3 /Users/jarraramjad/Documents/ecom_os/bookkeeping
+
+ ✓ tests/business-logic/xero-rate-limiter.spec.ts (15 tests) 17ms
+ ✓ tests/api/analytics/top-vendors.test.ts (13 tests) 54ms
+ ✓ tests/business-logic/budget-import-export.spec.ts (13 tests) 14ms
+ ✓ tests/business-logic/cashflow-engine.spec.ts (10 tests) 22ms
+ ✓ tests/components/analytics/analytics-page.test.tsx (17 tests) 276ms
+ ✓ tests/components/analytics/vendors-page.test.tsx (19 tests) 393ms
+ ✓ tests/business-logic/uk-tax-calculator.spec.ts (12 tests) 7ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/chart-of-accounts.spec.ts [ tests/chart-of-accounts.spec.ts ]
+Error: Playwright Test did not expect test.describe() to be called here.
+Most common reasons include:
+- You are calling test.describe() in a configuration file.
+- You are calling test.describe() in a file that is imported by the configuration file.
+- You have two different versions of @playwright/test. This usually happens
+  when one of the dependencies in your package.json depends on @playwright/test.
+ ❯ TestTypeImpl._currentSuite node_modules/playwright/lib/common/testType.js:74:13
+ ❯ TestTypeImpl._describe node_modules/playwright/lib/common/testType.js:114:24
+ ❯ Function.describe node_modules/playwright/lib/transform/transform.js:273:12
+ ❯ tests/chart-of-accounts.spec.ts:3:6
+      1| import { test, expect } from '@playwright/test';
+      2| 
+      3| test.describe('Chart of Accounts Page', () => {
+       |      ^
+      4|   test.beforeEach(async ({ page }) => {
+      5|     // Navigate to the Chart of Accounts page
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/e2e/cashflow-budget-management.spec.ts [ tests/e2e/cashflow-budget-management.spec.ts ]
+Error: Playwright Test did not expect test.describe() to be called here.
+Most common reasons include:
+- You are calling test.describe() in a configuration file.
+- You are calling test.describe() in a file that is imported by the configuration file.
+- You have two different versions of @playwright/test. This usually happens
+  when one of the dependencies in your package.json depends on @playwright/test.
+ ❯ TestTypeImpl._currentSuite node_modules/playwright/lib/common/testType.js:74:13
+ ❯ TestTypeImpl._describe node_modules/playwright/lib/common/testType.js:114:24
+ ❯ Function.describe node_modules/playwright/lib/transform/transform.js:273:12
+ ❯ tests/e2e/cashflow-budget-management.spec.ts:5:6
+      3| import fs from 'fs'
+      4| 
+      5| test.describe('Cash Flow Budget Management', () => {
+       |      ^
+      6|   test.beforeEach(async ({ page }) => {
+      7|     // Navigate to cash flow page
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/e2e/cashflow-dashboard.spec.ts [ tests/e2e/cashflow-dashboard.spec.ts ]
+Error: Playwright Test did not expect test.describe() to be called here.
+Most common reasons include:
+- You are calling test.describe() in a configuration file.
+- You are calling test.describe() in a file that is imported by the configuration file.
+- You have two different versions of @playwright/test. This usually happens
+  when one of the dependencies in your package.json depends on @playwright/test.
+ ❯ TestTypeImpl._currentSuite node_modules/playwright/lib/common/testType.js:74:13
+ ❯ TestTypeImpl._describe node_modules/playwright/lib/common/testType.js:114:24
+ ❯ Function.describe node_modules/playwright/lib/transform/transform.js:273:12
+ ❯ tests/e2e/cashflow-dashboard.spec.ts:3:6
+      1| import { test, expect } from '@playwright/test'
+      2| 
+      3| test.describe('Cash Flow Dashboard', () => {
+       |      ^
+      4|   test.beforeEach(async ({ page }) => {
+      5|     // Navigate to finance dashboard first
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/e2e/cashflow-sync.spec.ts [ tests/e2e/cashflow-sync.spec.ts ]
+Error: Playwright Test did not expect test.describe() to be called here.
+Most common reasons include:
+- You are calling test.describe() in a configuration file.
+- You are calling test.describe() in a file that is imported by the configuration file.
+- You have two different versions of @playwright/test. This usually happens
+  when one of the dependencies in your package.json depends on @playwright/test.
+ ❯ TestTypeImpl._currentSuite node_modules/playwright/lib/common/testType.js:74:13
+ ❯ TestTypeImpl._describe node_modules/playwright/lib/common/testType.js:114:24
+ ❯ Function.describe node_modules/playwright/lib/transform/transform.js:273:12
+ ❯ tests/e2e/cashflow-sync.spec.ts:3:6
+      1| import { test, expect } from '@playwright/test'
+      2| 
+      3| test.describe('Cash Flow Sync Functionality', () => {
+       |      ^
+      4|   test.beforeEach(async ({ page }) => {
+      5|     // Navigate to cash flow page
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  4 failed | 7 passed (11)
+      Tests  99 passed (99)
+   Start at  06:41:02
+   Duration  1.99s (transform 583ms, setup 1.17s, collect 1.25s, tests 784ms, environment 5.31s, prepare 1.01s)
+

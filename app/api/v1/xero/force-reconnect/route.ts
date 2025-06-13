@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     cookieStore.delete('xero_state');
     
     // Return the auth URL for reconnection
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3003';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3003';
     const authUrl = `${baseUrl}/api/v1/xero/auth`;
     
     return NextResponse.json({

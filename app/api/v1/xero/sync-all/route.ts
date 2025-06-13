@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
       where: { id: syncLog.id },
       data: {
         status: 'success',
-        completedAt: new Date(),
+        completedAt: new Date().toISOString().split('T')[0],
         recordsCreated: createdTransactions,
         recordsUpdated: updatedTransactions,
         details: JSON.stringify({
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
       where: { id: syncLog.id },
       data: {
         status: 'failed',
-        completedAt: new Date(),
+        completedAt: new Date().toISOString().split('T')[0],
         errorMessage: error.message
       }
     });

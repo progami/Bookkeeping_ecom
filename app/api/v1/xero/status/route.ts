@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClient } from '@/lib/xero-client';
 
+// Force dynamic rendering to ensure cookies work properly
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET(request: NextRequest) {
   try {
     console.log('Checking Xero status...');

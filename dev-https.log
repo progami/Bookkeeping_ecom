@@ -1,0 +1,35 @@
+
+> bookkeeping-standalone@0.1.0 dev:https
+> node server-https.js
+
+> Ready on https://localhost:3003
+> Using self-signed certificate for local development
+> You may need to accept the certificate warning in your browser
+(node:39325) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ Compiled /middleware in 154ms (73 modules)
+ ○ Compiling /bookkeeping/chart-of-accounts ...
+ ✓ Compiled /bookkeeping/chart-of-accounts in 1315ms (504 modules)
+ GET /bookkeeping/chart-of-accounts 200 in 1459ms
+ ✓ Compiled in 133ms (255 modules)
+ GET /bookkeeping/chart-of-accounts 200 in 18ms
+ GET /bookkeeping/chart-of-accounts 200 in 15ms
+ ✓ Compiled / in 202ms (472 modules)
+    Reload env: .env
+   Reload env: .env
+/v1/xero/auth
+[Middleware] Cookies: []
+ ○ Compiling /api/v1/xero/auth ...
+ ✓ Compiled /api/v1/xero/auth in 794ms (1030 modules)
+Built auth URL: https://login.xero.com/identity/connect/authorize?client_id=781184D1AD314CB6989EB8D2291AB453&scope=accounting.transactions%20accounting.settings%20accounting.reports.read%20offline_access&response_type=code&redirect_uri=https%3A%2F%2Flocalhost%3A3003%2Fapi%2Fv1%2Fxero%2Fauth%2Fcallback&state=ooq36l
+OAuth initiated with state: ooq36l
+States in memory: [ 'ooq36l' ]
+ GET /api/v1/xero/auth 307 in 1114ms
+ ✓ Compiled in 122ms (255 modules)
+ ✓ Compiled in 55ms (314 modules)
+   Reload env: .env
+ ✓ Compiled in 28ms (314 modules)
+   Reload env: .env
+ ✓ Compiled in 32ms (314 modules)
+ ✓ Compiled in 86ms (255 modules)
+ ✓ Compiled in 32ms (314 modules)

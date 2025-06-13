@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { ArrowLeft, FileText, Calendar, Package, Hash, Plus, Edit2, Trash2, Save, X, Upload, Download, AlertCircle, Check } from 'lucide-react'
+import { ArrowLeft, FileText, Calendar, Package, Plus, Edit2, Trash2, Save, X, Upload, Download, AlertCircle, Check, Grid3X3, TableProperties, ChevronUp, ChevronDown } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import toast, { Toaster } from 'react-hot-toast'
 import { sopData as initialSopData, rules, chartOfAccounts, departments, regions } from '@/lib/sop-data'
@@ -26,6 +26,8 @@ interface EditingRow {
   isNew: boolean
 }
 
+type ViewMode = 'card' | 'table'
+
 export default function SOPTablesPage() {
   const router = useRouter()
   const [year, setYear] = useState<'2024' | '2025'>('2025')
@@ -34,6 +36,8 @@ export default function SOPTablesPage() {
   const [editingRow, setEditingRow] = useState<EditingRow | null>(null)
   const [loading, setLoading] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>('table')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   // Load SOPs from database on mount
   useEffect(() => {
@@ -78,6 +82,15 @@ export default function SOPTablesPage() {
   const yearData = sopData[year] as any
   const accounts = Object.keys(yearData)
   const selectedData = selectedAccount ? yearData[selectedAccount] || [] : []
+  
+  // Sort accounts based on current sort order
+  const sortedAccounts = [...accounts].sort((a, b) => {
+    if (sortOrder === 'asc') {
+      return a.localeCompare(b)
+    } else {
+      return b.localeCompare(a)
+    }
+  })
 
   const handleEdit = (sop: any, index: number) => {
     setEditingRow({
@@ -298,390 +311,483 @@ export default function SOPTablesPage() {
     reader.readAsText(file)
   }
 
-  return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <Toaster position="top-right" />
-      
-      {/* Header */}
-      <div className="mb-8">
-        <button
-          onClick={() => router.push('/bookkeeping/sop-generator')}
-          className="text-gray-400 hover:text-white transition-colors mb-4 inline-flex items-center"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to SOP Generator
-        </button>
-        
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2 flex items-center">
-              <FileText className="h-8 w-8 mr-3 text-indigo-400" />
-              SOP Reference Tables
-            </h1>
-            <p className="text-gray-400">
-              Manage Standard Operating Procedures for {year}
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            {/* Import/Export */}
+  // Card View Component
+  const CardView = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {selectedData.map((item: any, index: number) => (
+        <div key={index} className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 hover:border-slate-600/50 transition-all">
+          <div className="flex justify-between items-start mb-4">
+            <h3 className="text-lg font-semibold text-white">{item.serviceType}</h3>
             <div className="flex gap-2">
               <button
-                onClick={exportToJSON}
-                className="px-4 py-2 bg-slate-700/50 text-gray-300 rounded-lg hover:bg-slate-700/70 hover:text-white transition-all flex items-center"
+                onClick={() => handleEdit(item, index)}
+                disabled={editingRow !== null || loading}
+                className="text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Edit"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Export
+                <Edit2 className="h-4 w-4" />
               </button>
-              <label className="px-4 py-2 bg-slate-700/50 text-gray-300 rounded-lg hover:bg-slate-700/70 hover:text-white transition-all flex items-center cursor-pointer">
-                <Upload className="h-4 w-4 mr-2" />
-                Import
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={importFromJSON}
-                  className="hidden"
-                />
-              </label>
+              <button
+                onClick={() => handleDelete(item, index)}
+                disabled={editingRow !== null || loading}
+                className="text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Delete"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          
+          {year === '2025' && item.pointOfInvoice && (
+            <div className="mb-3">
+              <span className="text-xs text-gray-400">Point of Invoice:</span>
+              <p className="text-sm text-gray-300">{item.pointOfInvoice}</p>
+            </div>
+          )}
+          
+          <div className="space-y-3">
+            <div>
+              <span className="text-xs text-gray-400">Reference Template:</span>
+              <p className="text-sm font-mono text-indigo-400 break-all">{item.referenceTemplate}</p>
+              {item.referenceExample && (
+                <p className="text-xs font-mono text-gray-500 mt-1">Example: {item.referenceExample}</p>
+              )}
             </div>
             
-            {/* Year Selector */}
+            <div>
+              <span className="text-xs text-gray-400">Description Template:</span>
+              <p className="text-sm font-mono text-emerald-400 break-all">{item.descriptionTemplate}</p>
+              {item.descriptionExample && (
+                <p className="text-xs font-mono text-gray-500 mt-1">Example: {item.descriptionExample}</p>
+              )}
+            </div>
+            
+            {item.note && (
+              <div>
+                <span className="text-xs text-gray-400">Note:</span>
+                <p className="text-sm text-gray-300">{item.note}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+
+  // Table View Component (existing table code)
+  const TableView = () => (
+    <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-slate-900/50 border-b border-slate-700">
+            <tr>
+              {year === '2025' && (
+                <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Point of Invoice
+                </th>
+              )}
+              <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Service Type <span className="text-red-400">*</span>
+              </th>
+              <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Reference Template <span className="text-red-400">*</span>
+              </th>
+              <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Reference Example
+              </th>
+              <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Description Template <span className="text-red-400">*</span>
+              </th>
+              <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Description Example
+              </th>
+              <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Note
+              </th>
+              <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-700/50">
+            {selectedData.map((item: any, index: number) => (
+              <tr key={index} className="hover:bg-slate-800/50 transition-colors">
+                {editingRow?.index === index && !editingRow.isNew ? (
+                  // Edit mode
+                  <>
+                    {year === '2025' && (
+                      <td className="p-4">
+                        <input
+                          type="text"
+                          value={editingRow.sop.pointOfInvoice || ''}
+                          onChange={(e) => handleFieldChange('pointOfInvoice', e.target.value)}
+                          className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm"
+                          placeholder="e.g., Any, 3PL, etc."
+                        />
+                      </td>
+                    )}
+                    <td className="p-4">
+                      <input
+                        type="text"
+                        value={editingRow.sop.serviceType}
+                        onChange={(e) => handleFieldChange('serviceType', e.target.value)}
+                        className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm"
+                        placeholder="Service type"
+                        required
+                      />
+                    </td>
+                    <td className="p-4">
+                      <input
+                        type="text"
+                        value={editingRow.sop.referenceTemplate}
+                        onChange={(e) => handleFieldChange('referenceTemplate', e.target.value)}
+                        className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
+                        placeholder="<Invoice#>..."
+                        required
+                      />
+                    </td>
+                    <td className="p-4">
+                      <input
+                        type="text"
+                        value={editingRow.sop.referenceExample}
+                        onChange={(e) => handleFieldChange('referenceExample', e.target.value)}
+                        className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
+                        placeholder="Example"
+                      />
+                    </td>
+                    <td className="p-4">
+                      <input
+                        type="text"
+                        value={editingRow.sop.descriptionTemplate}
+                        onChange={(e) => handleFieldChange('descriptionTemplate', e.target.value)}
+                        className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
+                        placeholder="<Department>..."
+                        required
+                      />
+                    </td>
+                    <td className="p-4">
+                      <input
+                        type="text"
+                        value={editingRow.sop.descriptionExample}
+                        onChange={(e) => handleFieldChange('descriptionExample', e.target.value)}
+                        className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
+                        placeholder="Example"
+                      />
+                    </td>
+                    <td className="p-4">
+                      <input
+                        type="text"
+                        value={editingRow.sop.note || ''}
+                        onChange={(e) => handleFieldChange('note', e.target.value)}
+                        className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm"
+                        placeholder="Optional note"
+                      />
+                    </td>
+                    <td className="p-4">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleSave}
+                          disabled={loading}
+                          className="text-emerald-400 hover:text-emerald-300 transition-colors"
+                          title="Save"
+                        >
+                          <Save className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={handleCancel}
+                          disabled={loading}
+                          className="text-gray-400 hover:text-white transition-colors"
+                          title="Cancel"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </>
+                ) : (
+                  // View mode
+                  <>
+                    {year === '2025' && (
+                      <td className="p-4 text-sm text-gray-300">
+                        {item.pointOfInvoice || '-'}
+                      </td>
+                    )}
+                    <td className="p-4 text-sm font-medium text-white">
+                      {item.serviceType}
+                    </td>
+                    <td className="p-4 text-sm text-gray-300 font-mono">
+                      {item.referenceTemplate}
+                    </td>
+                    <td className="p-4 text-sm text-indigo-400 font-mono">
+                      {item.referenceExample}
+                    </td>
+                    <td className="p-4 text-sm text-gray-300 font-mono">
+                      {item.descriptionTemplate}
+                    </td>
+                    <td className="p-4 text-sm text-emerald-400 font-mono">
+                      {item.descriptionExample}
+                    </td>
+                    <td className="p-4 text-sm text-gray-400">
+                      {item.note || '-'}
+                    </td>
+                    <td className="p-4">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(item, index)}
+                          disabled={editingRow !== null || loading}
+                          className="text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Edit"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item, index)}
+                          disabled={editingRow !== null || loading}
+                          className="text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+            
+            {/* New row */}
+            {editingRow?.isNew && (
+              <tr className="bg-emerald-900/10">
+                {year === '2025' && (
+                  <td className="p-4">
+                    <input
+                      type="text"
+                      value={editingRow.sop.pointOfInvoice || ''}
+                      onChange={(e) => handleFieldChange('pointOfInvoice', e.target.value)}
+                      className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm"
+                      placeholder="e.g., Any, 3PL, etc."
+                    />
+                  </td>
+                )}
+                <td className="p-4">
+                  <input
+                    type="text"
+                    value={editingRow.sop.serviceType}
+                    onChange={(e) => handleFieldChange('serviceType', e.target.value)}
+                    className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm"
+                    placeholder="Service type"
+                    required
+                  />
+                </td>
+                <td className="p-4">
+                  <input
+                    type="text"
+                    value={editingRow.sop.referenceTemplate}
+                    onChange={(e) => handleFieldChange('referenceTemplate', e.target.value)}
+                    className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
+                    placeholder="<Invoice#>..."
+                    required
+                  />
+                </td>
+                <td className="p-4">
+                  <input
+                    type="text"
+                    value={editingRow.sop.referenceExample}
+                    onChange={(e) => handleFieldChange('referenceExample', e.target.value)}
+                    className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
+                    placeholder="Example"
+                  />
+                </td>
+                <td className="p-4">
+                  <input
+                    type="text"
+                    value={editingRow.sop.descriptionTemplate}
+                    onChange={(e) => handleFieldChange('descriptionTemplate', e.target.value)}
+                    className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
+                    placeholder="<Department>..."
+                    required
+                  />
+                </td>
+                <td className="p-4">
+                  <input
+                    type="text"
+                    value={editingRow.sop.descriptionExample}
+                    onChange={(e) => handleFieldChange('descriptionExample', e.target.value)}
+                    className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
+                    placeholder="Example"
+                  />
+                </td>
+                <td className="p-4">
+                  <input
+                    type="text"
+                    value={editingRow.sop.note || ''}
+                    onChange={(e) => handleFieldChange('note', e.target.value)}
+                    className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm"
+                    placeholder="Optional note"
+                  />
+                </td>
+                <td className="p-4">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSave}
+                      disabled={loading}
+                      className="text-emerald-400 hover:text-emerald-300 transition-colors"
+                      title="Save"
+                    >
+                      <Save className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={handleCancel}
+                      disabled={loading}
+                      className="text-gray-400 hover:text-white transition-colors"
+                      title="Cancel"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="min-h-screen bg-slate-900">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <Toaster position="top-right" />
+        
+        {/* Header */}
+        <div className="mb-8">
+          <button
+            onClick={() => router.push('/bookkeeping')}
+            className="text-gray-400 hover:text-white transition-colors mb-4 inline-flex items-center"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Bookkeeping Dashboard
+          </button>
+          
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h1 className="text-4xl font-bold text-white mb-2 flex items-center">
+                <FileText className="h-8 w-8 mr-3 text-indigo-400" />
+                SOP Reference Tables
+              </h1>
+              <p className="text-gray-400">
+                Manage Standard Operating Procedures for {year}
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Import/Export */}
+              <div className="flex gap-2">
+                <button
+                  onClick={exportToJSON}
+                  className="px-4 py-2 bg-slate-800/50 text-gray-300 rounded-lg hover:bg-slate-800/70 hover:text-white transition-all flex items-center border border-slate-700"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </button>
+                <label className="px-4 py-2 bg-slate-800/50 text-gray-300 rounded-lg hover:bg-slate-800/70 hover:text-white transition-all flex items-center cursor-pointer border border-slate-700">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={importFromJSON}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+              
+              {/* Year Selector */}
+              <div className="flex bg-slate-800/50 rounded-lg p-1 border border-slate-700">
+                <button
+                  onClick={() => setYear('2024')}
+                  className={`px-4 py-2 rounded-md transition-all font-medium ${
+                    year === '2024'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  2024
+                </button>
+                <button
+                  onClick={() => setYear('2025')}
+                  className={`px-4 py-2 rounded-md transition-all font-medium ${
+                    year === '2025'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  2025
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      {/* View Mode Toggle and Actions - Only show when account is selected */}
+      {selectedAccount && (
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setSelectedAccount('')}
+              className="text-gray-400 hover:text-white transition-colors inline-flex items-center"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to All Accounts
+            </button>
+            <h2 className="text-xl font-semibold text-white">
+              {selectedAccount}
+            </h2>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {/* View Mode Toggle */}
             <div className="flex bg-slate-800/30 rounded-lg p-1">
               <button
-                onClick={() => setYear('2024')}
-                className={`px-4 py-2 rounded-md transition-all ${
-                  year === '2024'
+                onClick={() => setViewMode('table')}
+                className={`px-3 py-1.5 rounded-md transition-all flex items-center ${
+                  viewMode === 'table'
                     ? 'bg-indigo-600 text-white'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                2024
+                <TableProperties className="h-4 w-4 mr-1.5" />
+                Table
               </button>
               <button
-                onClick={() => setYear('2025')}
-                className={`px-4 py-2 rounded-md transition-all ${
-                  year === '2025'
+                onClick={() => setViewMode('card')}
+                className={`px-3 py-1.5 rounded-md transition-all flex items-center ${
+                  viewMode === 'card'
                     ? 'bg-indigo-600 text-white'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                2025
+                <Grid3X3 className="h-4 w-4 mr-1.5" />
+                Cards
               </button>
             </div>
+            
+            <button
+              onClick={handleAddNew}
+              disabled={editingRow !== null}
+              className="ml-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add New SOP
+            </button>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Account Selector */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex-1 max-w-md">
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            <Hash className="h-4 w-4 inline mr-1" />
-            Select Chart of Account
-          </label>
-          <select
-            value={selectedAccount}
-            onChange={(e) => setSelectedAccount(e.target.value)}
-            className="w-full px-4 py-2 bg-slate-800/50 text-white rounded-lg border border-slate-700 focus:border-indigo-500 focus:outline-none"
-          >
-            <option value="">Select an account to view/edit SOPs</option>
-            {accounts.map(account => (
-              <option key={account} value={account}>{account}</option>
-            ))}
-          </select>
-        </div>
-        
-        {selectedAccount && (
-          <button
-            onClick={handleAddNew}
-            disabled={editingRow !== null}
-            className="ml-4 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add New SOP
-          </button>
-        )}
-      </div>
-
-      {/* SOP Table */}
+      {/* SOP Display */}
       {selectedAccount ? (
         selectedData.length > 0 || editingRow?.isNew ? (
-          <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-900/50 border-b border-slate-700">
-                  <tr>
-                    {year === '2025' && (
-                      <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                        Point of Invoice
-                      </th>
-                    )}
-                    <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Service Type <span className="text-red-400">*</span>
-                    </th>
-                    <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Reference Template <span className="text-red-400">*</span>
-                    </th>
-                    <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Reference Example
-                    </th>
-                    <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Description Template <span className="text-red-400">*</span>
-                    </th>
-                    <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Description Example
-                    </th>
-                    <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Note
-                    </th>
-                    <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-700/50">
-                  {selectedData.map((item: any, index: number) => (
-                    <tr key={index} className="hover:bg-slate-800/50 transition-colors">
-                      {editingRow?.index === index && !editingRow.isNew ? (
-                        // Edit mode
-                        <>
-                          {year === '2025' && (
-                            <td className="p-4">
-                              <input
-                                type="text"
-                                value={editingRow.sop.pointOfInvoice || ''}
-                                onChange={(e) => handleFieldChange('pointOfInvoice', e.target.value)}
-                                className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm"
-                                placeholder="e.g., Any, 3PL, etc."
-                              />
-                            </td>
-                          )}
-                          <td className="p-4">
-                            <input
-                              type="text"
-                              value={editingRow.sop.serviceType}
-                              onChange={(e) => handleFieldChange('serviceType', e.target.value)}
-                              className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm"
-                              placeholder="Service type"
-                              required
-                            />
-                          </td>
-                          <td className="p-4">
-                            <input
-                              type="text"
-                              value={editingRow.sop.referenceTemplate}
-                              onChange={(e) => handleFieldChange('referenceTemplate', e.target.value)}
-                              className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
-                              placeholder="<Invoice#>..."
-                              required
-                            />
-                          </td>
-                          <td className="p-4">
-                            <input
-                              type="text"
-                              value={editingRow.sop.referenceExample}
-                              onChange={(e) => handleFieldChange('referenceExample', e.target.value)}
-                              className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
-                              placeholder="Example"
-                            />
-                          </td>
-                          <td className="p-4">
-                            <input
-                              type="text"
-                              value={editingRow.sop.descriptionTemplate}
-                              onChange={(e) => handleFieldChange('descriptionTemplate', e.target.value)}
-                              className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
-                              placeholder="<Department>..."
-                              required
-                            />
-                          </td>
-                          <td className="p-4">
-                            <input
-                              type="text"
-                              value={editingRow.sop.descriptionExample}
-                              onChange={(e) => handleFieldChange('descriptionExample', e.target.value)}
-                              className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
-                              placeholder="Example"
-                            />
-                          </td>
-                          <td className="p-4">
-                            <input
-                              type="text"
-                              value={editingRow.sop.note || ''}
-                              onChange={(e) => handleFieldChange('note', e.target.value)}
-                              className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm"
-                              placeholder="Optional note"
-                            />
-                          </td>
-                          <td className="p-4">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={handleSave}
-                                disabled={loading}
-                                className="text-emerald-400 hover:text-emerald-300 transition-colors"
-                                title="Save"
-                              >
-                                <Save className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={handleCancel}
-                                disabled={loading}
-                                className="text-gray-400 hover:text-white transition-colors"
-                                title="Cancel"
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </>
-                      ) : (
-                        // View mode
-                        <>
-                          {year === '2025' && (
-                            <td className="p-4 text-sm text-gray-300">
-                              {item.pointOfInvoice || '-'}
-                            </td>
-                          )}
-                          <td className="p-4 text-sm font-medium text-white">
-                            {item.serviceType}
-                          </td>
-                          <td className="p-4 text-sm text-gray-300 font-mono">
-                            {item.referenceTemplate}
-                          </td>
-                          <td className="p-4 text-sm text-indigo-400 font-mono">
-                            {item.referenceExample}
-                          </td>
-                          <td className="p-4 text-sm text-gray-300 font-mono">
-                            {item.descriptionTemplate}
-                          </td>
-                          <td className="p-4 text-sm text-emerald-400 font-mono">
-                            {item.descriptionExample}
-                          </td>
-                          <td className="p-4 text-sm text-gray-400">
-                            {item.note || '-'}
-                          </td>
-                          <td className="p-4">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleEdit(item, index)}
-                                disabled={editingRow !== null || loading}
-                                className="text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Edit"
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(item, index)}
-                                disabled={editingRow !== null || loading}
-                                className="text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Delete"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </>
-                      )}
-                    </tr>
-                  ))}
-                  
-                  {/* New row */}
-                  {editingRow?.isNew && (
-                    <tr className="bg-emerald-900/10">
-                      {year === '2025' && (
-                        <td className="p-4">
-                          <input
-                            type="text"
-                            value={editingRow.sop.pointOfInvoice || ''}
-                            onChange={(e) => handleFieldChange('pointOfInvoice', e.target.value)}
-                            className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm"
-                            placeholder="e.g., Any, 3PL, etc."
-                          />
-                        </td>
-                      )}
-                      <td className="p-4">
-                        <input
-                          type="text"
-                          value={editingRow.sop.serviceType}
-                          onChange={(e) => handleFieldChange('serviceType', e.target.value)}
-                          className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm"
-                          placeholder="Service type"
-                          required
-                        />
-                      </td>
-                      <td className="p-4">
-                        <input
-                          type="text"
-                          value={editingRow.sop.referenceTemplate}
-                          onChange={(e) => handleFieldChange('referenceTemplate', e.target.value)}
-                          className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
-                          placeholder="<Invoice#>..."
-                          required
-                        />
-                      </td>
-                      <td className="p-4">
-                        <input
-                          type="text"
-                          value={editingRow.sop.referenceExample}
-                          onChange={(e) => handleFieldChange('referenceExample', e.target.value)}
-                          className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
-                          placeholder="Example"
-                        />
-                      </td>
-                      <td className="p-4">
-                        <input
-                          type="text"
-                          value={editingRow.sop.descriptionTemplate}
-                          onChange={(e) => handleFieldChange('descriptionTemplate', e.target.value)}
-                          className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
-                          placeholder="<Department>..."
-                          required
-                        />
-                      </td>
-                      <td className="p-4">
-                        <input
-                          type="text"
-                          value={editingRow.sop.descriptionExample}
-                          onChange={(e) => handleFieldChange('descriptionExample', e.target.value)}
-                          className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm font-mono"
-                          placeholder="Example"
-                        />
-                      </td>
-                      <td className="p-4">
-                        <input
-                          type="text"
-                          value={editingRow.sop.note || ''}
-                          onChange={(e) => handleFieldChange('note', e.target.value)}
-                          className="w-full px-2 py-1 bg-slate-700/50 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-sm"
-                          placeholder="Optional note"
-                        />
-                      </td>
-                      <td className="p-4">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={handleSave}
-                            disabled={loading}
-                            className="text-emerald-400 hover:text-emerald-300 transition-colors"
-                            title="Save"
-                          >
-                            <Save className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={handleCancel}
-                            disabled={loading}
-                            className="text-gray-400 hover:text-white transition-colors"
-                            title="Cancel"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          viewMode === 'table' ? <TableView /> : <CardView />
         ) : (
           <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-12 text-center">
             <FileText className="h-16 w-16 text-gray-600 mx-auto mb-4" />
@@ -697,46 +803,110 @@ export default function SOPTablesPage() {
           </div>
         )
       ) : (
-        /* All Accounts Summary */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {accounts.map(account => {
-            const data = yearData[account]
-            const sopCount = data?.length || 0
-            
-            return (
-              <div 
-                key={account}
-                onClick={() => setSelectedAccount(account)}
-                className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 hover:bg-slate-800/50 hover:border-indigo-500/50 transition-all cursor-pointer"
-              >
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
-                  <div className="w-1 h-6 bg-indigo-500 rounded-full mr-3" />
-                  {account}
-                </h3>
-                {sopCount > 0 ? (
-                  <div className="space-y-2">
-                    {data.slice(0, 3).map((item: any, idx: number) => (
-                      <div key={idx} className="text-sm">
-                        <span className="text-indigo-400">{item.serviceType}</span>
-                      </div>
-                    ))}
-                    {sopCount > 3 && (
-                      <div className="text-sm text-gray-500">
-                        +{sopCount - 3} more...
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-sm text-gray-500 italic">
-                    No SOPs defined
-                  </div>
-                )}
-                <div className="mt-4 text-xs text-gray-500">
-                  {sopCount} SOP{sopCount !== 1 ? 's' : ''} defined
-                </div>
-              </div>
-            )
-          })}
+        /* All Accounts Summary Table */
+        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-900/50 border-b border-slate-700">
+                <tr>
+                  <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    <button
+                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                      className="flex items-center hover:text-white transition-colors"
+                    >
+                      Chart of Account
+                      {sortOrder === 'asc' ? (
+                        <ChevronUp className="h-4 w-4 ml-1" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 ml-1" />
+                      )}
+                    </button>
+                  </th>
+                  <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Service Types
+                  </th>
+                  <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Reference Template
+                  </th>
+                  <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Description Template
+                  </th>
+                  <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Total SOPs
+                  </th>
+                  <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/50">
+                {sortedAccounts.map(account => {
+                  const data = yearData[account]
+                  const sopCount = data?.length || 0
+                  
+                  // Get first SOP for template examples
+                  const firstSop = data?.[0] || {}
+                  
+                  return (
+                    <tr key={account} className="hover:bg-slate-800/50 transition-colors">
+                      <td className="p-4 text-sm font-medium text-white">
+                        {account}
+                      </td>
+                      <td className="p-4 text-sm text-gray-300">
+                        {sopCount > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {data.slice(0, 2).map((item: any, idx: number) => (
+                              <span key={idx} className="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded text-xs">
+                                {item.serviceType}
+                              </span>
+                            ))}
+                            {sopCount > 2 && (
+                              <span className="text-xs text-gray-500">
+                                +{sopCount - 2} more
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-500 italic">No SOPs defined</span>
+                        )}
+                      </td>
+                      <td className="p-4 text-xs font-mono text-indigo-400">
+                        {firstSop.referenceTemplate ? (
+                          <span className="line-clamp-1" title={firstSop.referenceTemplate}>
+                            {firstSop.referenceTemplate}
+                          </span>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </td>
+                      <td className="p-4 text-xs font-mono text-emerald-400">
+                        {firstSop.descriptionTemplate ? (
+                          <span className="line-clamp-1" title={firstSop.descriptionTemplate}>
+                            {firstSop.descriptionTemplate}
+                          </span>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </td>
+                      <td className="p-4 text-sm text-gray-300">
+                        <span className="px-2 py-1 bg-slate-700/50 rounded text-xs">
+                          {sopCount} SOP{sopCount !== 1 ? 's' : ''}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <button
+                          onClick={() => setSelectedAccount(account)}
+                          className="text-indigo-400 hover:text-indigo-300 transition-colors text-sm"
+                        >
+                          View / Edit
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -762,6 +932,7 @@ export default function SOPTablesPage() {
           </div>
         )}
       </div>
+    </div>
     </div>
   )
 }

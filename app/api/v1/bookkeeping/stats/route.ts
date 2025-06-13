@@ -3,13 +3,11 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
-    // Get rule counts
-    const [totalRules, activeRules, recentTransactions] = await Promise.all([
-      prisma.categorizationRule.count(),
-      prisma.categorizationRule.count({ where: { isActive: true } }),
+    // Get reconciliation stats
+    const [recentTransactions, unreconciledCount] = await Promise.all([
       prisma.bankTransaction.findMany({
-        take: 10,
         orderBy: { date: 'desc' },
+        take: 10, // Limit to 10 most recent
         include: {
           bankAccount: {
             select: {
@@ -17,40 +15,25 @@ export async function GET(request: NextRequest) {
             }
           }
         }
+      }),
+      prisma.bankTransaction.count({ 
+        where: { 
+          isReconciled: false,
+          status: { not: 'DELETED' }
+        } 
       })
     ])
 
-    const inactiveRules = totalRules - activeRules
-
-    // Get recent activity (last 10 rule changes)
-    const recentRules = await prisma.categorizationRule.findMany({
-      orderBy: { updatedAt: 'desc' },
-      take: 10,
-      select: {
-        id: true,
-        name: true,
-        createdAt: true,
-        updatedAt: true
-      }
-    })
-
-    // Transform to activity format
-    const recentActivity = recentRules.map(rule => ({
-      id: rule.id,
-      type: rule.createdAt.getTime() === rule.updatedAt.getTime() ? 'rule_created' : 'rule_updated',
-      ruleName: rule.name,
-      timestamp: rule.updatedAt.toISOString()
-    }))
-
-    // Calculate match rate based on actual rule performance
-    const matchRate = 0 // Will be calculated when rules are actually applied to transactions
-
     return NextResponse.json({
-      totalRules,
-      activeRules,
-      inactiveRules,
-      matchRate,
-      recentActivity,
+      totalRules: 0, // Rules have been removed
+      activeRules: 0,
+      inactiveRules: 0,
+      matchRate: 0,
+      recentActivity: [], // No rule activity anymore
+      unreconciledCount,
+      reconciliationRate: recentTransactions.length > 0 
+        ? Math.round((recentTransactions.filter(tx => tx.isReconciled).length / recentTransactions.length) * 100)
+        : 0,
       recentTransactions: recentTransactions.map(tx => ({
         id: tx.id,
         date: tx.date,
@@ -58,7 +41,9 @@ export async function GET(request: NextRequest) {
         amount: tx.amount,
         type: tx.type,
         status: tx.isReconciled ? 'reconciled' : 'unreconciled',
-        bankAccount: tx.bankAccount?.name || 'Unknown'
+        bankAccount: tx.bankAccount?.name || 'Unknown',
+        contactName: tx.contactName || null,
+        reference: tx.reference || null
       }))
     })
   } catch (error) {

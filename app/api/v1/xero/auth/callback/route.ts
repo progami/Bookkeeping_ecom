@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createXeroClient, storeTokenSet } from '@/lib/xero-client';
+import { createXeroClient, storeTokenSet, xeroConfig } from '@/lib/xero-client';
 import { stateStore } from '@/lib/oauth-state';
+import { XeroSession } from '@/lib/xero-session';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get('error');
   const errorDescription = searchParams.get('error_description');
   
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3003';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3003';
   
   // Handle errors
   if (error) {
@@ -82,11 +83,22 @@ export async function GET(request: NextRequest) {
       console.log('Refresh token:', tokenSet.refresh_token ? 'present' : 'missing');
       console.log('Expires at:', tokenSet.expires_at);
       
-      // Store token in secure cookie
-      await storeTokenSet(tokenSet);
+      // Create response with redirect
+      const response = NextResponse.redirect(`${baseUrl}/bookkeeping?connected=true`);
+      
+      // Store token in secure cookie using the response
+      const tokenData = {
+        access_token: tokenSet.access_token,
+        refresh_token: tokenSet.refresh_token,
+        expires_at: tokenSet.expires_at || (Math.floor(Date.now() / 1000) + (tokenSet.expires_in || 1800)),
+        expires_in: tokenSet.expires_in,
+        token_type: tokenSet.token_type,
+        scope: tokenSet.scope
+      };
+      
+      XeroSession.setTokenInResponse(response, tokenData);
       
       // Clear state cookie
-      const response = NextResponse.redirect(`${baseUrl}/bookkeeping?connected=true`);
       response.cookies.delete('xero_state');
       
       return response;
@@ -104,9 +116,9 @@ export async function GET(request: NextRequest) {
         const params = new URLSearchParams({
           grant_type: 'authorization_code',
           code: code,
-          redirect_uri: 'http://localhost:3003/api/v1/xero/auth/callback',
-          client_id: '781184D1AD314CB6989EB8D2291AB453',
-          client_secret: '2JSfxkxgSExV-DKdg8WcXn87lM_IbpmRhLhi5QbiVXQWXmvg'
+          redirect_uri: process.env.XERO_REDIRECT_URI || 'https://localhost:3003/api/v1/xero/auth/callback',
+          client_id: process.env.XERO_CLIENT_ID || '',
+          client_secret: process.env.XERO_CLIENT_SECRET || ''
         });
         
         const tokenResponse = await fetch(tokenUrl, {
@@ -126,6 +138,9 @@ export async function GET(request: NextRequest) {
         const tokenData = await tokenResponse.json();
         console.log('Manual token exchange successful!');
         
+        // Create response with redirect
+        const response = NextResponse.redirect(`${baseUrl}/bookkeeping?connected=true`);
+        
         // Create TokenSet object
         const tokenSet = {
           access_token: tokenData.access_token,
@@ -136,9 +151,10 @@ export async function GET(request: NextRequest) {
           expires_at: Math.floor(Date.now() / 1000) + tokenData.expires_in
         };
         
-        await storeTokenSet(tokenSet);
+        // Store token in response cookie
+        XeroSession.setTokenInResponse(response, tokenSet);
         
-        const response = NextResponse.redirect(`${baseUrl}/bookkeeping?connected=true`);
+        // Clear state cookie
         response.cookies.delete('xero_state');
         
         return response;
@@ -146,16 +162,27 @@ export async function GET(request: NextRequest) {
       
       throw tokenError;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error exchanging code for token:', error);
-    return NextResponse.redirect(`${baseUrl}/bookkeeping?error=token_exchange_failed`);
+    console.error('Error details:', {
+      message: error.message,
+      statusCode: error.statusCode,
+      response: error.response,
+      stack: error.stack
+    });
+    
+    // Extract more specific error message
+    let errorMessage = 'token_exchange_failed';
+    if (error.message) {
+      if (error.message.includes('invalid_client')) {
+        errorMessage = 'invalid_client_credentials';
+      } else if (error.message.includes('invalid_grant')) {
+        errorMessage = 'invalid_or_expired_code';
+      } else if (error.message.includes('redirect_uri')) {
+        errorMessage = 'redirect_uri_mismatch';
+      }
+    }
+    
+    return NextResponse.redirect(`${baseUrl}/bookkeeping?error=${errorMessage}`);
   }
 }
-
-// Add missing import
-const xeroConfig = {
-  clientId: '781184D1AD314CB6989EB8D2291AB453',
-  clientSecret: '2JSfxkxgSExV-DKdg8WcXn87lM_IbpmRhLhi5QbiVXQWXmvg',
-  redirectUris: ['http://localhost:3003/api/v1/xero/auth/callback'],
-  scopes: 'accounting.transactions accounting.settings offline_access'
-};

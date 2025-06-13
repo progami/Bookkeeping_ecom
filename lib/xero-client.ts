@@ -2,12 +2,13 @@ import { XeroClient } from 'xero-node';
 import { TokenSet } from 'xero-node';
 import { cookies } from 'next/headers';
 import { serialize, parse } from 'cookie';
+import { XeroSession, XeroTokenSet } from './xero-session';
 
-const xeroConfig = {
-  clientId: '781184D1AD314CB6989EB8D2291AB453',
-  clientSecret: '2JSfxkxgSExV-DKdg8WcXn87lM_IbpmRhLhi5QbiVXQWXmvg',
-  redirectUris: ['http://localhost:3003/api/v1/xero/auth/callback'],
-  scopes: 'accounting.transactions accounting.settings offline_access'
+export const xeroConfig = {
+  clientId: process.env.XERO_CLIENT_ID || '',
+  clientSecret: process.env.XERO_CLIENT_SECRET || '',
+  redirectUris: [process.env.XERO_REDIRECT_URI || 'https://localhost:3003/api/v1/xero/auth/callback'],
+  scopes: 'accounting.transactions accounting.settings accounting.reports.read offline_access'
 };
 
 export function createXeroClient(state?: string) {
@@ -23,80 +24,113 @@ export function createXeroClient(state?: string) {
 }
 
 export async function getStoredTokenSet(): Promise<TokenSet | null> {
-  const cookieStore = await cookies();
-  const tokenCookie = cookieStore.get('xero_token');
-  
-  if (!tokenCookie) {
-    return null;
-  }
-  
-  try {
-    return JSON.parse(tokenCookie.value);
-  } catch {
-    return null;
-  }
+  return await XeroSession.getToken() as TokenSet | null;
 }
 
 export async function storeTokenSet(tokenSet: TokenSet | any) {
-  const cookieStore = await cookies();
+  const tokenData: XeroTokenSet = {
+    access_token: tokenSet.access_token,
+    refresh_token: tokenSet.refresh_token,
+    expires_at: tokenSet.expires_at || (Math.floor(Date.now() / 1000) + (tokenSet.expires_in || 1800)),
+    expires_in: tokenSet.expires_in,
+    token_type: tokenSet.token_type,
+    scope: tokenSet.scope
+  };
   
-  console.log('Storing token set...');
-  
-  cookieStore.set('xero_token', JSON.stringify(tokenSet), {
-    httpOnly: true,
-    secure: false, // Set to false for local development
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 30, // 30 days
-    path: '/'
-  });
-  
-  console.log('Token set stored successfully');
+  await XeroSession.setToken(tokenData);
 }
 
 export async function clearTokenSet() {
-  const cookieStore = await cookies();
-  cookieStore.delete('xero_token');
+  await XeroSession.clearToken();
 }
 
 export async function getXeroClient(): Promise<XeroClient | null> {
-  console.log('Getting Xero client...');
-  const tokenSet = await getStoredTokenSet();
-  
-  if (!tokenSet) {
-    console.log('No token set found in cookies');
-    return null;
-  }
-  
-  console.log('Token set found:', {
-    hasAccessToken: !!tokenSet.access_token,
-    hasRefreshToken: !!tokenSet.refresh_token,
-    expiresAt: tokenSet.expires_at
-  });
-  
-  const xero = createXeroClient();
-  xero.setTokenSet(tokenSet);
-  
-  // Check if token needs refresh
-  const expiresAt = tokenSet.expires_at || 0;
-  const now = Math.floor(Date.now() / 1000);
-  
-  console.log('Token expiry check:', { expiresAt, now, needsRefresh: expiresAt < now });
-  
-  if (expiresAt < now) {
-    try {
-      console.log('Refreshing expired token...');
-      const newTokenSet = await xero.refreshWithRefreshToken(xeroConfig.clientId, xeroConfig.clientSecret, tokenSet.refresh_token);
-      await storeTokenSet(newTokenSet);
-      xero.setTokenSet(newTokenSet);
-      console.log('Token refreshed successfully');
-    } catch (error) {
-      console.error('Failed to refresh token:', error);
+  try {
+    console.log('Getting Xero client...');
+    const tokenSet = await getStoredTokenSet();
+    
+    if (!tokenSet) {
+      console.log('No token set found in cookies');
+      return null;
+    }
+    
+    console.log('Token set found:', {
+      hasAccessToken: !!tokenSet.access_token,
+      hasRefreshToken: !!tokenSet.refresh_token,
+      expiresAt: tokenSet.expires_at,
+      tokenType: tokenSet.token_type
+    });
+    
+    // Validate token structure
+    if (!tokenSet.access_token || !tokenSet.refresh_token) {
+      console.error('Invalid token structure - missing required fields');
       await clearTokenSet();
       return null;
     }
+    
+    const xero = createXeroClient();
+    
+    // Set the token on the client
+    try {
+      xero.setTokenSet(tokenSet);
+    } catch (error) {
+      console.error('Failed to set token on Xero client:', error);
+      return null;
+    }
+    
+    // Check if token needs refresh
+    const expiresAt = tokenSet.expires_at || 0;
+    const now = Math.floor(Date.now() / 1000);
+    const bufferTime = 300; // 5 minutes buffer
+    
+    console.log('Token expiry check:', { 
+      expiresAt, 
+      now, 
+      needsRefresh: expiresAt < (now + bufferTime),
+      expiresIn: expiresAt - now 
+    });
+    
+    if (expiresAt < (now + bufferTime)) {
+      try {
+        console.log('Refreshing token (expires in', expiresAt - now, 'seconds)...');
+        const newTokenSet = await xero.refreshWithRefreshToken(
+          xeroConfig.clientId, 
+          xeroConfig.clientSecret, 
+          tokenSet.refresh_token
+        );
+        
+        // Store the new token set
+        await storeTokenSet(newTokenSet);
+        xero.setTokenSet(newTokenSet);
+        console.log('Token refreshed successfully, new expiry:', newTokenSet.expires_at);
+      } catch (error: any) {
+        console.error('Failed to refresh token:', error.message || error);
+        await clearTokenSet();
+        return null;
+      }
+    }
+    
+    return xero;
+  } catch (error) {
+    console.error('Unexpected error in getXeroClient:', error);
+    return null;
   }
-  
-  return xero;
+}
+
+export async function getXeroClientWithTenant(): Promise<{ client: XeroClient; tenantId: string } | null> {
+  const xeroClient = await getXeroClient();
+  if (!xeroClient) {
+    return null;
+  }
+
+  // Update tenants to get tenant ID
+  await xeroClient.updateTenants();
+  const tenantId = xeroClient.tenants[0]?.tenantId;
+  if (!tenantId) {
+    return null;
+  }
+
+  return { client: xeroClient, tenantId };
 }
 
 export async function getAuthUrl(state?: string): Promise<string> {

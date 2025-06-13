@@ -100,7 +100,7 @@ export const sopData = {
       "note": "LTL or FTL shipments sent to amazon"
     }
   ],
-  "333 - Manufacturing": [
+  "330 - Manufacturing": [
     {
       "pointOfInvoice": "Manufacturer",
       "serviceType": "Production",
@@ -638,10 +638,6 @@ export const chartOfAccounts = [
   {
     "code": "332",
     "name": "Land Freight"
-  },
-  {
-    "code": "333",
-    "name": "Manufacturing"
   },
   {
     "code": "334",

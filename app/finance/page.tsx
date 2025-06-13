@@ -6,7 +6,7 @@ import {
   TrendingUp, TrendingDown, DollarSign, BarChart3, 
   FileText, Wallet, Calculator, ArrowUpRight, ArrowDownRight,
   Building2, Clock, AlertCircle, CheckCircle, Activity,
-  Receipt, CreditCard, PieChart, Target, ArrowLeft
+  Receipt, CreditCard, PieChart, Target, ArrowLeft, Database
 } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 
@@ -53,6 +53,8 @@ export default function FinanceDashboard() {
   const [moduleStatus, setModuleStatus] = useState<ModuleStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('30d')
+  const [topVendor, setTopVendor] = useState<string>('Loading...')
+  const [activeVendorCount, setActiveVendorCount] = useState<number | null>(null)
 
   useEffect(() => {
     fetchFinanceData()
@@ -63,17 +65,19 @@ export default function FinanceDashboard() {
       setLoading(true)
       
       // Fetch data from various sources
-      const [analyticsResponse, statsResponse, accountsResponse, insightsResponse] = await Promise.all([
+      const [analyticsResponse, statsResponse, accountsResponse, insightsResponse, vendorsResponse] = await Promise.all([
         fetch(`/api/v1/bookkeeping/analytics?period=${timeRange === '7d' ? 'week' : timeRange === '30d' ? 'month' : 'quarter'}`),
         fetch('/api/v1/bookkeeping/stats'),
         fetch('/api/v1/xero/accounts'),
-        fetch('/api/v1/bookkeeping/insights')
+        fetch('/api/v1/bookkeeping/insights'),
+        fetch('/api/v1/analytics/top-vendors')
       ])
 
       const analyticsData = analyticsResponse.ok ? await analyticsResponse.json() : null
       const statsData = statsResponse.ok ? await statsResponse.json() : null
       const accountsData = accountsResponse.ok ? await accountsResponse.json() : null
       const insightsData = insightsResponse.ok ? await insightsResponse.json() : null
+      const vendorsData = vendorsResponse.ok ? await vendorsResponse.json() : null
 
       // Calculate finance metrics
       const totalRevenue = analyticsData?.summary?.totalIncome || 0
@@ -117,6 +121,15 @@ export default function FinanceDashboard() {
           varianceAlerts: 0
         }
       })
+
+      // Set vendor analytics data
+      if (vendorsData?.vendors?.length > 0) {
+        setTopVendor(vendorsData.vendors[0].name)
+        setActiveVendorCount(vendorsData.vendors.length)
+      } else {
+        setTopVendor('No vendors')
+        setActiveVendorCount(0)
+      }
     } catch (error) {
       console.error('Error fetching finance data:', error)
       toast.error('Failed to load finance data')
@@ -264,7 +277,7 @@ export default function FinanceDashboard() {
           </div>
 
           {/* Finance Modules Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {/* Bookkeeping Module */}
             <div 
               className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-emerald-500/50 transition-all cursor-pointer"
@@ -322,27 +335,115 @@ export default function FinanceDashboard() {
             </div>
 
             {/* Cash Flow Management */}
-            <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-cyan-500/50 transition-all cursor-pointer opacity-75">
+            <div 
+              className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-cyan-500/50 transition-all cursor-pointer"
+              onClick={() => router.push('/cashflow')}
+            >
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-xl font-semibold text-white flex items-center">
                     <div className="w-1 h-6 bg-cyan-500 rounded-full mr-3" />
                     Cash Flow Management
-                    <span className="ml-2 px-2 py-0.5 bg-slate-700 rounded text-xs text-gray-400">Coming Soon</span>
+                    <span className="ml-2 px-2 py-0.5 bg-emerald-700 rounded text-xs text-emerald-400">Active</span>
                   </h2>
-                  <p className="text-sm text-gray-400 mt-1">Liquidity tracking & forecasting</p>
+                  <p className="text-sm text-gray-400 mt-1">90-day forecast & budget management</p>
                 </div>
                 <ArrowUpRight className="h-5 w-5 text-gray-400" />
               </div>
               
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="bg-slate-900/50 rounded-lg p-4">
-                  <span className="text-sm text-gray-400 block mb-2">Module Status</span>
-                  <div className="text-lg font-medium text-gray-400">
-                    Not Available
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-400">30-Day Forecast</span>
+                    {moduleStatus?.cashFlow.healthScore > 0 && (
+                      <Activity className="h-4 w-4 text-cyan-400" />
+                    )}
                   </div>
-                  <div className="text-xs text-gray-500">coming soon</div>
+                  <div className="text-2xl font-bold text-white">
+                    {formatCurrency(moduleStatus?.cashFlow.forecast30Day || 0)}
+                  </div>
+                  <div className="text-xs text-gray-500">projected balance</div>
                 </div>
+                
+                <div className="bg-slate-900/50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-400">Health Score</span>
+                    <div className={`w-2 h-2 rounded-full ${
+                      (moduleStatus?.cashFlow.healthScore ?? 0) >= 80 
+                        ? 'bg-green-400' 
+                        : (moduleStatus?.cashFlow.healthScore ?? 0) >= 50
+                        ? 'bg-amber-400'
+                        : 'bg-red-400'
+                    }`} />
+                  </div>
+                  <div className="text-lg font-medium text-white">
+                    {moduleStatus?.cashFlow.healthScore || 0}%
+                  </div>
+                  <div className="text-xs text-gray-500">liquidity health</div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1.5 bg-cyan-600/20 text-cyan-400 rounded-lg text-xs">
+                  Forecasting
+                </span>
+                <span className="px-3 py-1.5 bg-purple-600/20 text-purple-400 rounded-lg text-xs">
+                  Budgets
+                </span>
+                <span className="px-3 py-1.5 bg-amber-600/20 text-amber-400 rounded-lg text-xs">
+                  Tax Planning
+                </span>
+              </div>
+            </div>
+
+            {/* Business Analytics */}
+            <div 
+              className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-indigo-500/50 transition-all cursor-pointer"
+              onClick={() => router.push('/analytics')}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-white flex items-center">
+                    <div className="w-1 h-6 bg-indigo-500 rounded-full mr-3" />
+                    Business Analytics
+                    <span className="ml-2 px-2 py-0.5 bg-blue-700 rounded text-xs text-blue-400">New</span>
+                  </h2>
+                  <p className="text-sm text-gray-400 mt-1">Vendor insights & business intelligence</p>
+                </div>
+                <ArrowUpRight className="h-5 w-5 text-gray-400" />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="bg-slate-900/50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-400">Top Vendor</span>
+                    <Building2 className="h-4 w-4 text-indigo-400" />
+                  </div>
+                  <div className="text-lg font-bold text-white truncate">
+                    {topVendor}
+                  </div>
+                  <div className="text-xs text-gray-500">highest spend</div>
+                </div>
+                
+                <div className="bg-slate-900/50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-400">Active Vendors</span>
+                    <BarChart3 className="h-4 w-4 text-indigo-400" />
+                  </div>
+                  <div className="text-lg font-medium text-white">
+                    {activeVendorCount ?? '-'}
+                  </div>
+                  <div className="text-xs text-gray-500">this period</div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1.5 bg-indigo-600/20 text-indigo-400 rounded-lg text-xs">
+                  Top 5 Vendors
+                </span>
+                <span className="px-3 py-1.5 bg-purple-600/20 text-purple-400 rounded-lg text-xs">
+                  Spend Analysis
+                </span>
               </div>
             </div>
 
@@ -393,6 +494,57 @@ export default function FinanceDashboard() {
                   </div>
                   <div className="text-xs text-gray-500">coming soon</div>
                 </div>
+              </div>
+            </div>
+
+            {/* Database Explorer */}
+            <div 
+              className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-pink-500/50 transition-all cursor-pointer"
+              onClick={() => router.push('/database')}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-white flex items-center">
+                    <div className="w-1 h-6 bg-pink-500 rounded-full mr-3" />
+                    Database Explorer
+                    <span className="ml-2 px-2 py-0.5 bg-orange-700 rounded text-xs text-orange-400">Dev Tool</span>
+                  </h2>
+                  <p className="text-sm text-gray-400 mt-1">Visual database schema & data explorer</p>
+                </div>
+                <ArrowUpRight className="h-5 w-5 text-gray-400" />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="bg-slate-900/50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-400">Tables</span>
+                    <Database className="h-4 w-4 text-pink-400" />
+                  </div>
+                  <div className="text-2xl font-bold text-white">
+                    5
+                  </div>
+                  <div className="text-xs text-gray-500">data models</div>
+                </div>
+                
+                <div className="bg-slate-900/50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-400">Database</span>
+                    <div className="w-2 h-2 rounded-full bg-green-400" />
+                  </div>
+                  <div className="text-lg font-medium text-white">
+                    SQLite
+                  </div>
+                  <div className="text-xs text-gray-500">local storage</div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1.5 bg-pink-600/20 text-pink-400 rounded-lg text-xs">
+                  Schema View
+                </span>
+                <span className="px-3 py-1.5 bg-orange-600/20 text-orange-400 rounded-lg text-xs">
+                  Data Browser
+                </span>
               </div>
             </div>
           </div>

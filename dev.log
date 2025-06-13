@@ -1,0 +1,297 @@
+
+> bookkeeping-standalone@0.1.0 dev
+> node server.js
+
+> Server listening at https://localhost:3003
+(node:71089) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ○ Compiling /finance ...
+ ✓ Compiled /finance in 1374ms (519 modules)
+ GET /finance 200 in 1510ms
+ ✓ Compiled in 96ms (262 modules)
+ ✓ Compiled /middleware in 82ms (73 modules)
+[Middleware] GET /api/v1/xero/accounts
+[Middleware] Cookies: []
+ ○ Compiling /api/v1/bookkeeping/stats ...
+ ✓ Compiled /api/v1/bookkeeping/stats in 508ms (280 modules)
+ ✓ Compiled (1054 modules)
+Getting Xero client...
+XeroSession: No token cookie found
+No token set found in cookies
+ GET /api/v1/xero/accounts 401 in 1320ms
+[Middleware] GET /api/v1/xero/accounts
+[Middleware] Cookies: []
+ GET /api/v1/bookkeeping/stats 200 in 1358ms
+ GET /api/v1/bookkeeping/analytics?period=month 200 in 1358ms
+ GET /api/v1/bookkeeping/insights 200 in 1360ms
+Getting Xero client...
+XeroSession: No token cookie found
+No token set found in cookies
+ GET /api/v1/xero/accounts 401 in 33ms
+ GET /api/v1/bookkeeping/stats 200 in 16ms
+ GET /api/v1/bookkeeping/analytics?period=month 200 in 22ms
+ GET /api/v1/bookkeeping/insights 200 in 21ms
+ ✓ Compiled /bookkeeping in 210ms (1337 modules)
+ GET /bookkeeping 200 in 264ms
+[Middleware] GET /api/v1/xero/status
+[Middleware] Cookies: [
+  'ajs_anonymous_id',
+  'xero_refresh_token',
+  'xero_tenant_id',
+  'next-auth.csrf-token',
+  'next-auth.callback-url',
+  '_streamlit_xsrf',
+  'next-auth.session-token',
+  'xero_token'
+]
+ ✓ Compiled /api/v1/bookkeeping/bank-accounts in 57ms (1075 modules)
+ ✓ Compiled (1077 modules)
+ GET /api/v1/bookkeeping/stats 200 in 127ms
+ GET /api/v1/bookkeeping/analytics?period=month 200 in 128ms
+Checking Xero status...
+Getting Xero client...
+XeroSession: Token retrieved successfully
+Token set found: {
+  hasAccessToken: true,
+  hasRefreshToken: true,
+  expiresAt: 1749829667,
+  tokenType: 'Bearer'
+}
+Token expiry check: {
+  expiresAt: 1749829667,
+  now: 1749853593,
+  needsRefresh: true,
+  expiresIn: -23926
+}
+Refreshing token (expires in -23926 seconds)...
+ GET /api/v1/bookkeeping/stats 200 in 5ms
+ GET /api/v1/bookkeeping/bank-accounts 200 in 215ms
+ GET /api/v1/bookkeeping/analytics?period=month 200 in 8ms
+ GET /api/v1/bookkeeping/bank-accounts 200 in 4ms
+XeroSession: Token stored successfully
+Token refreshed successfully, new expiry: 1749855393
+Xero client obtained, checking tenants...
+ GET /bookkeeping 200 in 36ms
+ GET /api/v1/xero/status 200 in 985ms
+[Middleware] GET /api/v1/xero/status
+[Middleware] Cookies: [
+  'ajs_anonymous_id',
+  'xero_refresh_token',
+  'xero_tenant_id',
+  'next-auth.csrf-token',
+  'next-auth.callback-url',
+  '_streamlit_xsrf',
+  'next-auth.session-token',
+  'xero_token'
+]
+Checking Xero status...
+Getting Xero client...
+XeroSession: Token retrieved successfully
+Token set found: {
+  hasAccessToken: true,
+  hasRefreshToken: true,
+  expiresAt: 1749829667,
+  tokenType: 'Bearer'
+}
+Token expiry check: {
+  expiresAt: 1749829667,
+  now: 1749853594,
+  needsRefresh: true,
+  expiresIn: -23927
+}
+Refreshing token (expires in -23927 seconds)...
+ GET /api/v1/bookkeeping/stats 200 in 10ms
+ GET /api/v1/bookkeeping/analytics?period=month 200 in 10ms
+ GET /api/v1/bookkeeping/bank-accounts 200 in 12ms
+ GET /api/v1/bookkeeping/stats 200 in 7ms
+ GET /api/v1/bookkeeping/analytics?period=month 200 in 12ms
+ GET /api/v1/bookkeeping/bank-accounts 200 in 11ms
+XeroSession: Token stored successfully
+Token refreshed successfully, new expiry: 1749855394
+Xero client obtained, checking tenants...
+ GET /api/v1/xero/status 200 in 630ms
+[Middleware] GET /api/v1/xero/status
+[Middleware] Cookies: [
+  'ajs_anonymous_id',
+  'xero_refresh_token',
+  'xero_tenant_id',
+  'next-auth.csrf-token',
+  'next-auth.callback-url',
+  '_streamlit_xsrf',
+  'next-auth.session-token',
+  'xero_token'
+]
+Checking Xero status...
+Getting Xero client...
+XeroSession: Token retrieved successfully
+Token set found: {
+  hasAccessToken: true,
+  hasRefreshToken: true,
+  expiresAt: 1749829667,
+  tokenType: 'Bearer'
+}
+Token expiry check: {
+  expiresAt: 1749829667,
+  now: 1749853595,
+  needsRefresh: true,
+  expiresIn: -23928
+}
+Refreshing token (expires in -23928 seconds)...
+XeroSession: Token stored successfully
+Token refreshed successfully, new expiry: 1749855395
+Xero client obtained, checking tenants...
+ ✓ Compiled /_not-found in 96ms (1344 modules)
+ GET /bookkeeping/rules 404 in 15ms
+ GET /api/v1/xero/status 200 in 388ms
+ GET /bookkeeping 200 in 35ms
+[Middleware] GET /api/v1/xero/status
+[Middleware] Cookies: [
+  'ajs_anonymous_id',
+  'xero_refresh_token',
+  'xero_tenant_id',
+  'next-auth.csrf-token',
+  'next-auth.callback-url',
+  '_streamlit_xsrf',
+  'next-auth.session-token',
+  'xero_token'
+]
+Checking Xero status...
+Getting Xero client...
+XeroSession: Token retrieved successfully
+Token set found: {
+  hasAccessToken: true,
+  hasRefreshToken: true,
+  expiresAt: 1749855394,
+  tokenType: 'Bearer'
+}
+Token expiry check: {
+  expiresAt: 1749855394,
+  now: 1749853597,
+  needsRefresh: false,
+  expiresIn: 1797
+}
+Xero client obtained, checking tenants...
+ GET /api/v1/xero/status 200 in 547ms
+ ✓ Compiled / in 195ms (1351 modules)
+[Middleware] GET /api/v1/xero/accounts
+[Middleware] Cookies: [
+  'ajs_anonymous_id',
+  'xero_refresh_token',
+  'xero_tenant_id',
+  'next-auth.csrf-token',
+  'next-auth.callback-url',
+  '_streamlit_xsrf',
+  'next-auth.session-token',
+  'xero_token'
+]
+ GET /api/v1/bookkeeping/analytics?period=month 200 in 12ms
+ GET /api/v1/bookkeeping/stats 200 in 10ms
+Getting Xero client...
+XeroSession: Token retrieved successfully
+Token set found: {
+  hasAccessToken: true,
+  hasRefreshToken: true,
+  expiresAt: 1749855394,
+  tokenType: 'Bearer'
+}
+Token expiry check: {
+  expiresAt: 1749855394,
+  now: 1749853599,
+  needsRefresh: false,
+  expiresIn: 1795
+}
+ GET /api/v1/xero/accounts 401 in 23ms
+ GET /api/v1/bookkeeping/insights 200 in 25ms
+[Middleware] GET /api/v1/xero/accounts
+[Middleware] Cookies: [
+  'ajs_anonymous_id',
+  'xero_refresh_token',
+  'xero_tenant_id',
+  'next-auth.csrf-token',
+  'next-auth.callback-url',
+  '_streamlit_xsrf',
+  'next-auth.session-token',
+  'xero_token'
+]
+ GET /api/v1/bookkeeping/stats 200 in 9ms
+ GET /api/v1/bookkeeping/analytics?period=month 200 in 13ms
+Getting Xero client...
+XeroSession: Token retrieved successfully
+Token set found: {
+  hasAccessToken: true,
+  hasRefreshToken: true,
+  expiresAt: 1749855394,
+  tokenType: 'Bearer'
+}
+Token expiry check: {
+  expiresAt: 1749855394,
+  now: 1749853599,
+  needsRefresh: false,
+  expiresIn: 1795
+}
+ GET /api/v1/xero/accounts 401 in 12ms
+ GET /api/v1/bookkeeping/insights 200 in 14ms
+[Middleware] GET /api/v1/xero/status
+[Middleware] Cookies: [
+  'ajs_anonymous_id',
+  'xero_refresh_token',
+  'xero_tenant_id',
+  'next-auth.csrf-token',
+  'next-auth.callback-url',
+  '_streamlit_xsrf',
+  'next-auth.session-token',
+  'xero_token'
+]
+ GET /api/v1/bookkeeping/analytics?period=month 200 in 14ms
+Checking Xero status...
+Getting Xero client...
+XeroSession: Token retrieved successfully
+Token set found: {
+  hasAccessToken: true,
+  hasRefreshToken: true,
+  expiresAt: 1749855394,
+  tokenType: 'Bearer'
+}
+Token expiry check: {
+  expiresAt: 1749855394,
+  now: 1749853605,
+  needsRefresh: false,
+  expiresIn: 1789
+}
+Xero client obtained, checking tenants...
+ GET /api/v1/bookkeeping/stats 200 in 23ms
+ GET /api/v1/bookkeeping/bank-accounts 200 in 25ms
+ GET /api/v1/bookkeeping/analytics?period=month 200 in 10ms
+ GET /api/v1/bookkeeping/stats 200 in 12ms
+ GET /api/v1/bookkeeping/bank-accounts 200 in 12ms
+ GET /api/v1/xero/status 200 in 388ms
+[Middleware] GET /api/v1/xero/status
+[Middleware] Cookies: [
+  'ajs_anonymous_id',
+  'xero_refresh_token',
+  'xero_tenant_id',
+  'next-auth.csrf-token',
+  'next-auth.callback-url',
+  '_streamlit_xsrf',
+  'next-auth.session-token',
+  'xero_token'
+]
+Checking Xero status...
+Getting Xero client...
+XeroSession: Token retrieved successfully
+Token set found: {
+  hasAccessToken: true,
+  hasRefreshToken: true,
+  expiresAt: 1749855394,
+  tokenType: 'Bearer'
+}
+Token expiry check: {
+  expiresAt: 1749855394,
+  now: 1749853605,
+  needsRefresh: false,
+  expiresIn: 1789
+}
+Xero client obtained, checking tenants...
+ GET /api/v1/xero/status 200 in 320ms
+ GET /bookkeeping/rules 404 in 36ms
+ GET /bookkeeping 200 in 16ms

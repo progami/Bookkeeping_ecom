@@ -1,24 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getXeroClient } from '@/lib/xero-client';
+import { getXeroClientWithTenant } from '@/lib/xero-client';
+
+// Force dynamic rendering to ensure cookies work properly
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
+  const syncStartTime = new Date();
+  
   try {
-    const xero = await getXeroClient();
-    if (!xero) {
+    console.log('=== GL Sync Endpoint Called ===');
+    console.log('Request headers:', {
+      cookie: request.headers.get('cookie'),
+      contentType: request.headers.get('content-type')
+    });
+    
+    // Get request body to check for includeArchived parameter
+    const body = await request.json().catch(() => ({}));
+    const includeArchived = body.includeArchived || false;
+    
+    console.log('Attempting to get Xero client...');
+    const xeroData = await getXeroClientWithTenant();
+    if (!xeroData) {
+      console.log('Failed to get Xero client - not authenticated');
       return NextResponse.json({ error: 'Not connected to Xero' }, { status: 401 });
     }
     
-    await xero.updateTenants();
-    const tenant = xero.tenants[0];
+    const { client: xero, tenantId } = xeroData;
     
-    console.log('Syncing GL accounts from Xero...');
+    console.log(`Syncing GL accounts from Xero... (includeArchived: ${includeArchived})`);
     
-    // Get all accounts (Chart of Accounts) - excluding archived
+    // Get accounts based on whether we want archived ones
+    const whereFilter = includeArchived ? undefined : 'Status=="ACTIVE"';
     const response = await xero.accountingApi.getAccounts(
-      tenant.tenantId,
+      tenantId,
       undefined,
-      'Status=="ACTIVE"',
+      whereFilter,
       'Code ASC'
     );
 
@@ -33,15 +51,27 @@ export async function POST(request: NextRequest) {
 
     for (const account of accounts) {
       try {
-        // Skip accounts without codes
-        if (!account.code) {
-          console.warn(`Skipping account without code: ${account.name}`);
-          continue;
+        // For accounts without codes, generate a special code based on type
+        let accountCode = account.code;
+        if (!accountCode) {
+          // For bank accounts without codes, use "BANK" as the code
+          if (account.type === 'BANK') {
+            accountCode = `BANK_${account.accountID?.substring(0, 8) || Math.random().toString(36).substring(2, 10)}`;
+            console.log(`Assigning code ${accountCode} to bank account: ${account.name}`);
+          } else {
+            console.warn(`Skipping non-bank account without code: ${account.name}`);
+            continue;
+          }
         }
+
+        // Check if account exists before upsert
+        const existingAccount = await prisma.gLAccount.findUnique({
+          where: { code: accountCode }
+        });
 
         // Upsert the account
         await prisma.gLAccount.upsert({
-          where: { code: account.code },
+          where: { code: accountCode },
           update: {
             name: account.name || '',
             type: account.type?.toString() || 'OTHER',
@@ -56,7 +86,7 @@ export async function POST(request: NextRequest) {
             updatedAt: new Date()
           },
           create: {
-            code: account.code,
+            code: accountCode,
             name: account.name || '',
             type: account.type?.toString() || 'OTHER',
             status: account.status?.toString() || 'ACTIVE',
@@ -70,15 +100,11 @@ export async function POST(request: NextRequest) {
           }
         });
 
-        // Check if it was created or updated
-        const existing = await prisma.gLAccount.findUnique({
-          where: { code: account.code }
-        });
-        
-        if (existing && existing.createdAt.getTime() === existing.updatedAt.getTime()) {
-          created++;
-        } else {
+        // Count as created or updated based on whether it existed before
+        if (existingAccount) {
           updated++;
+        } else {
+          created++;
         }
       } catch (error) {
         console.error(`Error processing account ${account.code}:`, error);
@@ -91,7 +117,7 @@ export async function POST(request: NextRequest) {
       data: {
         syncType: 'gl_accounts',
         status: errors > 0 ? 'partial' : 'success',
-        startedAt: new Date(),
+        startedAt: syncStartTime,
         completedAt: new Date(),
         recordsCreated: created,
         recordsUpdated: updated,
@@ -133,7 +159,7 @@ export async function POST(request: NextRequest) {
       data: {
         syncType: 'gl_accounts',
         status: 'failed',
-        startedAt: new Date(),
+        startedAt: syncStartTime,
         completedAt: new Date(),
         recordsCreated: 0,
         recordsUpdated: 0,
@@ -171,7 +197,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       total: accounts.length,
       accountsByType,
-      allAccounts: accounts
+      allAccounts: accounts,
+      accounts: accounts // For compatibility
     });
     
   } catch (error: any) {

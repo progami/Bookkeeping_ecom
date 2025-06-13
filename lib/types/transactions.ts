@@ -16,17 +16,6 @@ export interface Transaction {
   accountCode?: string;
   accountName?: string;
   taxType?: string;
-  
-  // Matching info
-  matchedRule?: {
-    ruleId: string;
-    ruleName: string;
-    confidence: number;
-    suggestedReference: string;
-    suggestedDescription: string;
-    accountCode: string;
-    taxType: string;
-  };
 }
 
 export interface TransactionFilter {
@@ -43,7 +32,4 @@ export interface ReconcileData {
   description: string;
   accountCode: string;
   taxType: string;
-  createRule?: boolean;
-  rulePattern?: string;
-  ruleName?: string;
 }

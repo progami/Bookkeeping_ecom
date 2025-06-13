@@ -43,10 +43,40 @@ export async function POST(request: NextRequest) {
     
     console.log(`Synced ${accounts.length} bank accounts`);
     
-    // Since the API returns ALL transactions in the raw response,
-    // let's just get them all at once without pagination
-    console.log('Fetching ALL transactions in one request...');
+    // First, reset all transactions to reconciled
+    await prisma.bankTransaction.updateMany({
+      where: {},
+      data: { isReconciled: true }
+    });
+    console.log('Reset all transactions to reconciled');
     
+    // Now fetch specifically unreconciled transactions
+    console.log('Fetching unreconciled transactions from Xero...');
+    const unreconciledResponse = await xero.accountingApi.getBankTransactions(
+      tenant.tenantId,
+      undefined,
+      'IsReconciled==false',
+      undefined,
+      undefined,
+      undefined
+    );
+    const unreconciledTxs = unreconciledResponse.body.bankTransactions || [];
+    console.log(`Found ${unreconciledTxs.length} unreconciled transactions`);
+    
+    // Update these as unreconciled
+    for (const tx of unreconciledTxs) {
+      if (tx.bankTransactionID) {
+        await prisma.bankTransaction.update({
+          where: { xeroTransactionId: tx.bankTransactionID },
+          data: { isReconciled: false }
+        }).catch(() => {
+          console.log(`Transaction ${tx.bankTransactionID} not in database yet`);
+        });
+      }
+    }
+    
+    // Now fetch ALL transactions
+    console.log('Fetching ALL transactions in one request...');
     const response = await xero.accountingApi.getBankTransactions(tenant.tenantId);
     const allTransactions = response.body.bankTransactions || [];
     
@@ -64,16 +94,15 @@ export async function POST(request: NextRequest) {
         continue;
       }
       
-      // Debug first transaction to see available fields
-      if (saved + updated === 0) {
-        console.log('First transaction fields:', {
-          hasReference: !!tx.reference,
-          reference: tx.reference,
-          hasLineItems: !!tx.lineItems,
-          lineItemDesc: tx.lineItems?.[0]?.description,
-          hasContact: !!tx.contact,
-          contactName: tx.contact?.name,
-          availableFields: Object.keys(tx)
+      // Debug first few transactions to see reconciliation values
+      if (saved + updated < 5) {
+        console.log(`Transaction ${saved + updated + 1} reconciliation:`, {
+          id: tx.bankTransactionID,
+          date: tx.date,
+          isReconciled: tx.isReconciled,
+          isReconciledType: typeof tx.isReconciled,
+          isReconciledValue: JSON.stringify(tx.isReconciled),
+          willSaveAs: tx.isReconciled === true
         });
       }
       
@@ -90,7 +119,7 @@ export async function POST(request: NextRequest) {
             currencyCode: tx.currencyCode?.toString() || null,
             type: tx.type?.toString() === 'RECEIVE' ? 'RECEIVE' : 'SPEND',
             status: tx.status?.toString() || 'AUTHORISED',
-            isReconciled: tx.isReconciled || false,
+            isReconciled: unreconciledTxs.some(u => u.bankTransactionID === tx.bankTransactionID) ? false : true,
             reference: tx.reference || null,
             description: tx.lineItems?.[0]?.description || tx.reference || tx.contact?.name || 'Bank Transaction',
             contactName: tx.contact?.name || null,
@@ -108,7 +137,7 @@ export async function POST(request: NextRequest) {
             currencyCode: tx.currencyCode?.toString() || null,
             type: tx.type?.toString() === 'RECEIVE' ? 'RECEIVE' : 'SPEND',
             status: tx.status?.toString() || 'AUTHORISED',
-            isReconciled: tx.isReconciled || false,
+            isReconciled: unreconciledTxs.some(u => u.bankTransactionID === tx.bankTransactionID) ? false : true,
             reference: tx.reference || null,
             description: tx.lineItems?.[0]?.description || tx.reference || tx.contact?.name || 'Bank Transaction',
             contactName: tx.contact?.name || null,

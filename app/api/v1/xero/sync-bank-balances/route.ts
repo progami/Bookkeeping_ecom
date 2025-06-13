@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
             code: xeroAccount.code || null,
             currencyCode: xeroAccount.currencyCode?.toString() || null,
             status: xeroAccount.status?.toString() || null,
-            balance: xeroAccount.balance || 0,
+            balance: 0, // Balance needs to be retrieved separately from reports
             balanceLastUpdated: new Date(),
             updatedAt: new Date()
           },
@@ -51,8 +51,8 @@ export async function POST(request: NextRequest) {
             code: xeroAccount.code || null,
             currencyCode: xeroAccount.currencyCode?.toString() || null,
             status: xeroAccount.status?.toString() || null,
-            bankName: xeroAccount.bankAccountType || null,
-            balance: xeroAccount.balance || 0,
+            bankName: xeroAccount.bankAccountType?.toString() || null,
+            balance: 0, // Balance needs to be retrieved separately from reports
             balanceLastUpdated: new Date()
           }
         });

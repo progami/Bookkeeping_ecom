@@ -189,8 +189,8 @@ export async function POST(request: NextRequest) {
       data: {
         syncType: 'bulletproof_sync',
         status: 'success',
-        startedAt: new Date(),
-        completedAt: new Date(),
+        startedAt: new Date().toISOString().split('T')[0],
+        completedAt: new Date().toISOString().split('T')[0],
         recordsCreated: saved,
         recordsUpdated: updated,
         details: JSON.stringify(result)

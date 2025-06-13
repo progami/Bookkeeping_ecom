@@ -30,9 +30,14 @@ export async function GET(request: NextRequest) {
     console.log('States in memory:', Array.from(stateStore.keys()));
     
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error initiating Xero OAuth:', error);
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3003';
-    return NextResponse.redirect(`${baseUrl}/bookkeeping?error=auth_failed`);
+    console.error('Auth error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3003';
+    return NextResponse.redirect(`${baseUrl}/bookkeeping?error=auth_initialization_failed`);
   }
 }
