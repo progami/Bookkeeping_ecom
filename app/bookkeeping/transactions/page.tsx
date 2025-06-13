@@ -2,256 +2,164 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { 
-  ArrowLeft, RefreshCw, Download, Filter, Search, Calendar, 
-  CheckCircle, XCircle, AlertCircle, DollarSign, Building,
-  ChevronLeft, ChevronRight, Check, Receipt
-} from 'lucide-react'
+import { ArrowLeft, RefreshCw, Download, Filter, Search, Calendar, DollarSign, Building2, Hash, CheckCircle, XCircle } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
-import { Transaction, TransactionFilter, ReconcileData } from '@/lib/types/transactions'
-import { ReconcileModal } from '@/components/reconcile-modal'
+
+interface BankTransaction {
+  id: string
+  xeroTransactionId: string
+  bankAccountId: string
+  date: string
+  amount: number
+  currencyCode?: string
+  type: string
+  status: string
+  isReconciled: boolean
+  reference?: string
+  description?: string
+  contactName?: string
+  lineItems?: string
+  hasAttachments: boolean
+  accountCode?: string
+  taxType?: string
+  createdAt: string
+  updatedAt: string
+  lastSyncedAt: string
+  bankAccount?: {
+    name: string
+    code?: string
+  }
+}
 
 export default function TransactionsPage() {
   const router = useRouter()
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [loading, setLoading] = useState(false)
-  const [syncing, setSyncing] = useState(false)
-  const [filter, setFilter] = useState<TransactionFilter>({ status: 'all' })
-  const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set())
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table')
-  const [dateRange, setDateRange] = useState({ from: '', to: '' })
-  const [amountRange, setAmountRange] = useState({ min: '', max: '' })
+  const [transactions, setTransactions] = useState<BankTransaction[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterType, setFilterType] = useState('ALL')
+  const [filterReconciled, setFilterReconciled] = useState('ALL')
+  const [filterAccount, setFilterAccount] = useState('ALL')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [pageSize, setPageSize] = useState(1000)
-  const [showAll, setShowAll] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [lastSync, setLastSync] = useState<Date | null>(null)
-  const [reconcileTransaction, setReconcileTransaction] = useState<Transaction | null>(null)
-  const [bankAccounts, setBankAccounts] = useState<any[]>([])
-  const [selectedAccount, setSelectedAccount] = useState<string>('')
   const [totalTransactions, setTotalTransactions] = useState(0)
-  const [summary, setSummary] = useState({
-    totalTransactions: 0,
-    unreconciledCount: 0,
-    reconciledCount: 0,
-    matchedCount: 0
-  })
+  const pageSize = 50
 
   useEffect(() => {
-    checkConnectionAndSync()
-  }, [])
-  
-  useEffect(() => {
-    if (transactions.length > 0 || bankAccounts.length > 0) {
-      syncTransactions(false)
-    }
-  }, [selectedAccount, filter.status, currentPage, showAll, pageSize])
+    fetchTransactions()
+  }, [currentPage])
 
-  const checkConnectionAndSync = async () => {
-    const status = await fetch('/api/v1/xero/status')
-    const { connected } = await status.json()
-    
-    if (!connected) {
-      toast.error('Please connect to Xero first')
-      router.push('/bookkeeping')
-      return
-    }
-    
-    syncTransactions()
-  }
-
-  const syncTransactions = async (fullSync = false) => {
-    setSyncing(true)
-    if (showAll) {
-      setLoading(true)
-    }
+  const fetchTransactions = async () => {
     try {
-      if (fullSync) {
-        // Full sync from Xero
-        toast.loading('Syncing all transactions from Xero...', { id: 'sync' })
-        const syncResponse = await fetch('/api/v1/xero/sync-all-fixed', { method: 'POST' })
-        
-        if (!syncResponse.ok) {
-          throw new Error('Sync failed')
-        }
-        
-        const syncData = await syncResponse.json()
-        toast.success(`Synced ${syncData.summary.accounts} accounts, ${syncData.summary.transactions} transactions`, { id: 'sync' })
-      }
-      
-      // Fetch from database
+      setLoading(true)
       const params = new URLSearchParams({
-        page: showAll ? '1' : currentPage.toString(),
-        pageSize: showAll ? '10000' : pageSize.toString(),
-        showReconciled: filter.status === 'all' || filter.status === 'reconciled' ? 'true' : 'false'
+        page: currentPage.toString(),
+        pageSize: pageSize.toString()
       })
+
+      const response = await fetch(`/api/v1/bookkeeping/bank-transactions?${params.toString()}`)
       
-      if (selectedAccount) {
-        params.append('accountId', selectedAccount)
-      }
-      
-      const response = await fetch(`/api/v1/xero/transactions?${params}`)
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast.error('Xero session expired. Please reconnect.')
-          router.push('/bookkeeping')
-          return
-        }
-        throw new Error('Failed to fetch transactions')
-      }
-      
-      const data = await response.json()
-      
-      // Debug log to check transaction data
-      console.log('First 3 transactions:', data.transactions.slice(0, 3).map((tx: any) => ({
-        description: tx.description,
-        reference: tx.reference,
-        contact: tx.contact,
-        lineItems: tx.lineItems
-      })))
-      
-      setTransactions(data.transactions)
-      setBankAccounts(data.bankAccounts || [])
-      setTotalPages(data.pagination.totalPages)
-      setTotalTransactions(data.pagination.total)
-      setSummary(data.summary || {
-        totalTransactions: data.pagination.total,
-        unreconciledCount: 0,
-        reconciledCount: 0,
-        matchedCount: 0
-      })
-      setLastSync(new Date())
-      
-      if (!fullSync) {
-        toast.success(`Loaded ${data.transactions.length} of ${data.pagination.total} transactions`)
+      if (response.ok) {
+        const data = await response.json()
+        setTransactions(data.transactions || [])
+        setTotalPages(data.totalPages || 1)
+        setTotalTransactions(data.total || 0)
+      } else {
+        toast.error('Failed to fetch transactions')
+        setTransactions([])
       }
     } catch (error) {
-      console.error('Error syncing:', error)
-      toast.error('Failed to sync transactions')
+      console.error('Error fetching transactions:', error)
+      toast.error('Error loading transactions')
+      setTransactions([])
     } finally {
-      setSyncing(false)
       setLoading(false)
     }
   }
 
-  const filteredTransactions = transactions.filter(tx => {
-    // Status filter
-    if (filter.status === 'unreconciled' && tx.isReconciled) return false
-    if (filter.status === 'reconciled' && !tx.isReconciled) return false
-    if (filter.status === 'matched' && !tx.matchedRule) return false
-    if (filter.status === 'unmatched' && tx.matchedRule) return false
-    
-    // Search filter
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase()
-      return (
-        tx.description.toLowerCase().includes(search) ||
-        tx.reference?.toLowerCase().includes(search) ||
-        tx.contact?.toLowerCase().includes(search)
-      )
-    }
-    
-    return true
-  })
-
-  const toggleSelectAll = () => {
-    if (selectedTransactions.size === filteredTransactions.length) {
-      setSelectedTransactions(new Set())
-    } else {
-      setSelectedTransactions(new Set(filteredTransactions.map(tx => tx.id)))
-    }
-  }
-
-  const toggleSelect = (id: string) => {
-    const newSelected = new Set(selectedTransactions)
-    if (newSelected.has(id)) {
-      newSelected.delete(id)
-    } else {
-      newSelected.add(id)
-    }
-    setSelectedTransactions(newSelected)
-  }
-
-  const handleBulkReconcile = async () => {
-    const matchedSelected = filteredTransactions.filter(
-      tx => selectedTransactions.has(tx.id) && tx.matchedRule
-    )
-    
-    if (matchedSelected.length === 0) {
-      toast.error('Please select matched transactions to reconcile')
-      return
-    }
-    
-    if (!confirm(`Reconcile ${matchedSelected.length} matched transactions?`)) {
-      return
-    }
-    
-    // TODO: Implement bulk reconciliation
-    toast.success(`${matchedSelected.length} transactions reconciled`)
-    setSelectedTransactions(new Set())
-  }
-
-  const exportTransactions = () => {
-    // TODO: Implement CSV export
-    toast.success('Exporting transactions to CSV...')
-  }
-
-  const handleReconcile = async (data: ReconcileData) => {
+  const syncTransactions = async () => {
     try {
-      const response = await fetch(`/api/v1/xero/transactions`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transactionId: data.transactionId,
-          updates: {
-            reference: data.reference,
-            description: data.description,
-            accountCode: data.accountCode,
-            taxType: data.taxType,
-            isReconciled: true
-          }
-        })
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to reconcile transaction')
-      }
-      
-      // Remove transaction from list
-      setTransactions(prev => prev.filter(tx => tx.id !== data.transactionId))
-      
-      // Create rule if requested
-      if (data.createRule && data.ruleName) {
-        const ruleResponse = await fetch('/api/v1/bookkeeping/rules', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: data.ruleName,
-            description: data.description,
-            matchType: 'contains',
-            matchField: 'description',
-            matchValue: data.rulePattern,
-            accountCode: data.accountCode,
-            taxType: data.taxType,
-            priority: 0,
-            isActive: true
-          })
-        })
-        
-        if (ruleResponse.ok) {
-          toast.success('Rule created successfully')
+      setLoading(true)
+      const response = await fetch('/api/v1/xero/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
         }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        toast.success(`Synced ${data.stats.created} new and ${data.stats.updated} updated transactions`)
+        fetchTransactions()
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to sync transactions')
       }
     } catch (error) {
-      console.error('Reconciliation error:', error)
-      throw error
+      console.error('Error syncing transactions:', error)
+      toast.error('Error syncing transactions')
+    } finally {
+      setLoading(false)
     }
+  }
+
+  const filteredTransactions = transactions.filter(transaction => {
+    const matchesSearch = 
+      (transaction.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (transaction.contactName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (transaction.reference || '').toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesType = filterType === 'ALL' || transaction.type === filterType
+    const matchesReconciled = 
+      filterReconciled === 'ALL' || 
+      (filterReconciled === 'RECONCILED' && transaction.isReconciled) ||
+      (filterReconciled === 'UNRECONCILED' && !transaction.isReconciled)
+    
+    const matchesAccount = 
+      filterAccount === 'ALL' || 
+      transaction.bankAccount?.name === filterAccount
+
+    const transactionDate = new Date(transaction.date)
+    const matchesDateFrom = !dateFrom || transactionDate >= new Date(dateFrom)
+    const matchesDateTo = !dateTo || transactionDate <= new Date(dateTo)
+    
+    return matchesSearch && matchesType && matchesReconciled && matchesAccount && matchesDateFrom && matchesDateTo
+  })
+
+  const bankAccounts = [...new Set(transactions.map(t => t.bankAccount?.name).filter(Boolean))]
+
+  const exportToCSV = () => {
+    const headers = ['Date', 'Description', 'Contact', 'Type', 'Amount', 'Account', 'Status', 'Reconciled']
+    const rows = filteredTransactions.map(t => [
+      new Date(t.date).toLocaleDateString(),
+      t.description || '',
+      t.contactName || '',
+      t.type,
+      t.amount.toFixed(2),
+      t.bankAccount?.name || '',
+      t.status,
+      t.isReconciled ? 'Yes' : 'No'
+    ])
+    
+    const csv = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n')
+    
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `transactions-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <Toaster position="top-right" />
+      
       {/* Header */}
       <div className="mb-8">
         <button
@@ -264,470 +172,223 @@ export default function TransactionsPage() {
         
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">
-              Transactions
-            </h1>
+            <h1 className="text-4xl font-bold text-white mb-2">Bank Transactions</h1>
             <p className="text-gray-400">
-              Manage and reconcile your bank transactions
+              Showing {filteredTransactions.length} of {totalTransactions} transactions
             </p>
           </div>
           
           <div className="flex gap-3">
             <button
-              onClick={exportTransactions}
-              className="px-4 py-2 bg-slate-700/50 text-gray-300 rounded-lg hover:bg-slate-700/70 transition-colors flex items-center"
+              onClick={exportToCSV}
+              className="px-4 py-2 bg-slate-800/50 text-gray-300 rounded-lg hover:bg-slate-800/70 transition-colors flex items-center gap-2 border border-slate-700"
             >
-              <Download className="h-4 w-4 mr-2" />
-              Export
+              <Download className="h-4 w-4" />
+              Export CSV
             </button>
             <button
-              onClick={() => syncTransactions(false)}
-              disabled={syncing}
-              className="px-4 py-2 bg-slate-700/50 text-gray-300 rounded-lg hover:bg-slate-700/70 transition-colors flex items-center"
+              onClick={syncTransactions}
+              disabled={loading}
+              className="px-4 py-2 bg-indigo-600/20 text-indigo-400 rounded-lg hover:bg-indigo-600/30 transition-colors flex items-center gap-2 border border-indigo-500/30"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-              Refresh
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Sync from Xero
             </button>
-            <button
-              onClick={() => syncTransactions(true)}
-              disabled={syncing}
-              className="px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-lg hover:bg-emerald-600/30 transition-colors flex items-center"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Syncing...' : 'Full Sync'}
-            </button>
-            <button
-              onClick={async () => {
-                try {
-                  setSyncing(true);
-                  toast('Syncing transactions with GL account details...', {
-                    icon: 'ℹ️',
-                  });
-                  const response = await fetch('/api/v1/xero/sync-with-line-items', {
-                    method: 'POST'
-                  });
-                  const data = await response.json();
-                  if (data.success) {
-                    toast.success(`Synced ${data.stats.totalUpdated} transactions. ${data.stats.percentageWithCodes} now have GL accounts.`);
-                    syncTransactions();
-                  } else {
-                    toast.error(`Sync failed: ${data.error}`);
-                  }
-                } catch (error) {
-                  toast.error('Failed to sync transactions');
-                } finally {
-                  setSyncing(false);
-                }
-              }}
-              className="px-4 py-2 bg-purple-600/20 text-purple-400 rounded-lg hover:bg-purple-600/30 transition-colors flex items-center"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Sync GL Accounts
-            </button>
-          </div>
-        </div>
-        
-        {lastSync && (
-          <div className="mt-2 text-sm text-gray-500">
-            Last sync: {lastSync.toLocaleString()} 
-          </div>
-        )}
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">Total Transactions</p>
-              <p className="text-2xl font-bold text-white">{summary.totalTransactions}</p>
-            </div>
-            <Receipt className="h-8 w-8 text-gray-600" />
-          </div>
-        </div>
-        
-        <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">Unreconciled</p>
-              <p className="text-2xl font-bold text-amber-400">
-                {summary.unreconciledCount}
-              </p>
-            </div>
-            <AlertCircle className="h-8 w-8 text-amber-600" />
-          </div>
-        </div>
-        
-        <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">Rule Matched</p>
-              <p className="text-2xl font-bold text-blue-400">
-                {summary.matchedCount}
-              </p>
-            </div>
-            <Check className="h-8 w-8 text-blue-600" />
-          </div>
-        </div>
-        
-        <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">Reconciled</p>
-              <p className="text-2xl font-bold text-green-400">
-                {summary.reconciledCount}
-              </p>
-            </div>
-            <CheckCircle className="h-8 w-8 text-green-600" />
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="mb-6 flex flex-wrap gap-4">
-        <div className="flex-1 min-w-[300px]">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search transactions..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
-            />
-          </div>
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search transactions..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-slate-800/50 text-white border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
         </div>
         
         <select
-          value={selectedAccount}
-          onChange={(e) => setSelectedAccount(e.target.value)}
-          className="px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value)}
+          className="px-4 py-2 bg-slate-800/50 text-white border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
         >
-          <option value="">All Bank Accounts</option>
-          {bankAccounts.map(acc => (
-            <option key={acc.id} value={acc.id}>
-              {acc.name} ({acc.currencyCode}) - {acc.transactionCount} txns
-            </option>
+          <option value="ALL">All Types</option>
+          <option value="SPEND">Spend</option>
+          <option value="RECEIVE">Receive</option>
+        </select>
+
+        <select
+          value={filterReconciled}
+          onChange={(e) => setFilterReconciled(e.target.value)}
+          className="px-4 py-2 bg-slate-800/50 text-white border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        >
+          <option value="ALL">All Status</option>
+          <option value="RECONCILED">Reconciled</option>
+          <option value="UNRECONCILED">Unreconciled</option>
+        </select>
+
+        <select
+          value={filterAccount}
+          onChange={(e) => setFilterAccount(e.target.value)}
+          className="px-4 py-2 bg-slate-800/50 text-white border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        >
+          <option value="ALL">All Accounts</option>
+          {bankAccounts.map(account => (
+            <option key={account} value={account}>{account}</option>
           ))}
         </select>
-        
-        <select
-          value={filter.status}
-          onChange={(e) => setFilter({ ...filter, status: e.target.value as any })}
-          className="px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
-        >
-          <option value="all">All Transactions</option>
-          <option value="unreconciled">Unreconciled Only</option>
-          <option value="reconciled">Reconciled Only</option>
-          <option value="matched">Matched Rules</option>
-          <option value="unmatched">No Rule Match</option>
-        </select>
-      </div>
 
-      {/* Bulk Actions */}
-      {selectedTransactions.size > 0 && (
-        <div className="mb-4 p-4 bg-emerald-600/10 border border-emerald-600/30 rounded-lg flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <span className="text-emerald-400">
-              {selectedTransactions.size} transaction{selectedTransactions.size !== 1 ? 's' : ''} selected
-            </span>
-            <button
-              onClick={() => setSelectedTransactions(new Set())}
-              className="text-sm text-gray-400 hover:text-white transition-colors"
-            >
-              Clear selection
-            </button>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleBulkReconcile}
-              className="px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-lg hover:bg-emerald-600/30 transition-colors"
-            >
-              Bulk Reconcile Matched
-            </button>
-            <button
-              onClick={() => {
-                const selectedUnreconciled = filteredTransactions.filter(
-                  tx => selectedTransactions.has(tx.id) && !tx.isReconciled
-                ).length
-                
-                if (selectedUnreconciled === 0) {
-                  toast.error('Please select unreconciled transactions')
-                  return
-                }
-                
-                // TODO: Open bulk categorize modal
-                toast(`Categorizing ${selectedUnreconciled} transactions`, {
-                  icon: 'ℹ️',
-                })
-              }}
-              className="px-4 py-2 bg-indigo-600/20 text-indigo-400 rounded-lg hover:bg-indigo-600/30 transition-colors"
-            >
-              Bulk Categorize
-            </button>
-          </div>
-        </div>
-      )}
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          placeholder="From date"
+          className="px-4 py-2 bg-slate-800/50 text-white border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        />
+
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          placeholder="To date"
+          className="px-4 py-2 bg-slate-800/50 text-white border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        />
+      </div>
 
       {/* Transactions Table */}
-      <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl overflow-hidden">
-        {loading && showAll ? (
-          <div className="flex items-center justify-center p-12">
-            <div className="text-center">
-              <RefreshCw className="h-8 w-8 text-emerald-400 animate-spin mx-auto mb-4" />
-              <p className="text-gray-400">Loading all transactions...</p>
-            </div>
-          </div>
-        ) : (
-        <table className="w-full">
-          <thead className="bg-slate-900/50 border-b border-slate-700">
-            <tr>
-              <th className="p-4 text-left">
-                <input
-                  type="checkbox"
-                  checked={selectedTransactions.size === filteredTransactions.length && filteredTransactions.length > 0}
-                  onChange={toggleSelectAll}
-                  className="w-4 h-4 text-emerald-600 bg-slate-700 border-slate-600 rounded focus:ring-emerald-500"
-                />
-              </th>
-              <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Date
-              </th>
-              <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Description
-              </th>
-              <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Contact/Payee
-              </th>
-              <th className="p-4 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Amount
-              </th>
-              <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Bank Account
-              </th>
-              <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                GL Account
-              </th>
-              <th className="p-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Reference
-              </th>
-              <th className="p-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="p-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-700/50">
-            {loading ? (
-              <tr>
-                <td colSpan={10} className="p-8 text-center">
-                  <div className="flex items-center justify-center">
-                    <RefreshCw className="h-6 w-6 text-emerald-400 animate-spin" />
-                    <span className="ml-2 text-gray-400">Fetching transactions...</span>
-                  </div>
-                </td>
-              </tr>
-            ) : filteredTransactions.length === 0 ? (
-              <tr>
-                <td colSpan={10} className="p-8 text-center text-gray-400">
-                  No transactions found
-                </td>
-              </tr>
-            ) : (
-              filteredTransactions.map((tx) => (
-                <tr 
-                  key={tx.id}
-                  className="hover:bg-slate-800/50 transition-colors"
-                >
-                  <td className="p-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedTransactions.has(tx.id)}
-                      onChange={() => toggleSelect(tx.id)}
-                      className="w-4 h-4 text-emerald-600 bg-slate-700 border-slate-600 rounded focus:ring-emerald-500"
-                    />
-                  </td>
-                  <td className="p-4 text-sm text-gray-300 whitespace-nowrap">
-                    {new Date(tx.date).toLocaleDateString()}
-                  </td>
-                  <td className="p-4">
-                    <div className="text-sm text-gray-300 max-w-xs truncate" title={tx.description}>
-                      {tx.description || <span className="text-gray-500 italic">No description</span>}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="text-sm text-gray-300">
-                      {tx.contact || <span className="text-gray-500">-</span>}
-                    </div>
-                  </td>
-                  <td className="p-4 text-right">
-                    <div className={`text-sm font-medium ${
-                      tx.type === 'SPEND' ? 'text-red-400' : 'text-green-400'
-                    }`}>
-                      {tx.type === 'SPEND' ? '-' : '+'}
-                      {tx.currencyCode || '$'}
-                      {Math.abs(tx.amount).toFixed(2)}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="text-sm text-gray-300">
-                      {tx.bankAccountName || '-'}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="text-sm">
-                      {tx.accountCode ? (
-                        <div>
-                          <div className="text-gray-300 font-mono">{tx.accountCode}</div>
-                          {tx.accountName && (
-                            <div className="text-xs text-gray-500">{tx.accountName}</div>
-                          )}
-                        </div>
-                      ) : tx.matchedRule ? (
-                        <div>
-                          <div className="text-blue-400 font-mono">{tx.matchedRule.accountCode}</div>
-                          <div className="text-xs text-gray-500">Suggested</div>
-                        </div>
-                      ) : (
-                        <span className="text-gray-500 italic">Uncategorized</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="text-sm text-gray-400 font-mono text-xs">
-                      {tx.reference || <span className="text-gray-500">-</span>}
-                    </div>
-                  </td>
-                  <td className="p-4 text-center">
-                    {tx.isReconciled ? (
-                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-green-500/20 text-green-400">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Reconciled
-                      </span>
-                    ) : tx.matchedRule ? (
-                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-500/20 text-blue-400">
-                        <Check className="h-3 w-3 mr-1" />
-                        Matched
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-amber-500/20 text-amber-400">
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        Pending
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center justify-center gap-2">
-                      {!tx.isReconciled && (
-                        <button
-                          onClick={() => setReconcileTransaction(tx)}
-                          className="px-3 py-1 text-xs bg-emerald-600/20 text-emerald-400 rounded-lg hover:bg-emerald-600/30 transition-colors"
-                        >
-                          Reconcile
-                        </button>
-                      )}
-                      {tx.matchedRule && !tx.isReconciled && (
-                        <button
-                          onClick={() => {
-                            // Quick reconcile with matched rule
-                            handleReconcile({
-                              transactionId: tx.id,
-                              reference: tx.reference || '',
-                              description: tx.description,
-                              accountCode: tx.matchedRule?.accountCode || '',
-                              taxType: tx.matchedRule?.taxType || '',
-                              createRule: false
-                            })
-                          }}
-                          className="px-3 py-1 text-xs bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors"
-                          title="Quick reconcile with matched rule"
-                        >
-                          Apply Rule
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        )}
-      </div>
-
-      {/* Pagination */}
-      <div className="mt-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-gray-400">
-            {showAll 
-              ? (
-                <div>
-                  <span>Showing all {totalTransactions} transactions</span>
-                  {totalTransactions > 1000 && (
-                    <span className="text-amber-400 ml-2">(May take longer to load)</span>
-                  )}
-                </div>
-              )
-              : `Page ${currentPage} of ${totalPages} (${totalTransactions} total)`
-            }
-          </div>
-          <button
-            onClick={() => {
-              setShowAll(!showAll)
-              setCurrentPage(1)
-            }}
-            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-              showAll 
-                ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30' 
-                : 'bg-slate-700/50 text-gray-300 hover:bg-slate-700/70'
-            }`}
-          >
-            {showAll ? (
-              <>
-                <Check className="h-4 w-4" />
-                Showing All
-              </>
-            ) : (
-              <>
-                Show All
-              </>
-            )}
-          </button>
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin h-12 w-12 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
         </div>
-        
-        {!showAll && totalPages > 1 && (
-          <div className="flex gap-2">
+      ) : filteredTransactions.length === 0 ? (
+        <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-12 text-center">
+          <DollarSign className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">No transactions found</h3>
+          <p className="text-gray-400 mb-6">
+            {transactions.length === 0 
+              ? "Sync from Xero to import your bank transactions" 
+              : "Try adjusting your filters"}
+          </p>
+          {transactions.length === 0 && (
             <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 bg-slate-700/50 text-gray-300 rounded-lg hover:bg-slate-700/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              onClick={syncTransactions}
+              className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
             >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
+              Sync from Xero
             </button>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 bg-slate-700/50 text-gray-300 rounded-lg hover:bg-slate-700/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </button>
+          )}
+        </div>
+      ) : (
+        <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-900/50 border-b border-slate-700">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Description
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Account
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/50">
+                {filteredTransactions.map((transaction) => (
+                  <tr key={transaction.id} className="hover:bg-slate-800/50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-2 text-gray-500" />
+                        {new Date(transaction.date).toLocaleDateString()}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-white">
+                      <div className="max-w-xs truncate" title={transaction.description}>
+                        {transaction.description || '-'}
+                      </div>
+                      {transaction.reference && (
+                        <div className="text-xs text-gray-500 mt-1">Ref: {transaction.reference}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      <div className="flex items-center">
+                        <Building2 className="h-4 w-4 mr-2 text-gray-500" />
+                        {transaction.contactName || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        transaction.type === 'SPEND' 
+                          ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
+                          : 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      }`}>
+                        {transaction.type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono">
+                      <span className={transaction.type === 'SPEND' ? 'text-red-400' : 'text-green-400'}>
+                        {transaction.type === 'SPEND' ? '-' : '+'}
+                        {Math.abs(transaction.amount).toFixed(2)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      {transaction.bankAccount?.name || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                      {transaction.isReconciled ? (
+                        <CheckCircle className="h-5 w-5 text-green-400 mx-auto" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-gray-500 mx-auto" />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
-
-      {/* Reconcile Modal */}
-      {reconcileTransaction && (
-        <ReconcileModal
-          transaction={reconcileTransaction}
-          onClose={() => setReconcileTransaction(null)}
-          onReconcile={handleReconcile}
-        />
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-6 py-4 bg-slate-900/50 border-t border-slate-700 flex items-center justify-between">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 bg-slate-800 text-gray-300 rounded-lg hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              <span className="text-gray-400">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 bg-slate-800 text-gray-300 rounded-lg hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
       )}
-
     </div>
   )
 }
