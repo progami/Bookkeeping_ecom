@@ -13,12 +13,21 @@ import toast, { Toaster } from 'react-hot-toast'
 
 interface FinancialOverview {
   cashInBank: number
-  monthlyIncome: number
-  monthlyExpenses: number
+  balanceSheet: {
+    totalAssets: number
+    totalLiabilities: number
+    netAssets: number
+  }
+  profitLoss: {
+    revenue: number
+    expenses: number
+    netProfit: number
+  }
+  vatLiability: number
   netCashFlow: number
   periodComparison: {
-    incomeChange: number
-    expenseChange: number
+    revenueChange: number
+    profitChange: number
   }
 }
 
@@ -89,13 +98,17 @@ export default function BookkeepingDashboard() {
       setLoading(true)
       
       // Fetch multiple data sources in parallel
-      const [analyticsResponse, statsResponse, accountsResponse] = await Promise.all([
-        fetch(`/api/v1/bookkeeping/analytics?period=${timeRange === '7d' ? 'week' : timeRange === '30d' ? 'month' : 'quarter'}`),
+      const [balanceSheetRes, plRes, vatRes, statsResponse, accountsResponse] = await Promise.all([
+        fetch('/api/v1/xero/reports/balance-sheet'),
+        fetch('/api/v1/xero/reports/profit-loss'),
+        fetch('/api/v1/xero/reports/vat-liability'),
         fetch('/api/v1/bookkeeping/stats'),
         fetch('/api/v1/bookkeeping/bank-accounts')
       ])
 
-      const analyticsData = analyticsResponse.ok ? await analyticsResponse.json() : null
+      const balanceSheetData = balanceSheetRes.ok ? await balanceSheetRes.json() : null
+      const plData = plRes.ok ? await plRes.json() : null
+      const vatData = vatRes.ok ? await vatRes.json() : null
       const statsData = statsResponse.ok ? await statsResponse.json() : null
       const accountsData = accountsResponse.ok ? await accountsResponse.json() : null
 
@@ -103,12 +116,21 @@ export default function BookkeepingDashboard() {
       setStats({
         financial: {
           cashInBank: accountsData?.accounts?.reduce((sum: number, acc: any) => sum + (acc.balance || 0), 0) || 0,
-          monthlyIncome: analyticsData?.summary?.totalIncome || 0,
-          monthlyExpenses: analyticsData?.summary?.totalExpenses || 0,
-          netCashFlow: analyticsData?.summary?.netAmount || 0,
+          balanceSheet: {
+            totalAssets: balanceSheetData?.totalAssets || 0,
+            totalLiabilities: balanceSheetData?.totalLiabilities || 0,
+            netAssets: balanceSheetData?.netAssets || 0
+          },
+          profitLoss: {
+            revenue: plData?.revenue || 0,
+            expenses: plData?.expenses || 0,
+            netProfit: plData?.netProfit || 0
+          },
+          vatLiability: vatData?.currentLiability || 0,
+          netCashFlow: (plData?.revenue || 0) - (plData?.expenses || 0),
           periodComparison: {
-            incomeChange: analyticsData?.trends?.incomeGrowth || 0,
-            expenseChange: analyticsData?.trends?.expenseGrowth || 0
+            revenueChange: plData?.revenueChange || 0,
+            profitChange: plData?.profitChange || 0
           }
         },
         bankAccounts: accountsData?.accounts?.map((acc: any) => ({
@@ -124,7 +146,7 @@ export default function BookkeepingDashboard() {
           needsAttention: accountsData?.accounts?.filter((acc: any) => acc.unreconciledTransactions > 10).length || 0,
           reconciliationRate: accountsData?.reconciliationRate || 0
         },
-        recentTransactions: analyticsData?.recentTransactions || []
+        recentTransactions: statsData?.recentTransactions || []
       })
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
@@ -315,66 +337,68 @@ export default function BookkeepingDashboard() {
               </div>
             </div>
 
-            {/* Monthly Income */}
+            {/* Balance Sheet */}
+            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-blue-500/50 transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-blue-500/20 rounded-xl">
+                    <FileText className="h-6 w-6 text-blue-400" />
+                  </div>
+                  <span className="text-xs text-gray-500 uppercase tracking-wider">Today</span>
+                </div>
+                <div className="text-3xl font-bold text-white">
+                  {formatCurrency(stats?.financial.balanceSheet.netAssets || 0)}
+                </div>
+                <div className="text-sm text-gray-400 mt-1">Net Assets</div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Assets: {formatCurrency(stats?.financial.balanceSheet.totalAssets || 0)}
+                </div>
+              </div>
+            </div>
+
+            {/* P&L Statement */}
             <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-green-500/50 transition-all duration-300">
               <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-green-500/20 rounded-xl">
-                    <TrendingUp className="h-6 w-6 text-green-400" />
+                    <BarChart3 className="h-6 w-6 text-green-400" />
                   </div>
                   <span className={`text-xs font-medium ${
-                    (stats?.financial.periodComparison.incomeChange ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                    (stats?.financial.periodComparison.profitChange ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'
                   }`}>
-                    {(stats?.financial.periodComparison.incomeChange ?? 0) >= 0 ? '+' : ''}
-                    {(stats?.financial.periodComparison.incomeChange ?? 0).toFixed(1)}%
+                    {(stats?.financial.periodComparison.profitChange ?? 0) >= 0 ? '+' : ''}
+                    {(stats?.financial.periodComparison.profitChange ?? 0).toFixed(1)}%
                   </span>
                 </div>
                 <div className="text-3xl font-bold text-white">
-                  {formatCurrency(stats?.financial.monthlyIncome || 0)}
+                  {formatCurrency(stats?.financial.profitLoss.netProfit || 0)}
                 </div>
-                <div className="text-sm text-gray-400 mt-1">Income ({timeRange})</div>
+                <div className="text-sm text-gray-400 mt-1">Net Profit ({timeRange})</div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Revenue: {formatCurrency(stats?.financial.profitLoss.revenue || 0)}
+                </div>
               </div>
             </div>
 
-            {/* Monthly Expenses */}
-            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-red-500/50 transition-all duration-300">
-              <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            {/* VAT Liability */}
+            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-amber-500/50 transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-red-500/20 rounded-xl">
-                    <TrendingDown className="h-6 w-6 text-red-400" />
-                  </div>
-                  <span className={`text-xs font-medium ${
-                    (stats?.financial.periodComparison.expenseChange ?? 0) <= 0 ? 'text-green-400' : 'text-red-400'
-                  }`}>
-                    {(stats?.financial.periodComparison.expenseChange ?? 0) >= 0 ? '+' : ''}
-                    {(stats?.financial.periodComparison.expenseChange ?? 0).toFixed(1)}%
-                  </span>
-                </div>
-                <div className="text-3xl font-bold text-white">
-                  {formatCurrency(stats?.financial.monthlyExpenses || 0)}
-                </div>
-                <div className="text-sm text-gray-400 mt-1">Expenses ({timeRange})</div>
-              </div>
-            </div>
-
-            {/* Net Cash Flow */}
-            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-cyan-500/50 transition-all duration-300">
-              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-cyan-500/20 rounded-xl">
-                    <Wallet className="h-6 w-6 text-cyan-400" />
+                  <div className="p-3 bg-amber-500/20 rounded-xl">
+                    <Receipt className="h-6 w-6 text-amber-400" />
                   </div>
                   <Activity className="h-4 w-4 text-gray-400" />
                 </div>
-                <div className={`text-3xl font-bold ${
-                  (stats?.financial.netCashFlow ?? 0) >= 0 ? 'text-white' : 'text-red-400'
-                }`}>
-                  {formatCurrency(stats?.financial.netCashFlow || 0)}
+                <div className="text-3xl font-bold text-white">
+                  {formatCurrency(stats?.financial.vatLiability || 0)}
                 </div>
-                <div className="text-sm text-gray-400 mt-1">Net Cash Flow</div>
+                <div className="text-sm text-gray-400 mt-1">VAT Liability</div>
+                <div className="text-xs text-gray-500 mt-2">
+                  As of today
+                </div>
               </div>
             </div>
           </div>
@@ -654,44 +678,6 @@ export default function BookkeepingDashboard() {
               </div>
 
 
-              {/* Automation Status */}
-              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
-                <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
-                  <div className="w-1 h-6 bg-indigo-500 rounded-full mr-3" />
-                  Automation
-                </h2>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Active Rules</span>
-                    <span className="text-sm font-medium text-white">
-                      {stats?.automation.activeRules || 0} / {stats?.automation.totalRules || 0}
-                    </span>
-                  </div>
-                  
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-gray-400">Match Rate</span>
-                      <span className="text-sm font-medium text-white">
-                        {stats?.automation.matchRate || 0}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-indigo-500 h-2 rounded-full transition-all"
-                        style={{ width: `${stats?.automation.matchRate || 0}%` }}
-                      />
-                    </div>
-                  </div>
-                  
-                  <button
-                    onClick={() => router.push('/bookkeeping/rules')}
-                    className="w-full text-sm text-indigo-400 hover:text-indigo-300"
-                  >
-                    Configure Rules →
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
 
