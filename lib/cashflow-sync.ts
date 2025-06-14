@@ -1,4 +1,4 @@
-import { XeroClient } from 'xero-node';
+import { XeroClient, CreditNote } from 'xero-node';
 import { prisma } from '@/lib/db';
 import { rateLimiterManager } from '@/lib/xero-rate-limiter';
 import { 
@@ -122,12 +122,14 @@ export class CashFlowDataSync {
       const response = await this.rateLimiter.executeAPICall(async () => {
         return this.xero.accountingApi.getInvoices(
           this.tenantId,
-          lastSync ? { modifiedAfter: lastSync.toISOString(), page } : { page },
-          undefined,
-          100, // Page size
-          undefined,
-          undefined,
-          ['AUTHORISED', 'PAID', 'VOIDED'] // Include all statuses for proper reconciliation
+          lastSync || undefined, // ifModifiedSince
+          undefined, // where
+          undefined, // order
+          undefined, // IDs
+          undefined, // invoiceNumbers
+          undefined, // contactIDs
+          ['AUTHORISED', 'PAID', 'VOIDED'], // statuses
+          page // page
         );
       });
 
@@ -141,14 +143,14 @@ export class CashFlowDataSync {
           contactName: invoice.contact?.name || '',
           invoiceNumber: invoice.invoiceNumber || '',
           reference: invoice.reference || '',
-          dueDate: invoice.dueDateString ? parseISO(invoice.dueDateString) : new Date(),
-          date: invoice.dateString ? parseISO(invoice.dateString) : new Date(),
+          dueDate: invoice.dueDate || new Date(),
+          date: invoice.date || new Date(),
           amountDue: invoice.amountDue || 0,
           total: invoice.total || 0,
           type: invoice.type?.toString() || 'ACCREC',
           status: invoice.status?.toString() || 'OPEN',
           lineAmountTypes: invoice.lineAmountTypes?.toString() || '',
-          currencyCode: invoice.currencyCode || 'GBP',
+          currencyCode: invoice.currencyCode?.toString() || 'GBP',
           lastModifiedUtc: invoice.updatedDateUTC || new Date(),
         };
 
@@ -188,51 +190,53 @@ export class CashFlowDataSync {
 
     while (hasMore) {
       const response = await this.rateLimiter.executeAPICall(async () => {
-        return this.xero.accountingApi.getBills(
+        return this.xero.accountingApi.getInvoices(
           this.tenantId,
-          lastSync ? { modifiedAfter: lastSync.toISOString(), page } : { page },
-          undefined,
-          100,
-          undefined,
-          undefined,
-          ['AUTHORISED', 'PAID', 'VOIDED']
+          lastSync || undefined, // ifModifiedSince
+          'Type=="ACCPAY"', // where - filter for bills only
+          undefined, // order
+          undefined, // IDs
+          undefined, // invoiceNumbers
+          undefined, // contactIDs
+          ['AUTHORISED', 'PAID', 'VOIDED'], // statuses
+          page // page
         );
       });
 
-      const bills = response.body.bills || [];
+      const bills = response.body.invoices || [];
       
       for (const bill of bills) {
-        if (!bill.billID) continue;
+        if (!bill.invoiceID) continue;
 
         const data = {
           contactId: bill.contact?.contactID || '',
           contactName: bill.contact?.name || '',
           invoiceNumber: bill.invoiceNumber || '',
           reference: bill.reference || '',
-          dueDate: bill.dueDateString ? parseISO(bill.dueDateString) : new Date(),
-          date: bill.dateString ? parseISO(bill.dateString) : new Date(),
+          dueDate: bill.dueDate || new Date(),
+          date: bill.date || new Date(),
           amountDue: bill.amountDue || 0,
           total: bill.total || 0,
           type: 'ACCPAY',
           status: bill.status?.toString() || 'OPEN',
           lineAmountTypes: bill.lineAmountTypes?.toString() || '',
-          currencyCode: bill.currencyCode || 'GBP',
+          currencyCode: bill.currencyCode?.toString() || 'GBP',
           lastModifiedUtc: bill.updatedDateUTC || new Date(),
         };
 
         const existing = await prisma.syncedInvoice.findUnique({
-          where: { id: bill.billID },
+          where: { id: bill.invoiceID },
         });
 
         if (existing) {
           await prisma.syncedInvoice.update({
-            where: { id: bill.billID },
+            where: { id: bill.invoiceID },
             data,
           });
           itemsUpdated++;
         } else {
           await prisma.syncedInvoice.create({
-            data: { id: bill.billID, ...data },
+            data: { id: bill.invoiceID, ...data },
           });
           itemsCreated++;
         }
@@ -254,9 +258,10 @@ export class CashFlowDataSync {
 
     // Get all repeating invoices (sales)
     const salesResponse = await this.rateLimiter.executeAPICall(async () => {
-      return this.xero.accountingApi.getRepeatingInvoices(this.tenantId, {
-        where: 'Status=="AUTHORISED"',
-      });
+      return this.xero.accountingApi.getRepeatingInvoices(
+        this.tenantId,
+        'Status=="AUTHORISED"' // where
+      );
     });
 
     const repeatingInvoices = salesResponse.body.repeatingInvoices || [];
@@ -281,7 +286,7 @@ export class CashFlowDataSync {
         total: repeating.total || 0,
         status: repeating.status?.toString() || '',
         reference: repeating.reference || '',
-        lastModifiedUtc: repeating.updatedDateUTC || new Date(),
+        lastModifiedUtc: new Date(),
       };
 
       const existing = await prisma.repeatingTransaction.findUnique({
@@ -318,9 +323,10 @@ export class CashFlowDataSync {
       const response = await this.rateLimiter.executeAPICall(async () => {
         return this.xero.accountingApi.getCreditNotes(
           this.tenantId,
-          lastSync ? { modifiedAfter: lastSync.toISOString(), page } : { page },
-          undefined,
-          100
+          lastSync || undefined, // ifModifiedSince
+          undefined, // where
+          undefined, // order
+          page // page
         );
       });
 
@@ -328,7 +334,7 @@ export class CashFlowDataSync {
       
       // Process credit notes to adjust invoice/bill amounts
       for (const creditNote of creditNotes) {
-        if (!creditNote.creditNoteID || creditNote.status !== 'AUTHORISED') continue;
+        if (!creditNote.creditNoteID || creditNote.status !== CreditNote.StatusEnum.AUTHORISED) continue;
 
         // Find allocations to invoices/bills
         const allocations = creditNote.allocations || [];

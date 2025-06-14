@@ -1,9 +1,25 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 describe('Xero API Integration Tests', () => {
   const baseUrl = 'https://localhost:3003';
 
+  beforeEach(() => {
+    // Reset fetch mock before each test
+    vi.clearAllMocks();
+  });
+
   it('should return Xero connection status', async () => {
+    // Mock successful status response
+    vi.mocked(global.fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ 
+        connected: false, 
+        organization: null,
+        error: 'Not connected to Xero'
+      }),
+    } as Response);
+
     const response = await fetch(`${baseUrl}/api/v1/xero/status`, {
       headers: { 'Accept': 'application/json' }
     });
@@ -50,6 +66,17 @@ describe('Xero API Integration Tests', () => {
   });
 
   it('should return stats from local database', async () => {
+    // Mock successful stats response
+    vi.mocked(global.fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({
+        unreconciledCount: 0,
+        reconciliationRate: 0,
+        recentTransactions: []
+      }),
+    } as Response);
+
     const response = await fetch(`${baseUrl}/api/v1/bookkeeping/stats`);
     expect(response.status).toBe(200);
     const data = await response.json();
@@ -59,6 +86,16 @@ describe('Xero API Integration Tests', () => {
   });
 
   it('should be able to check bank accounts endpoint', async () => {
+    // Mock successful bank accounts response
+    vi.mocked(global.fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({
+        accounts: [],
+        totalBalance: 0
+      }),
+    } as Response);
+
     const response = await fetch(`${baseUrl}/api/v1/bookkeeping/bank-accounts`);
     expect(response.status).toBe(200);
     const data = await response.json();

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClientWithTenant } from '@/lib/xero-client';
+import { RowType } from 'xero-node';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,23 +15,33 @@ export async function GET(request: NextRequest) {
 
     const { client, tenantId } = xeroData
 
-    // Get GST/VAT report from Xero
-    const response = await client.accountingApi.getReportBASorGST(
+    // Since getReportBASorGST is not available in all regions,
+    // we'll calculate VAT liability from GL accounts instead
+    const accountsResponse = await client.accountingApi.getAccounts(
       tenantId,
-      undefined // reportID - will use default
+      undefined, // ifModifiedSince
+      'Type=="CURRLIAB"&&Name.Contains("VAT")||Name.Contains("GST")||Code=="820"||Code=="825"' // where
     );
-
-    const report = response.body?.reports?.[0];
     
-    // Extract VAT liability from report
+    const vatAccounts = accountsResponse.body?.accounts || [];
+    
+    // Calculate VAT liability from account balances
     let currentLiability = 0;
     let vatCollected = 0;
     let vatPaid = 0;
-
+    
+    // Get Trial Balance for current balances
+    const trialBalanceResponse = await client.accountingApi.getReportTrialBalance(
+      tenantId,
+      undefined // date - will use today
+    );
+    
+    const report = trialBalanceResponse.body?.reports?.[0];
+    
     if (report?.rows) {
       report.rows.forEach((row: any) => {
         // Look for GST/VAT collected rows
-        if (row.rowType === 'Row' && row.cells) {
+        if (row.rowType === RowType.Row && row.cells) {
           const title = row.cells[0]?.value || '';
           const amount = parseFloat(row.cells[row.cells.length - 1]?.value || '0');
           
@@ -46,7 +57,7 @@ export async function GET(request: NextRequest) {
         }
         
         // Look for summary row with net amount
-        if (row.rowType === 'SummaryRow' && row.cells) {
+        if (row.rowType === RowType.SummaryRow && row.cells) {
           const title = row.cells[0]?.value || '';
           if (title.toLowerCase().includes('net gst') || 
               title.toLowerCase().includes('net vat') ||
@@ -91,7 +102,7 @@ export async function GET(request: NextRequest) {
       
       const invoicesResponse = await client.accountingApi.getInvoices(
         tenantId,
-        startDate.toISOString(),
+        startDate,
         undefined,
         undefined,
         undefined,

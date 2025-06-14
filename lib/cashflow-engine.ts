@@ -257,38 +257,39 @@ export class CashFlowEngine {
       console.error('Error getting current position from Xero:', error);
       // Fallback to database if Xero fails
       const bankAccounts = await prisma.bankAccount.findMany({
-      where: { status: 'ACTIVE' },
-    });
-    
-    const cash = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+        where: { status: 'ACTIVE' },
+      });
+      
+      const cash = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
 
-    // Get accounts receivable (open invoices)
-    const receivables = await prisma.syncedInvoice.aggregate({
-      where: {
-        type: 'ACCREC',
-        status: 'OPEN',
-      },
-      _sum: {
-        amountDue: true,
-      },
-    });
+      // Get accounts receivable (open invoices)
+      const receivables = await prisma.syncedInvoice.aggregate({
+        where: {
+          type: 'ACCREC',
+          status: 'OPEN',
+        },
+        _sum: {
+          amountDue: true,
+        },
+      });
 
-    // Get accounts payable (open bills)
-    const payables = await prisma.syncedInvoice.aggregate({
-      where: {
-        type: 'ACCPAY',
-        status: 'OPEN',
-      },
-      _sum: {
-        amountDue: true,
-      },
-    });
+      // Get accounts payable (open bills)
+      const payables = await prisma.syncedInvoice.aggregate({
+        where: {
+          type: 'ACCPAY',
+          status: 'OPEN',
+        },
+        _sum: {
+          amountDue: true,
+        },
+      });
 
-    return {
-      cash,
-      accountsReceivable: receivables._sum.amountDue || 0,
-      accountsPayable: payables._sum.amountDue || 0,
-    };
+      return {
+        cash,
+        accountsReceivable: receivables._sum.amountDue || 0,
+        accountsPayable: payables._sum.amountDue || 0,
+      };
+    }
   }
 
   private async getOpenInvoices() {

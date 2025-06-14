@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     // Get bills (purchases/expenses) from Xero for the period
     const billsResponse = await client.accountingApi.getInvoices(
       tenantId,
-      startDate.toISOString(),
+      startDate,
       undefined, // where
       undefined, // order
       undefined, // IDs

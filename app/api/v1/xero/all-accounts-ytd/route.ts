@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { XeroClient } from 'xero-node';
+import { XeroClient, RowType } from 'xero-node';
 import { TokenSet } from 'xero-node';
 import { prisma } from '@/lib/prisma';
 import { getXeroClientWithTenant } from '@/lib/xero-client';
@@ -87,7 +87,7 @@ export async function GET() {
           accountCode: account.code,
           accountName: account.name || '',
           accountType: account.type?.toString() || '',
-          accountClass: account.class?.toString() || '',
+          accountClass: account._class?.toString() || '',
           accountID: account.accountID || '',
           status: account.status?.toString() || 'ACTIVE',
           ytdBalance: 0,
@@ -112,10 +112,10 @@ export async function GET() {
       
       const report = trialBalanceResponse.body?.reports?.[0];
       if (report?.rows) {
-        const sectionRow = report.rows.find(row => row.rowType === 'Section');
+        const sectionRow = report.rows.find(row => row.rowType === RowType.Section);
         if (sectionRow?.rows) {
           for (const row of sectionRow.rows) {
-            if (row.rowType === 'Row' && row.cells) {
+            if (row.rowType === RowType.Row && row.cells) {
               const accountCode = row.cells[0]?.value;
               const ytdDebit = parseFloat(row.cells[1]?.value || '0');
               const ytdCredit = parseFloat(row.cells[2]?.value || '0');
@@ -205,9 +205,7 @@ export async function GET() {
           undefined, // periods
           undefined, // timeframe
           undefined, // trackingCategoryID
-          undefined, // trackingCategoryID2
           undefined, // trackingOptionID
-          undefined, // trackingOptionID2
           true, // standardLayout
           false // paymentsOnly
         )
@@ -296,9 +294,7 @@ export async function GET() {
           undefined, // contactIDs
           undefined, // statuses
           undefined, // page
-          undefined, // includeArchived
-          undefined, // createdByMyApp
-          100 // unitdp
+          undefined // includeArchived
         )
       );
       

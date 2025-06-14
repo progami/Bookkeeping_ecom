@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     // Store token
     cookieStore.set('xero_token_set', JSON.stringify(mockTokenSet), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV !== 'development',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30, // 30 days
       path: '/'
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     // Store tenant ID
     cookieStore.set('xero_tenant_id', mockTenantId, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV !== 'development',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30, // 30 days
       path: '/'

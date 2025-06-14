@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
           }
         }
       } catch (tbError) {
-        console.log('Could not fetch opening balances:', tbError.message);
+        console.log('Could not fetch opening balances:', (tbError as any).message);
       }
       
       // Get all accounts from database to merge with YTD data

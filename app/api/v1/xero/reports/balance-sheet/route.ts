@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getXeroClientWithTenant } from '@/lib/xero-client'
+import { RowType } from 'xero-node'
 
 export async function GET() {
   try {
@@ -59,12 +60,12 @@ export async function GET() {
 
     // Extract values from the report structure
     report.rows.forEach(section => {
-      if (section.rowType === 'Section') {
+      if (section.rowType === RowType.Section) {
         const sectionTitle = section.title?.toLowerCase() || ''
         
         if (sectionTitle.includes('asset')) {
           section.rows?.forEach(row => {
-            if (row.rowType === 'Row' && row.cells) {
+            if (row.rowType === RowType.Row && row.cells) {
               const accountName = row.cells[0]?.value?.toLowerCase() || ''
               const value = parseFloat(row.cells[1]?.value || '0')
               
@@ -80,7 +81,7 @@ export async function GET() {
                 balanceSheet.currentAssets += value
               }
               balanceSheet.totalAssets += value
-            } else if (row.rowType === 'SummaryRow' && row.cells) {
+            } else if (row.rowType === RowType.SummaryRow && row.cells) {
               const value = parseFloat(row.cells[1]?.value || '0')
               if (sectionTitle.includes('current') && sectionTitle.includes('asset')) {
                 balanceSheet.currentAssets = value
@@ -89,7 +90,7 @@ export async function GET() {
           })
         } else if (sectionTitle.includes('liabilit')) {
           section.rows?.forEach(row => {
-            if (row.rowType === 'Row' && row.cells) {
+            if (row.rowType === RowType.Row && row.cells) {
               const accountName = row.cells[0]?.value?.toLowerCase() || ''
               const value = parseFloat(row.cells[1]?.value || '0')
               
@@ -101,7 +102,7 @@ export async function GET() {
                 balanceSheet.currentLiabilities += value
               }
               balanceSheet.totalLiabilities += value
-            } else if (row.rowType === 'SummaryRow' && row.cells) {
+            } else if (row.rowType === RowType.SummaryRow && row.cells) {
               const value = parseFloat(row.cells[1]?.value || '0')
               if (sectionTitle.includes('current') && sectionTitle.includes('liabilit')) {
                 balanceSheet.currentLiabilities = value
@@ -110,7 +111,7 @@ export async function GET() {
           })
         } else if (sectionTitle.includes('equity')) {
           section.rows?.forEach(row => {
-            if (row.rowType === 'Row' && row.cells) {
+            if (row.rowType === RowType.Row && row.cells) {
               const value = parseFloat(row.cells[1]?.value || '0')
               balanceSheet.equity += value
             }

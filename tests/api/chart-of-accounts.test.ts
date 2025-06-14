@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll } from 'vitest';
 
 describe('Chart of Accounts API Tests', () => {
   let baseUrl: string;
@@ -51,7 +51,7 @@ describe('Chart of Accounts API Tests', () => {
       if (response.status === 401) {
         const data = await response.json();
         expect(data).toHaveProperty('error');
-        expect(data.error).toContain('Not connected to Xero');
+        expect(data.error).toContain('Xero not connected');
       } else if (response.ok) {
         const data = await response.json();
         expect(data).toHaveProperty('success', true);
@@ -89,7 +89,7 @@ describe('Chart of Accounts API Tests', () => {
       if (response.status === 401) {
         const data = await response.json();
         expect(data).toHaveProperty('error');
-        expect(data.error).toContain('Not connected to Xero');
+        expect(data.error).toContain('Xero not connected');
       } else if (response.ok) {
         const data = await response.json();
         expect(data).toHaveProperty('accounts');

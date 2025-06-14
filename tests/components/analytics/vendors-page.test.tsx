@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useRouter } from 'next/navigation'
-import VendorsAnalyticsPage from '@/app/analytics/vendors/page'
+import VendorsAnalyticsPage from '@/app/analytics/page'
 import '@testing-library/jest-dom'
 
 // Mock next/navigation

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { matchTransactions } from '@/lib/transaction-matcher';
 import { getXeroClient } from '@/lib/xero-client';
 
 export async function GET(request: NextRequest) {
@@ -161,9 +160,11 @@ export async function GET(request: NextRequest) {
         status: (tx.isReconciled ? 'reconciled' : 'unreconciled') as 'reconciled' | 'unreconciled',
         bankAccountId: tx.bankAccount.xeroAccountId,
         bankAccountName: tx.bankAccount.name,
-        currencyCode: tx.currencyCode || tx.bankAccount.currencyCode || undefined,
+        currencyCode: tx.currencyCode || tx.bankAccount.currencyCode || 'GBP',
         contact: tx.contactName || undefined,
-        reference: tx.reference || undefined,
+        contactId: null,
+        contactName: tx.contactName || null,
+        reference: tx.reference || null,
         isReconciled: tx.isReconciled,
         hasAttachments: tx.hasAttachments,
         lineItems: tx.lineItems ? JSON.parse(tx.lineItems) : undefined,
@@ -173,8 +174,8 @@ export async function GET(request: NextRequest) {
       };
     });
     
-    // Match with rules
-    const matchedTransactions = await matchTransactions(transformedTransactions);
+    // Since rules have been removed, we'll just use transformedTransactions directly
+    const matchedTransactions = transformedTransactions;
     
     // Get bank accounts for filter
     const bankAccounts = await prisma.bankAccount.findMany({
@@ -205,20 +206,6 @@ export async function GET(request: NextRequest) {
       })
     ]);
     
-    // Count matched transactions (those with rules but not reconciled)
-    const matchedUnreconciledCount = matchedTransactions.filter(
-      tx => tx.matchedRule && !tx.isReconciled
-    ).length;
-    
-    // Get total matched count from all transactions
-    const totalMatchedCount = await prisma.bankTransaction.count({
-      where: {
-        matchedRuleId: { not: null },
-        isReconciled: false,
-        status: { not: 'DELETED' }
-      }
-    });
-    
     return NextResponse.json({
       transactions: matchedTransactions,
       pagination: {
@@ -237,7 +224,7 @@ export async function GET(request: NextRequest) {
         totalTransactions,
         unreconciledCount,
         reconciledCount,
-        matchedCount: totalMatchedCount
+        matchedCount: 0
       }
     });
   } catch (error: any) {
@@ -272,7 +259,6 @@ export async function PUT(request: NextRequest) {
         description: updates.description,
         reference: updates.reference,
         isReconciled: updates.isReconciled || false,
-        matchedRuleId: updates.matchedRuleId,
         updatedAt: new Date()
       }
     });

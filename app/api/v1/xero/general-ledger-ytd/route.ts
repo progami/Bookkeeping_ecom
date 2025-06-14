@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { XeroClient } from 'xero-node';
+import { XeroClient, RowType } from 'xero-node';
 import { TokenSet } from 'xero-node';
 import { prisma } from '@/lib/prisma';
 import { getXeroClientWithTenant } from '@/lib/xero-client';
@@ -108,7 +108,7 @@ export async function GET() {
             accountCode: account.code,
             accountName: account.name || '',
             accountType: account.type?.toString() || '',
-            accountClass: account.class?.toString() || '',
+            accountClass: account._class?.toString() || '',
             accountID: account.accountID,
             ytdBalance: 0, // Will be updated from Trial Balance
             status: account.status?.toString() || 'ACTIVE'
@@ -143,10 +143,10 @@ export async function GET() {
       const report = trialBalanceResponse.body?.reports?.[0];
       if (report?.rows) {
         // Find the section with account data
-        const sectionRow = report.rows.find(row => row.rowType === 'Section');
+        const sectionRow = report.rows.find(row => row.rowType === RowType.Section);
         if (sectionRow?.rows) {
           for (const row of sectionRow.rows) {
-            if (row.rowType === 'Row' && row.cells) {
+            if (row.rowType === RowType.Row && row.cells) {
               // Extract account code and YTD balance
               const accountCode = row.cells[0]?.value;
               const ytdDebit = parseFloat(row.cells[1]?.value || '0');

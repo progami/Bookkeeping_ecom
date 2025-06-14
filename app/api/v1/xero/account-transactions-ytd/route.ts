@@ -47,7 +47,7 @@ export async function GET() {
             console.log(`[Account Transactions YTD] ${account.name} (${account.code}):`, {
               type: account.type,
               systemAccount: account.systemAccount,
-              balance: accountDetail.balance,
+              balance: (accountDetail as any).balance,
               status: account.status
             });
           }
@@ -57,7 +57,7 @@ export async function GET() {
             code: account.code,
             name: account.name,
             type: account.type,
-            balance: accountDetail.balance || 0,
+            balance: (accountDetail as any).balance || 0,
             systemAccount: account.systemAccount,
             status: account.status
           });

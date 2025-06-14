@@ -146,8 +146,8 @@ export default function ChartOfAccountsPage() {
           setHasYTDData(true)
           
           // Count accounts with non-zero balances
-          const accountsWithData = accountsWithYTD.filter(a => a.ytdAmount !== 0).length
-          const vatAccounts = accountsWithYTD.filter(a => a.code === '820' || a.code === '825' || a.name?.includes('VAT'))
+          const accountsWithData = accountsWithYTD.filter((a: any) => a.ytdAmount !== 0).length
+          const vatAccounts = accountsWithYTD.filter((a: any) => a.code === '820' || a.code === '825' || a.name?.includes('VAT'))
           
           console.log('VAT accounts after mapping:', vatAccounts)
           
@@ -185,7 +185,7 @@ export default function ChartOfAccountsPage() {
             console.log('Failed to fetch YTD data from both endpoints')
             setAccounts(allAccounts)
             setHasYTDData(false)
-            toast.warning('Showing accounts without YTD amounts')
+            toast('Showing accounts without YTD amounts')
           }
         }
       } else {

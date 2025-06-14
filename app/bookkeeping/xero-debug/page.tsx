@@ -22,7 +22,7 @@ export default function XeroDebugPage() {
       })
       
       const data = await response.json()
-      setResults(prev => ({
+      setResults((prev: any) => ({
         ...prev,
         [testName]: {
           status: response.status,
@@ -32,7 +32,7 @@ export default function XeroDebugPage() {
         }
       }))
     } catch (error: any) {
-      setResults(prev => ({
+      setResults((prev: any) => ({
         ...prev,
         [testName]: {
           error: error.message,

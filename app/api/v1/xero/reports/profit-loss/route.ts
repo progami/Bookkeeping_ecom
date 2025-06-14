@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getXeroClientWithTenant } from '@/lib/xero-client'
+import { RowType } from 'xero-node'
 
 export async function GET() {
   try {
@@ -15,7 +16,7 @@ export async function GET() {
     const { client, tenantId } = xeroData
 
     // Get profit & loss report from Xero
-    const response = await client.accountingApi.getReportProfitandLoss(
+    const response = await client.accountingApi.getReportProfitAndLoss(
       tenantId,
       undefined, // fromDate
       undefined, // toDate
@@ -54,15 +55,15 @@ export async function GET() {
 
     // Extract values from the report structure
     report.rows.forEach(section => {
-      if (section.rowType === 'Section') {
+      if (section.rowType === RowType.Section) {
         const sectionTitle = section.title?.toLowerCase() || ''
         
         if (sectionTitle.includes('income') || sectionTitle.includes('revenue') || sectionTitle.includes('sales')) {
           section.rows?.forEach(row => {
-            if (row.rowType === 'Row' && row.cells) {
+            if (row.rowType === RowType.Row && row.cells) {
               const value = parseFloat(row.cells[1]?.value || '0')
               profitLoss.totalRevenue += value
-            } else if (row.rowType === 'SummaryRow' && row.cells) {
+            } else if (row.rowType === RowType.SummaryRow && row.cells) {
               const value = parseFloat(row.cells[1]?.value || '0')
               if (sectionTitle.includes('total') && (sectionTitle.includes('income') || sectionTitle.includes('revenue'))) {
                 profitLoss.totalRevenue = value
@@ -71,21 +72,21 @@ export async function GET() {
           })
         } else if (sectionTitle.includes('cost of goods sold') || sectionTitle.includes('cost of sales')) {
           section.rows?.forEach(row => {
-            if (row.rowType === 'Row' && row.cells) {
+            if (row.rowType === RowType.Row && row.cells) {
               const value = parseFloat(row.cells[1]?.value || '0')
               profitLoss.costOfGoodsSold += value
-            } else if (row.rowType === 'SummaryRow' && row.cells) {
+            } else if (row.rowType === RowType.SummaryRow && row.cells) {
               const value = parseFloat(row.cells[1]?.value || '0')
               profitLoss.costOfGoodsSold = value
             }
           })
         } else if (sectionTitle.includes('expense') || sectionTitle.includes('operating')) {
           section.rows?.forEach(row => {
-            if (row.rowType === 'Row' && row.cells) {
+            if (row.rowType === RowType.Row && row.cells) {
               const value = parseFloat(row.cells[1]?.value || '0')
               profitLoss.operatingExpenses += value
               profitLoss.totalExpenses += value
-            } else if (row.rowType === 'SummaryRow' && row.cells) {
+            } else if (row.rowType === RowType.SummaryRow && row.cells) {
               const value = parseFloat(row.cells[1]?.value || '0')
               if (sectionTitle.includes('operating')) {
                 profitLoss.operatingExpenses = value
@@ -94,14 +95,14 @@ export async function GET() {
           })
         } else if (sectionTitle.includes('gross profit')) {
           section.rows?.forEach(row => {
-            if (row.rowType === 'Row' && row.cells) {
+            if (row.rowType === RowType.Row && row.cells) {
               const value = parseFloat(row.cells[1]?.value || '0')
               profitLoss.grossProfit = value
             }
           })
         } else if (sectionTitle.includes('net profit') || sectionTitle.includes('net income')) {
           section.rows?.forEach(row => {
-            if (row.rowType === 'Row' && row.cells) {
+            if (row.rowType === RowType.Row && row.cells) {
               const value = parseFloat(row.cells[1]?.value || '0')
               profitLoss.netProfit = value
             }

@@ -2,8 +2,7 @@ import { chromium } from 'playwright';
 
 async function authenticateXero() {
   const browser = await chromium.launch({ 
-    headless: false,
-    ignoreHTTPSErrors: true 
+    headless: false
   });
   
   const context = await browser.newContext({

@@ -87,7 +87,7 @@ export async function GET() {
             accountCode: account.code,
             accountName: account.name || '',
             accountType: account.type?.toString() || '',
-            accountClass: account.class?.toString() || '',
+            accountClass: account._class?.toString() || '',
             balance: 0,
             transactionCount: 0
           });
@@ -112,8 +112,7 @@ export async function GET() {
           xero.accountingApi.getJournals(
             tenantId,
             undefined, // ifModifiedSince
-            offset,
-            pageSize
+            offset
           )
         );
         
@@ -161,7 +160,7 @@ export async function GET() {
                   transactionCount: 0
                 };
               }
-              accountBalances.set(line.accountCode, accountData);
+              accountBalances.set(line.accountCode, accountData!);
             }
             
             // Update balance
@@ -169,6 +168,7 @@ export async function GET() {
             // For asset and expense accounts, debits increase the balance
             // For liability, equity, and revenue accounts, credits increase the balance
             const amount = line.netAmount || 0;
+            if (!accountData) continue; // TypeScript safety check
             const accountType = accountData.accountType.toUpperCase();
             const accountClass = accountData.accountClass.toUpperCase();
             

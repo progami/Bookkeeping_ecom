@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { XeroClient } from 'xero-node';
+import { XeroClient, Organisation } from 'xero-node';
 import { 
   addDays, 
   addMonths, 
@@ -89,8 +89,8 @@ export class UKTaxCalculator {
       }
 
       // Determine VAT scheme from tax settings
-      const vatScheme = org.salesTaxBasis === 'CASH' ? 'CASH' : 'STANDARD';
-      const vatReturns = org.salesTaxPeriod === 'MONTHLY' ? 'MONTHLY' : 'QUARTERLY';
+      const vatScheme = org.salesTaxBasis === Organisation.SalesTaxBasisEnum.CASH ? 'CASH' : 'STANDARD';
+      const vatReturns = org.salesTaxPeriod === Organisation.SalesTaxPeriodEnum.MONTHLY ? 'MONTHLY' : 'QUARTERLY';
 
       return {
         financialYearEnd,
@@ -400,6 +400,14 @@ export class UKTaxCalculator {
       orderBy: { dueDate: 'asc' }
     });
 
-    return obligations;
+    return obligations.map(ob => ({
+      type: ob.type as 'VAT' | 'PAYE_NI' | 'CORPORATION_TAX',
+      dueDate: ob.dueDate,
+      amount: ob.amount,
+      periodStart: ob.periodStart || undefined,
+      periodEnd: ob.periodEnd || undefined,
+      reference: ob.reference || undefined,
+      notes: ob.notes || undefined
+    }));
   }
 }

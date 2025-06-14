@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClientWithTenant } from '@/lib/xero-client';
 import { prisma } from '@/lib/prisma';
+import { BankTransaction } from 'xero-node';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
                       }
                       
                       // For bank transactions, use the line amount
-                      if (tx.type === 'SPEND') {
+                      if (tx.type === BankTransaction.TypeEnum.SPEND) {
                         ytdBalances[account.code] -= amount;
                       } else {
                         ytdBalances[account.code] += amount;
@@ -103,12 +104,11 @@ export async function GET(request: NextRequest) {
                 undefined,
                 invWhereFilter,
                 'Date ASC',
-                1,
                 undefined,
                 undefined,
                 undefined,
                 undefined,
-                'All'
+                1
               );
               
               const invoices = invoicesResponse.body.invoices || [];
@@ -138,12 +138,11 @@ export async function GET(request: NextRequest) {
                 undefined,
                 billWhereFilter,
                 'Date ASC',
-                1,
                 undefined,
                 undefined,
                 undefined,
                 undefined,
-                'All'
+                1
               );
               
               const bills = billsResponse.body.invoices || [];

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getXeroClientWithTenant } from '@/lib/xero-client';
+import { AccountType } from 'xero-node';
 
 // Force dynamic rendering to ensure cookies work properly
 export const dynamic = 'force-dynamic';
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
         let accountCode = account.code;
         if (!accountCode) {
           // For bank accounts without codes, use "BANK" as the code
-          if (account.type === 'BANK') {
+          if (account.type === AccountType.BANK) {
             accountCode = `BANK_${account.accountID?.substring(0, 8) || Math.random().toString(36).substring(2, 10)}`;
             console.log(`Assigning code ${accountCode} to bank account: ${account.name}`);
           } else {

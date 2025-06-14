@@ -88,12 +88,12 @@ export async function GET(request: NextRequest) {
       
       // Store token in secure cookie using the response
       const tokenData = {
-        access_token: tokenSet.access_token,
-        refresh_token: tokenSet.refresh_token,
+        access_token: tokenSet.access_token || '',
+        refresh_token: tokenSet.refresh_token || '',
         expires_at: tokenSet.expires_at || (Math.floor(Date.now() / 1000) + (tokenSet.expires_in || 1800)),
-        expires_in: tokenSet.expires_in,
-        token_type: tokenSet.token_type,
-        scope: tokenSet.scope
+        expires_in: tokenSet.expires_in || 1800,
+        token_type: tokenSet.token_type || 'Bearer',
+        scope: tokenSet.scope || ''
       };
       
       XeroSession.setTokenInResponse(response, tokenData);

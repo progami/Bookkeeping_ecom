@@ -19,8 +19,16 @@ vi.mock('next/navigation', () => ({
   },
 }))
 
-// Mock fetch globally
-global.fetch = vi.fn()
+// Mock fetch globally with a default implementation
+global.fetch = vi.fn(() =>
+  Promise.resolve({
+    ok: false,
+    status: 401,
+    json: () => Promise.resolve({ error: 'Xero not connected' }),
+    text: () => Promise.resolve(''),
+    headers: new Headers(),
+  } as Response)
+)
 
 // Mock console methods to reduce noise in tests
 global.console = {
