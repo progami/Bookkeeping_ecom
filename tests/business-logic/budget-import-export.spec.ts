@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { BudgetImportExport } from '@/lib/budget-import-export'
-import { prisma } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 import * as XLSX from 'xlsx'
 
 // Mock dependencies
-vi.mock('@/lib/db', () => ({
+vi.mock('@/lib/prisma', () => ({
   prisma: {
     cashFlowBudget: {
       findMany: vi.fn(),

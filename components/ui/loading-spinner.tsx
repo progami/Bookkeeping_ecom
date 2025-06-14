@@ -21,7 +21,7 @@ const variantStyles = {
 
 export function LoadingSpinner({ size = 'md', variant = 'success' }: LoadingSpinnerProps) {
   return (
-    <div className="flex items-center justify-center h-64">
+    <div className="flex items-center justify-center h-64" role="status" aria-label="Loading">
       <div className="relative">
         <div className={`${sizeStyles[size]} border-4 ${variantStyles[variant]}/20 rounded-full animate-pulse`} />
         <div className={`absolute inset-0 ${sizeStyles[size]} border-4 ${variantStyles[variant]} border-t-transparent rounded-full animate-spin`} />

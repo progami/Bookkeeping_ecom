@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { UKTaxCalculator } from '@/lib/uk-tax-calculator'
-import { prisma } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 import { XeroClient } from 'xero-node'
 import { addDays, addMonths, setDate, startOfQuarter, endOfQuarter, format } from 'date-fns'
 
 // Mock dependencies
-vi.mock('@/lib/db', () => ({
+vi.mock('@/lib/prisma', () => ({
   prisma: {
     gLAccount: {
       findFirst: vi.fn(),

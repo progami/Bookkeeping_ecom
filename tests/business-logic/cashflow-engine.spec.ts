@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { CashFlowEngine } from '@/lib/cashflow-engine'
-import { prisma } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 import { addDays, format, startOfDay } from 'date-fns'
 
 // Mock the database
-vi.mock('@/lib/db', () => ({
+vi.mock('@/lib/prisma', () => ({
   prisma: {
     bankAccount: {
       findMany: vi.fn(),

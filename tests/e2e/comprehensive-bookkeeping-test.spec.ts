@@ -77,17 +77,17 @@ test.describe('Comprehensive Bookkeeping Dashboard Tests', () => {
     await expect(vatLiability).toBeVisible();
   });
 
-  test('should handle Xero sync correctly', async ({ page }) => {
-    // Look for sync button
-    const syncButton = page.getByRole('button', { name: /Sync Transactions/i });
+  test('should handle Xero connection status', async ({ page }) => {
+    // Check if Connect Xero button is visible (when not connected)
+    const connectButton = page.getByRole('button', { name: /Connect Xero/i });
     
-    if (await syncButton.isVisible()) {
-      // Click sync and verify it shows loading state
-      await syncButton.click();
-      await expect(syncButton).toContainText('Syncing...');
-      
-      // Wait for sync to complete (max 30 seconds)
-      await expect(syncButton).toContainText('Sync Transactions', { timeout: 30000 });
+    if (await connectButton.isVisible()) {
+      // Verify the button is clickable
+      await expect(connectButton).toBeEnabled();
+    } else {
+      // If connected, verify that financial data is being displayed
+      const cashBalance = page.locator('text=Cash in Bank').locator('..').locator('text=/£[0-9,]+/');
+      await expect(cashBalance).toBeVisible();
     }
   });
 
@@ -120,7 +120,7 @@ test.describe('Finance Dashboard Tests', () => {
 
   test('should display all finance modules', async ({ page }) => {
     // Check header
-    await expect(page.getByRole('heading', { name: 'Finance Command Center' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Financial Overview' })).toBeVisible();
     
     // Check financial health score
     await expect(page.getByText('Financial Health Score')).toBeVisible();
@@ -129,7 +129,7 @@ test.describe('Finance Dashboard Tests', () => {
     await expect(page.getByText('Total Cash Balance')).toBeVisible();
     await expect(page.getByText('Total Revenue')).toBeVisible();
     await expect(page.getByText('Total Expenses')).toBeVisible();
-    await expect(page.getByText('Total Liabilities')).toBeVisible();
+    await expect(page.getByText('Net Profit')).toBeVisible();
     
     // Check modules
     await expect(page.getByRole('heading', { name: 'Bookkeeping' })).toBeVisible();

@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   FileText, Activity, TrendingUp, TrendingDown, AlertCircle, 
-  BarChart3, ArrowLeft, Zap, Cloud, LogOut, Upload,
-  DollarSign, Building2, RefreshCw, Receipt, Clock, 
-  Wallet, ArrowUpRight, CreditCard, CheckCircle, X,
+  BarChart3, ArrowLeft, Zap, Cloud,
+  DollarSign, Building2, Receipt, Clock, 
+  Wallet, ArrowUpRight, CreditCard, CheckCircle,
   BookOpen, AlertTriangle
 } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
@@ -74,9 +74,7 @@ export default function BookkeepingDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [xeroStatus, setXeroStatus] = useState<XeroStatus | null>(null)
   const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
   const [timeRange, setTimeRange] = useState('30d')
-  const [disconnecting, setDisconnecting] = useState(false)
 
   useEffect(() => {
     // Check for OAuth callback params
@@ -168,55 +166,11 @@ export default function BookkeepingDashboard() {
     }
   }
 
-  const handleSync = async () => {
-    setSyncing(true)
-    try {
-      toast.loading('Syncing data from Xero...', { id: 'sync' })
-      
-      const response = await fetch('/api/v1/xero/sync', { method: 'POST' })
-      if (response.ok) {
-        const data = await response.json()
-        toast.dismiss('sync')
-        toast.success(`Sync completed! ${data.summary.glAccounts} accounts, ${data.summary.transactions} transactions`)
-        fetchDashboardData()
-      } else {
-        toast.dismiss('sync')
-        toast.error('Sync failed')
-      }
-    } catch (error) {
-      toast.dismiss('sync')
-      toast.error('Failed to sync with Xero')
-    } finally {
-      setSyncing(false)
-    }
-  }
 
   const handleConnectXero = () => {
     window.location.href = '/api/v1/xero/auth'
   }
 
-  const handleDisconnectXero = async () => {
-    if (!confirm('Are you sure you want to disconnect from Xero?')) {
-      return
-    }
-    
-    setDisconnecting(true)
-    try {
-      const response = await fetch('/api/v1/xero/disconnect', { method: 'POST' })
-      
-      if (response.ok) {
-        toast.success('Disconnected from Xero')
-        setXeroStatus({ connected: false, organization: null })
-        fetchDashboardData()
-      } else {
-        toast.error('Failed to disconnect from Xero')
-      }
-    } catch (error) {
-      toast.error('Failed to disconnect from Xero')
-    } finally {
-      setDisconnecting(false)
-    }
-  }
 
   const formatCurrency = (amount: number, currency = 'GBP') => {
     return new Intl.NumberFormat('en-GB', {
@@ -243,14 +197,12 @@ export default function BookkeepingDashboard() {
           <div>
             <h1 className="text-4xl font-bold text-white mb-2">Bookkeeping Dashboard</h1>
             <p className="text-gray-400">
-              {xeroStatus?.connected 
-                ? `Connected to ${xeroStatus.organization?.tenantName}` 
-                : 'Connect to Xero to get started'}
+              Manage your financial records and transactions
             </p>
           </div>
           
           <div className="flex gap-3">
-            {!xeroStatus?.connected ? (
+            {!xeroStatus?.connected && (
               <button 
                 onClick={handleConnectXero}
                 className="px-4 py-2 bg-green-600/20 text-green-400 rounded-lg hover:bg-green-600/30 transition-colors"
@@ -258,24 +210,6 @@ export default function BookkeepingDashboard() {
                 <Cloud className="h-4 w-4 inline mr-2" />
                 Connect Xero
               </button>
-            ) : (
-              <>
-                <button
-                  onClick={handleSync}
-                  disabled={syncing}
-                  className="px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-lg hover:bg-emerald-600/30 transition-colors flex items-center"
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                  {syncing ? 'Syncing...' : 'Sync Transactions'}
-                </button>
-                <button
-                  onClick={() => router.push('/bookkeeping/analytics')}
-                  className="px-4 py-2 bg-indigo-600/20 text-indigo-400 rounded-lg hover:bg-indigo-600/30 transition-colors"
-                >
-                  <BarChart3 className="h-4 w-4 inline mr-2" />
-                  Analytics
-                </button>
-              </>
             )}
             <select 
               value={timeRange}
@@ -292,7 +226,7 @@ export default function BookkeepingDashboard() {
 
       {/* Loading State */}
       {loading ? (
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-64" role="status" aria-label="Loading">
           <div className="relative">
             <div className="w-16 h-16 border-4 border-emerald-500/20 rounded-full animate-pulse" />
             <div className="absolute inset-0 w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -547,12 +481,6 @@ export default function BookkeepingDashboard() {
                     <div className="text-center py-8 text-gray-400">
                       <Building2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
                       <p>No bank accounts found</p>
-                      <button 
-                        onClick={handleSync}
-                        className="mt-2 text-emerald-400 hover:text-emerald-300"
-                      >
-                        Sync from Xero
-                      </button>
                     </div>
                   )}
                 </div>
@@ -676,31 +604,6 @@ export default function BookkeepingDashboard() {
               </div>
 
 
-            </div>
-          </div>
-
-          {/* Xero Connection Status */}
-          <div className="mt-8 bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-green-500/20 rounded-xl">
-                  <Cloud className="h-6 w-6 text-green-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">Xero Connection</h3>
-                  <p className="text-sm text-gray-400">
-                    Connected to {xeroStatus?.organization?.tenantName}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={handleDisconnectXero}
-                disabled={disconnecting}
-                className="px-4 py-2 text-sm bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors flex items-center gap-2"
-              >
-                <LogOut className="h-4 w-4" />
-                {disconnecting ? 'Disconnecting...' : 'Disconnect'}
-              </button>
             </div>
           </div>
         </>
