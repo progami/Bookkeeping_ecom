@@ -171,22 +171,20 @@ export default function BookkeepingDashboard() {
   const handleSync = async () => {
     setSyncing(true)
     try {
-      // Sync bank balances first
-      const balanceResponse = await fetch('/api/v1/xero/sync-bank-balances', { method: 'POST' })
-      if (balanceResponse.ok) {
-        const balanceData = await balanceResponse.json()
-        toast.success(`Updated ${balanceData.accounts?.length || 0} bank account balances`)
-      }
+      toast.loading('Syncing data from Xero...', { id: 'sync' })
       
-      // Then sync transactions
-      const response = await fetch('/api/v1/xero/sync-all-fixed', { method: 'POST' })
+      const response = await fetch('/api/v1/xero/sync', { method: 'POST' })
       if (response.ok) {
-        toast.success('Sync completed successfully')
+        const data = await response.json()
+        toast.dismiss('sync')
+        toast.success(`Sync completed! ${data.summary.glAccounts} accounts, ${data.summary.transactions} transactions`)
         fetchDashboardData()
       } else {
+        toast.dismiss('sync')
         toast.error('Sync failed')
       }
     } catch (error) {
+      toast.dismiss('sync')
       toast.error('Failed to sync with Xero')
     } finally {
       setSyncing(false)
