@@ -26,13 +26,13 @@ export class XeroRateLimiter {
       // Minimum time between requests (100ms)
       minTime: 100,
       
-      // Redis datastore for distributed rate limiting
-      datastore: 'redis',
-      clearDatastore: false,
-      clientOptions: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379'),
-      },
+      // Use local storage instead of Redis for now to avoid bottleneck issues
+      // datastore: 'redis',
+      // clearDatastore: false,
+      // clientOptions: {
+      //   host: process.env.REDIS_HOST || 'localhost',
+      //   port: parseInt(process.env.REDIS_PORT || '6379'),
+      // },
       id: `xero-limiter-${tenantId}`, // Unique ID per tenant
     });
 

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClientWithTenant } from '@/lib/xero-client';
+import { executeXeroAPICall } from '@/lib/xero-client-with-rate-limit';
+import { cacheManager, XeroCache } from '@/lib/xero-cache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,6 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { client, tenantId } = xeroData
+    const cache = cacheManager.getCache(tenantId);
     const searchParams = request.nextUrl.searchParams;
     const period = searchParams.get('period') || '30d';
     
@@ -37,21 +40,54 @@ export async function GET(request: NextRequest) {
         startDate.setDate(now.getDate() - 30);
     }
 
-    // Get bills (purchases/expenses) from Xero for the period
-    const billsResponse = await client.accountingApi.getInvoices(
+    // Try to get from cache first
+    const cacheKey = XeroCache.CACHE_TYPES.VENDORS.key;
+    const cacheParams = { period, startDate: startDate.toISOString() };
+    
+    const cachedResponse = await cache.get(
+      cacheKey,
+      cacheParams,
+      async () => {
+        // Get bills (purchases/expenses) from Xero for the period with rate limiting
+        return await executeXeroAPICall(
+          tenantId,
+          async (client) => client.accountingApi.getInvoices(
+            tenantId,
+            startDate,
+            undefined, // where
+            undefined, // order
+            undefined, // IDs
+            undefined, // InvoiceNumbers
+            undefined, // ContactIDs
+            undefined, // Statuses
+            100, // page size
+            undefined, // page
+            undefined, // includeArchived
+            undefined, // createdByMyApp
+            undefined // unitdp
+          )
+        );
+      },
+      { ttl: XeroCache.CACHE_TYPES.VENDORS.ttl }
+    );
+
+    const billsResponse = cachedResponse || await executeXeroAPICall(
       tenantId,
-      startDate,
-      undefined, // where
-      undefined, // order
-      undefined, // IDs
-      undefined, // InvoiceNumbers
-      undefined, // ContactIDs
-      undefined, // Statuses
-      100, // page size
-      undefined, // page
-      undefined, // includeArchived
-      undefined, // createdByMyApp
-      undefined // unitdp
+      async (client) => client.accountingApi.getInvoices(
+        tenantId,
+        startDate,
+        undefined, // where
+        undefined, // order
+        undefined, // IDs
+        undefined, // InvoiceNumbers
+        undefined, // ContactIDs
+        undefined, // Statuses
+        100, // page size
+        undefined, // page
+        undefined, // includeArchived
+        undefined, // createdByMyApp
+        undefined // unitdp
+      )
     );
 
     // Filter for bills (type ACCPAY) and group by vendor
@@ -117,8 +153,22 @@ export async function GET(request: NextRequest) {
       averageTransactionAmount: vendor.totalSpend / vendor.transactionCount
     }));
 
+    // Calculate growth for each vendor (would need historical data)
+    const topVendors = sortedVendors.map((vendor, index) => ({
+      rank: index + 1,
+      name: vendor.name,
+      totalAmount: vendor.totalSpend,
+      transactionCount: vendor.transactionCount,
+      lastTransaction: vendor.lastTransaction.toISOString(),
+      percentageOfTotal: totalSpend > 0 ? parseFloat(((vendor.totalSpend / totalSpend) * 100).toFixed(1)) : 0,
+      averageTransactionAmount: vendor.totalSpend / vendor.transactionCount,
+      growth: 0 // Would need previous period data to calculate
+    }));
+
     return NextResponse.json({
-      vendors,
+      success: true,
+      topVendors,
+      vendors, // Keep for backward compatibility
       period,
       startDate: startDate.toISOString(),
       endDate: now.toISOString(),
@@ -135,6 +185,16 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Error fetching top vendors from Xero:', error);
+    
+    // Check if it's a rate limit error
+    if (error.response?.status === 429 || error.message?.includes('Daily API limit')) {
+      return NextResponse.json({ 
+        error: 'Rate limit exceeded',
+        message: error.message,
+        retryAfter: error.response?.headers?.['retry-after'] || 60
+      }, { status: 429 });
+    }
+    
     return NextResponse.json(
       { 
         error: 'Failed to fetch top vendors',

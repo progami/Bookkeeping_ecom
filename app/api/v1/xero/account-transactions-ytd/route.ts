@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getXeroClientWithTenant } from '@/lib/xero-client';
+import { executeXeroAPICall, batchXeroAPICalls } from '@/lib/xero-client-with-rate-limit';
 
 export async function GET() {
   try {
@@ -19,22 +20,24 @@ export async function GET() {
     
     console.log(`[Account Transactions YTD] Fetching from ${fromDate} to ${toDate}`);
     
-    // First get all accounts
-    const accountsResponse = await xero.accountingApi.getAccounts(
+    // First get all accounts with rate limiting
+    const accountsResponse = await executeXeroAPICall(
       tenantId,
-      undefined,
-      undefined,
-      'Code ASC'
+      async (client) => client.accountingApi.getAccounts(
+        tenantId,
+        undefined,
+        undefined,
+        'Code ASC'
+      )
     );
     
     const accounts = accountsResponse.body.accounts || [];
     const accountsWithYTD = [];
     
-    // For each account, get the actual balance and transactions
-    for (const account of accounts) {
+    // Batch account detail requests to avoid hitting rate limits
+    const accountDetailCalls = accounts.map(account => async (client: any) => {
       try {
-        // Get account details with balance
-        const accountResponse = await xero.accountingApi.getAccount(
+        const accountResponse = await client.accountingApi.getAccount(
           tenantId,
           account.accountID!
         );
@@ -52,7 +55,7 @@ export async function GET() {
             });
           }
           
-          accountsWithYTD.push({
+          return {
             accountID: account.accountID,
             code: account.code,
             name: account.name,
@@ -60,12 +63,25 @@ export async function GET() {
             balance: (accountDetail as any).balance || 0,
             systemAccount: account.systemAccount,
             status: account.status
-          });
+          };
         }
+        return null;
       } catch (error) {
         console.error(`[Account Transactions YTD] Error fetching account ${account.code}:`, error);
+        return null;
       }
-    }
+    });
+    
+    // Execute in batches of 5 with 1 second delay between batches
+    const results = await batchXeroAPICalls(
+      tenantId,
+      accountDetailCalls,
+      { batchSize: 5, delayBetweenBatches: 1000 }
+    );
+    
+    // Filter out null results
+    const validAccounts = results.filter(account => account !== null);
+    accountsWithYTD.push(...validAccounts);
     
     // Find and log VAT accounts
     const vatAccounts = accountsWithYTD.filter(a => 
@@ -87,6 +103,16 @@ export async function GET() {
     
   } catch (error: any) {
     console.error('[Account Transactions YTD] Error:', error);
+    
+    // Check if it's a rate limit error
+    if (error.response?.status === 429 || error.message?.includes('Daily API limit')) {
+      return NextResponse.json({ 
+        error: 'Rate limit exceeded',
+        message: error.message,
+        retryAfter: error.response?.headers?.['retry-after'] || 60
+      }, { status: 429 });
+    }
+    
     return NextResponse.json({ 
       error: 'Failed to fetch account balances',
       message: error.message 

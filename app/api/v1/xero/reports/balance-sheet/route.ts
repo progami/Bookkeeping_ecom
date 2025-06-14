@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getXeroClientWithTenant } from '@/lib/xero-client'
 import { RowType } from 'xero-node'
+import { executeXeroAPICall } from '@/lib/xero-client-with-rate-limit'
+import { cacheManager, XeroCache } from '@/lib/xero-cache'
 
 export async function GET() {
   try {
@@ -14,17 +16,44 @@ export async function GET() {
     }
 
     const { client, tenantId } = xeroData
+    const cache = cacheManager.getCache(tenantId)
 
-    // Get balance sheet report from Xero
-    const response = await client.accountingApi.getReportBalanceSheet(
+    // Try to get from cache first
+    const cachedData = await cache.get(
+      XeroCache.CACHE_TYPES.BALANCE_SHEET.key,
+      { date: new Date().toISOString().split('T')[0] },
+      async () => {
+        // Get balance sheet report from Xero with rate limiting
+        const response = await executeXeroAPICall(
+          tenantId,
+          async (client) => client.accountingApi.getReportBalanceSheet(
+            tenantId,
+            undefined, // date - defaults to today
+            undefined, // periods
+            undefined, // timeframe
+            undefined, // trackingOptionID1
+            undefined, // trackingOptionID2
+            undefined, // standardLayout
+            undefined  // paymentsOnly
+          )
+        )
+        return response.body // Only return the body for caching
+      },
+      { ttl: XeroCache.CACHE_TYPES.BALANCE_SHEET.ttl }
+    )
+
+    const response = cachedData || await executeXeroAPICall(
       tenantId,
-      undefined, // date - defaults to today
-      undefined, // periods
-      undefined, // timeframe
-      undefined, // trackingOptionID1
-      undefined, // trackingOptionID2
-      undefined, // standardLayout
-      undefined  // paymentsOnly
+      async (client) => client.accountingApi.getReportBalanceSheet(
+        tenantId,
+        undefined, // date - defaults to today
+        undefined, // periods
+        undefined, // timeframe
+        undefined, // trackingOptionID1
+        undefined, // trackingOptionID2
+        undefined, // standardLayout
+        undefined  // paymentsOnly
+      )
     )
 
     const report = response.body.reports?.[0]

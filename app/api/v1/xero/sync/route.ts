@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClient } from '@/lib/xero-client';
 import { prisma } from '@/lib/prisma';
 import { BankTransaction } from 'xero-node';
+import { executeXeroAPICall, paginatedXeroAPICall } from '@/lib/xero-client-with-rate-limit';
 
 export async function POST(request: NextRequest) {
   const syncLog = await prisma.syncLog.create({
@@ -29,12 +30,15 @@ export async function POST(request: NextRequest) {
     let createdTransactions = 0;
     let updatedTransactions = 0;
     
-    // Step 1: Sync all bank accounts
+    // Step 1: Sync all bank accounts with rate limiting
     console.log('Fetching bank accounts...');
-    const accountsResponse = await xero.accountingApi.getAccounts(
+    const accountsResponse = await executeXeroAPICall(
       tenant.tenantId,
-      undefined,
-      'Type=="BANK"'
+      async (client) => client.accountingApi.getAccounts(
+        tenant.tenantId,
+        undefined,
+        'Type=="BANK"'
+      )
     );
     
     const bankAccounts = accountsResponse.body.accounts || [];
@@ -83,39 +87,35 @@ export async function POST(request: NextRequest) {
       if (!dbAccount) continue;
       
       let accountTransactions = 0;
-      let page = 1;
-      let hasMorePages = true;
-      let emptyPageCount = 0;
       
-      // Fetch all pages of transactions for this account
-      while (hasMorePages && page <= 100) { // Increased page limit to 100
-        try {
-          console.log(`  Fetching page ${page} for ${account.name}...`);
-          const response = await xero.accountingApi.getBankTransactions(
+      // Use paginated API call with rate limiting
+      const transactionPages = paginatedXeroAPICall(
+        tenant.tenantId,
+        async (client, pageNum) => {
+          console.log(`  Fetching page ${pageNum} for ${account.name}...`);
+          const response = await client.accountingApi.getBankTransactions(
             tenant.tenantId,
             undefined, // If-Modified-Since
             `BankAccount.AccountID=Guid("${account.accountID}")`, // Filter by account
-            undefined, // Remove order to see if it helps
+            undefined, // Order
             100, // Page size
             undefined, // unitdp
-            page // Page number
+            pageNum // Page number
           );
           
           const transactions = response.body.bankTransactions || [];
-          console.log(`  Page ${page}: ${transactions.length} transactions`);
+          console.log(`  Page ${pageNum}: ${transactions.length} transactions`);
           
-          if (transactions.length === 0) {
-            emptyPageCount++;
-            // Continue checking MANY more pages even if we hit empty pages
-            if (emptyPageCount >= 10) { // Increased from 3 to 10
-              console.log(`  Stopping after ${emptyPageCount} empty pages`);
-              hasMorePages = false;
-              break;
-            }
-          } else {
-            emptyPageCount = 0; // Reset empty page counter
-          }
-          
+          return {
+            items: transactions,
+            hasMore: transactions.length === 100
+          };
+        },
+        { maxPages: 100, delayBetweenPages: 500 } // 500ms delay between pages
+      );
+      
+      // Process transactions as they come in
+      for await (const transactions of transactionPages) {
           // Process each transaction
           for (const tx of transactions) {
             if (!tx.bankTransactionID) continue;
@@ -171,17 +171,6 @@ export async function POST(request: NextRequest) {
             accountTransactions++;
             totalTransactions++;
           }
-          
-          page++;
-          
-          // If we got less than 100, we're on the last page
-          if (transactions.length < 100) {
-            hasMorePages = false;
-          }
-        } catch (pageError: any) {
-          console.error(`Error fetching page ${page} for ${account.name}:`, pageError.message);
-          hasMorePages = false;
-        }
       }
       
       console.log(`  Total for ${account.name}: ${accountTransactions} transactions`);
