@@ -83,12 +83,19 @@ export default function BookkeepingDashboard() {
     
     if (connected === 'true') {
       toast.success('Successfully connected to Xero!')
+      // Add a small delay before checking status to ensure cookie is set
+      setTimeout(() => {
+        checkXeroStatus()
+      }, 1000)
     } else if (error) {
       toast.error(`Failed to connect to Xero: ${error}`)
     }
     
     fetchDashboardData()
-    checkXeroStatus()
+    // Check status immediately for non-callback requests
+    if (!connected) {
+      checkXeroStatus()
+    }
   }, [searchParams, timeRange])
 
   const fetchDashboardData = async () => {
@@ -156,10 +163,14 @@ export default function BookkeepingDashboard() {
 
   const checkXeroStatus = async () => {
     try {
+      console.log('Checking Xero status...')
       const response = await fetch('/api/v1/xero/status')
       if (response.ok) {
         const data = await response.json()
+        console.log('Xero status response:', data)
         setXeroStatus(data)
+      } else {
+        console.error('Xero status response not ok:', response.status)
       }
     } catch (error) {
       console.error('Error checking Xero status:', error)

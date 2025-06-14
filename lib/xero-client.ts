@@ -46,24 +46,37 @@ export async function clearTokenSet() {
 
 export async function getXeroClient(): Promise<XeroClient | null> {
   try {
-    console.log('Getting Xero client...');
+    console.log('[getXeroClient] Starting Xero client retrieval...');
+    console.log('[getXeroClient] Environment check:', {
+      hasClientId: !!process.env.XERO_CLIENT_ID,
+      hasClientSecret: !!process.env.XERO_CLIENT_SECRET,
+      redirectUri: process.env.XERO_REDIRECT_URI
+    });
+    
     const tokenSet = await getStoredTokenSet();
+    console.log('[getXeroClient] Token retrieval complete');
     
     if (!tokenSet) {
-      console.log('No token set found in cookies');
+      console.log('[getXeroClient] No token set found - user not authenticated');
       return null;
     }
     
-    console.log('Token set found:', {
+    console.log('[getXeroClient] Token set retrieved:', {
       hasAccessToken: !!tokenSet.access_token,
+      accessTokenLength: tokenSet.access_token?.length || 0,
       hasRefreshToken: !!tokenSet.refresh_token,
+      refreshTokenLength: tokenSet.refresh_token?.length || 0,
       expiresAt: tokenSet.expires_at,
-      tokenType: tokenSet.token_type
+      tokenType: tokenSet.token_type,
+      scope: tokenSet.scope
     });
     
     // Validate token structure
     if (!tokenSet.access_token || !tokenSet.refresh_token) {
-      console.error('Invalid token structure - missing required fields');
+      console.error('[getXeroClient] Invalid token structure - missing required fields:', {
+        hasAccessToken: !!tokenSet.access_token,
+        hasRefreshToken: !!tokenSet.refresh_token
+      });
       await clearTokenSet();
       return null;
     }

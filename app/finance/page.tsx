@@ -6,7 +6,7 @@ import {
   TrendingUp, TrendingDown, DollarSign, BarChart3, 
   FileText, Wallet, Calculator, ArrowUpRight, ArrowDownRight,
   Building2, Clock, AlertCircle, CheckCircle, Activity,
-  Receipt, CreditCard, PieChart, Target, ArrowLeft, Database,
+  Receipt, CreditCard, PieChart, Target, ArrowLeft,
   RefreshCw, Shield, BookOpen, LineChart
 } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
@@ -15,6 +15,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { BackButton } from '@/components/ui/back-button'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
+import { DatabaseSchema } from '@/components/ui/database-schema'
 
 interface FinanceMetrics {
   totalRevenue: number
@@ -519,6 +520,14 @@ export default function FinanceDashboard() {
                 </div>
               </div>
             </div>
+
+            {/* Database Schema Section */}
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+              <Database className="h-6 w-6 mr-3 text-teal-400" />
+              System Architecture
+            </h2>
+            
+            <DatabaseSchema />
           </>
         )}
       </div>

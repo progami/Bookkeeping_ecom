@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
       console.log('Expires at:', tokenSet.expires_at);
       
       // Create response with redirect
+      console.log('[Callback] Creating redirect response to:', `${baseUrl}/bookkeeping?connected=true`);
       const response = NextResponse.redirect(`${baseUrl}/bookkeeping?connected=true`);
       
       // Store token in secure cookie using the response
@@ -96,11 +97,29 @@ export async function GET(request: NextRequest) {
         scope: tokenSet.scope || ''
       };
       
+      console.log('[Callback] Token data prepared for storage:', {
+        hasAccessToken: !!tokenData.access_token,
+        accessTokenLength: tokenData.access_token.length,
+        hasRefreshToken: !!tokenData.refresh_token,
+        refreshTokenLength: tokenData.refresh_token.length,
+        expiresAt: tokenData.expires_at,
+        tokenType: tokenData.token_type
+      });
+      
       XeroSession.setTokenInResponse(response, tokenData);
+      
+      // Log response details
+      console.log('[Callback] Response created with status:', response.status);
+      console.log('[Callback] Response headers:', {
+        location: response.headers.get('location'),
+        setCookie: response.headers.get('set-cookie')
+      });
       
       // Clear state cookie
       response.cookies.delete('xero_state');
+      console.log('[Callback] State cookie deleted');
       
+      console.log('[Callback] ========== RETURNING REDIRECT RESPONSE ==========');
       return response;
     } catch (tokenError: any) {
       console.error('Token exchange error details:', tokenError);
@@ -139,6 +158,7 @@ export async function GET(request: NextRequest) {
         console.log('Manual token exchange successful!');
         
         // Create response with redirect
+        console.log('[Callback-Manual] Creating redirect response to:', `${baseUrl}/bookkeeping?connected=true`);
         const response = NextResponse.redirect(`${baseUrl}/bookkeeping?connected=true`);
         
         // Create TokenSet object
@@ -151,12 +171,30 @@ export async function GET(request: NextRequest) {
           expires_at: Math.floor(Date.now() / 1000) + tokenData.expires_in
         };
         
+        console.log('[Callback-Manual] Token data prepared for storage:', {
+          hasAccessToken: !!tokenSet.access_token,
+          accessTokenLength: tokenSet.access_token.length,
+          hasRefreshToken: !!tokenSet.refresh_token,
+          refreshTokenLength: tokenSet.refresh_token.length,
+          expiresAt: tokenSet.expires_at,
+          tokenType: tokenSet.token_type
+        });
+        
         // Store token in response cookie
         XeroSession.setTokenInResponse(response, tokenSet);
         
+        // Log response details
+        console.log('[Callback-Manual] Response created with status:', response.status);
+        console.log('[Callback-Manual] Response headers:', {
+          location: response.headers.get('location'),
+          setCookie: response.headers.get('set-cookie')
+        });
+        
         // Clear state cookie
         response.cookies.delete('xero_state');
+        console.log('[Callback-Manual] State cookie deleted');
         
+        console.log('[Callback-Manual] ========== RETURNING REDIRECT RESPONSE ==========');
         return response;
       }
       
