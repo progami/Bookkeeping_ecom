@@ -1,21 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getXeroClientWithTenant } from '@/lib/xero-client';
-import { executeXeroAPICall } from '@/lib/xero-client-with-rate-limit';
-import { cacheManager, XeroCache } from '@/lib/xero-cache';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    const xeroData = await getXeroClientWithTenant()
-    
-    if (!xeroData || !xeroData.client || !xeroData.tenantId) {
-      return NextResponse.json(
-        { error: 'Xero not connected' },
-        { status: 401 }
-      )
-    }
-
-    const { client, tenantId } = xeroData
-    const cache = cacheManager.getCache(tenantId);
     const searchParams = request.nextUrl.searchParams;
     const period = searchParams.get('period') || '30d';
     
@@ -40,160 +27,92 @@ export async function GET(request: NextRequest) {
         startDate.setDate(now.getDate() - 30);
     }
 
-    // Try to get from cache first
-    const cacheKey = XeroCache.CACHE_TYPES.VENDORS.key;
-    const cacheParams = { period, startDate: startDate.toISOString() };
-    
-    const cachedResponse = await cache.get(
-      cacheKey,
-      cacheParams,
-      async () => {
-        // Get bills (purchases/expenses) from Xero for the period with rate limiting
-        return await executeXeroAPICall(
-          tenantId,
-          async (client) => client.accountingApi.getInvoices(
-            tenantId,
-            startDate,
-            undefined, // where
-            undefined, // order
-            undefined, // IDs
-            undefined, // InvoiceNumbers
-            undefined, // ContactIDs
-            undefined, // Statuses
-            100, // page size
-            undefined, // page
-            undefined, // includeArchived
-            undefined, // createdByMyApp
-            undefined // unitdp
-          )
-        );
-      },
-      { ttl: XeroCache.CACHE_TYPES.VENDORS.ttl }
-    );
+    // Query from database - group bank transactions by vendor
+    const transactions = await prisma.bankTransaction.findMany({
+      where: {
+        date: {
+          gte: startDate,
+          lte: now
+        },
+        type: 'SPEND', // Only expenses/payments to vendors
+        status: {
+          not: 'DELETED'
+        },
+        contactName: {
+          not: null
+        }
+      }
+    });
 
-    const billsResponse = cachedResponse || await executeXeroAPICall(
-      tenantId,
-      async (client) => client.accountingApi.getInvoices(
-        tenantId,
-        startDate,
-        undefined, // where
-        undefined, // order
-        undefined, // IDs
-        undefined, // InvoiceNumbers
-        undefined, // ContactIDs
-        undefined, // Statuses
-        100, // page size
-        undefined, // page
-        undefined, // includeArchived
-        undefined, // createdByMyApp
-        undefined // unitdp
-      )
-    );
-
-    // Filter for bills (type ACCPAY) and group by vendor
+    // Group transactions by vendor
     const vendorSpending: Record<string, {
-      contactId: string;
       name: string;
-      totalSpend: number;
+      totalAmount: number;
       transactionCount: number;
       lastTransaction: Date;
     }> = {};
 
-    if (billsResponse.body?.invoices) {
-      billsResponse.body.invoices.forEach((invoice: any) => {
-        // Only process bills (ACCPAY type) that are not draft or deleted
-        if (invoice.type === 'ACCPAY' && 
-            invoice.status !== 'DRAFT' && 
-            invoice.status !== 'DELETED' &&
-            invoice.contact?.contactID) {
-          
-          const contactId = invoice.contact.contactID;
-          const contactName = invoice.contact.name || 'Unknown Vendor';
-          const amount = invoice.total || 0;
-          const date = new Date(invoice.date || invoice.dateString);
-          
-          if (!vendorSpending[contactId]) {
-            vendorSpending[contactId] = {
-              contactId,
-              name: contactName,
-              totalSpend: 0,
-              transactionCount: 0,
-              lastTransaction: date
-            };
-          }
-          
-          vendorSpending[contactId].totalSpend += amount;
-          vendorSpending[contactId].transactionCount += 1;
-          
-          if (date > vendorSpending[contactId].lastTransaction) {
-            vendorSpending[contactId].lastTransaction = date;
-          }
-        }
-      });
-    }
+    transactions.forEach((tx) => {
+      const vendorName = tx.contactName || 'Unknown Vendor';
+      
+      if (!vendorSpending[vendorName]) {
+        vendorSpending[vendorName] = {
+          name: vendorName,
+          totalAmount: 0,
+          transactionCount: 0,
+          lastTransaction: tx.date
+        };
+      }
+      
+      // Use absolute value since expenses are negative
+      vendorSpending[vendorName].totalAmount += Math.abs(tx.amount);
+      vendorSpending[vendorName].transactionCount += 1;
+      
+      if (tx.date > vendorSpending[vendorName].lastTransaction) {
+        vendorSpending[vendorName].lastTransaction = tx.date;
+      }
+    });
 
     // Convert to array and sort by total spend
     const sortedVendors = Object.values(vendorSpending)
-      .sort((a, b) => b.totalSpend - a.totalSpend)
+      .sort((a, b) => b.totalAmount - a.totalAmount)
       .slice(0, 5);
 
     // Calculate total spend
     const totalSpend = Object.values(vendorSpending)
-      .reduce((sum, vendor) => sum + vendor.totalSpend, 0);
+      .reduce((sum, vendor) => sum + vendor.totalAmount, 0);
 
-    // Format response with proper vendor data
-    const vendors = sortedVendors.map((vendor, index) => ({
-      rank: index + 1,
-      contactId: vendor.contactId,
-      name: vendor.name,
-      totalSpend: vendor.totalSpend,
-      transactionCount: vendor.transactionCount,
-      lastTransaction: vendor.lastTransaction.toISOString(),
-      percentageOfTotal: totalSpend > 0 ? (vendor.totalSpend / totalSpend) * 100 : 0,
-      averageTransactionAmount: vendor.totalSpend / vendor.transactionCount
-    }));
-
-    // Calculate growth for each vendor (would need historical data)
+    // Format response to match test expectations
     const topVendors = sortedVendors.map((vendor, index) => ({
       rank: index + 1,
       name: vendor.name,
-      totalAmount: vendor.totalSpend,
+      totalAmount: vendor.totalAmount,
       transactionCount: vendor.transactionCount,
       lastTransaction: vendor.lastTransaction.toISOString(),
-      percentageOfTotal: totalSpend > 0 ? parseFloat(((vendor.totalSpend / totalSpend) * 100).toFixed(1)) : 0,
-      averageTransactionAmount: vendor.totalSpend / vendor.transactionCount,
+      percentageOfTotal: totalSpend > 0 ? parseFloat(((vendor.totalAmount / totalSpend) * 100).toFixed(1)) : 0,
+      averageTransactionAmount: vendor.totalAmount / vendor.transactionCount,
       growth: 0 // Would need previous period data to calculate
     }));
 
     return NextResponse.json({
       success: true,
       topVendors,
-      vendors, // Keep for backward compatibility
       period,
       startDate: startDate.toISOString(),
       endDate: now.toISOString(),
       totalSpend,
       vendorCount: Object.keys(vendorSpending).length,
       summary: {
-        topVendorSpend: sortedVendors.reduce((sum, v) => sum + v.totalSpend, 0),
+        topVendorSpend: sortedVendors.reduce((sum, v) => sum + v.totalAmount, 0),
         topVendorPercentage: totalSpend > 0 
-          ? (sortedVendors.reduce((sum, v) => sum + v.totalSpend, 0) / totalSpend) * 100 
+          ? (sortedVendors.reduce((sum, v) => sum + v.totalAmount, 0) / totalSpend) * 100 
           : 0,
         currency: 'GBP'
       }
     });
 
   } catch (error: any) {
-    console.error('Error fetching top vendors from Xero:', error);
-    
-    // Check if it's a rate limit error
-    if (error.response?.status === 429 || error.message?.includes('Daily API limit')) {
-      return NextResponse.json({ 
-        error: 'Rate limit exceeded',
-        message: error.message,
-        retryAfter: error.response?.headers?.['retry-after'] || 60
-      }, { status: 429 });
-    }
+    console.error('Error fetching top vendors from database:', error);
     
     return NextResponse.json(
       { 

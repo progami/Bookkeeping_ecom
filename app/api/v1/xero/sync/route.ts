@@ -29,8 +29,62 @@ export async function POST(request: NextRequest) {
     let totalTransactions = 0;
     let createdTransactions = 0;
     let updatedTransactions = 0;
+    let totalGLAccounts = 0;
     
-    // Step 1: Sync all bank accounts with rate limiting
+    // Step 1: Sync all GL accounts (Chart of Accounts) first
+    console.log('Fetching GL accounts...');
+    const glAccountsResponse = await executeXeroAPICall(
+      tenant.tenantId,
+      async (client) => client.accountingApi.getAccounts(
+        tenant.tenantId,
+        undefined,
+        undefined,
+        'Code ASC'
+      )
+    );
+    
+    const glAccounts = glAccountsResponse.body.accounts || [];
+    console.log(`Found ${glAccounts.length} GL accounts`);
+    
+    // Upsert GL accounts
+    for (const account of glAccounts) {
+      if (!account.accountID || !account.code) continue;
+      
+      await prisma.gLAccount.upsert({
+        where: { code: account.code },
+        update: {
+          name: account.name || '',
+          type: account.type?.toString() || '',
+          status: account.status?.toString() || 'ACTIVE',
+          description: account.description || null,
+          systemAccount: account.systemAccount || false,
+          showInExpenseClaims: account.showInExpenseClaims || false,
+          enablePaymentsToAccount: account.enablePaymentsToAccount || false,
+          class: account.class?.toString() || null,
+          reportingCode: account.reportingCode || null,
+          reportingCodeName: account.reportingCodeName || null,
+          updatedAt: new Date()
+        },
+        create: {
+          code: account.code,
+          name: account.name || '',
+          type: account.type?.toString() || '',
+          status: account.status?.toString() || 'ACTIVE',
+          description: account.description || null,
+          systemAccount: account.systemAccount || false,
+          showInExpenseClaims: account.showInExpenseClaims || false,
+          enablePaymentsToAccount: account.enablePaymentsToAccount || false,
+          class: account.class?.toString() || null,
+          reportingCode: account.reportingCode || null,
+          reportingCodeName: account.reportingCodeName || null
+        }
+      });
+      totalGLAccounts++;
+    }
+    
+    console.log(`Synced ${totalGLAccounts} GL accounts`);
+    
+    // Step 2: Sync all bank accounts with rate limiting
     console.log('Fetching bank accounts...');
     const accountsResponse = await executeXeroAPICall(
       tenant.tenantId,
@@ -74,7 +128,7 @@ export async function POST(request: NextRequest) {
     
     console.log(`Synced ${totalAccounts} bank accounts`);
     
-    // Step 2: Fetch transactions for EACH bank account
+    // Step 3: Fetch transactions for EACH bank account
     for (const account of bankAccounts) {
       if (!account.accountID) continue;
       
@@ -185,7 +239,8 @@ export async function POST(request: NextRequest) {
         recordsCreated: createdTransactions,
         recordsUpdated: updatedTransactions,
         details: JSON.stringify({
-          accounts: totalAccounts,
+          glAccounts: totalGLAccounts,
+          bankAccounts: totalAccounts,
           transactions: totalTransactions,
           bankAccountBreakdown: await prisma.bankTransaction.groupBy({
             by: ['bankAccountId'],
@@ -196,14 +251,16 @@ export async function POST(request: NextRequest) {
     });
     
     console.log('\nSync completed successfully!');
-    console.log(`Total accounts: ${totalAccounts}`);
+    console.log(`GL Accounts: ${totalGLAccounts}`);
+    console.log(`Bank accounts: ${totalAccounts}`);
     console.log(`Total transactions: ${totalTransactions}`);
     console.log(`Created: ${createdTransactions}, Updated: ${updatedTransactions}`);
     
     return NextResponse.json({
       success: true,
       summary: {
-        accounts: totalAccounts,
+        glAccounts: totalGLAccounts,
+        bankAccounts: totalAccounts,
         transactions: totalTransactions,
         created: createdTransactions,
         updated: updatedTransactions

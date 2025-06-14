@@ -1,157 +1,58 @@
 import { NextResponse } from 'next/server'
-import { getXeroClientWithTenant } from '@/lib/xero-client'
-import { RowType } from 'xero-node'
-import { executeXeroAPICall } from '@/lib/xero-client-with-rate-limit'
-import { cacheManager, XeroCache } from '@/lib/xero-cache'
+import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
-    const xeroData = await getXeroClientWithTenant()
+    // Calculate balance sheet from database
     
-    if (!xeroData || !xeroData.client || !xeroData.tenantId) {
-      return NextResponse.json(
-        { error: 'Xero not connected' },
-        { status: 401 }
-      )
-    }
-
-    const { client, tenantId } = xeroData
-    const cache = cacheManager.getCache(tenantId)
-
-    // Try to get from cache first
-    const cachedData = await cache.get(
-      XeroCache.CACHE_TYPES.BALANCE_SHEET.key,
-      { date: new Date().toISOString().split('T')[0] },
-      async () => {
-        // Get balance sheet report from Xero with rate limiting
-        const response = await executeXeroAPICall(
-          tenantId,
-          async (client) => client.accountingApi.getReportBalanceSheet(
-            tenantId,
-            undefined, // date - defaults to today
-            undefined, // periods
-            undefined, // timeframe
-            undefined, // trackingOptionID1
-            undefined, // trackingOptionID2
-            undefined, // standardLayout
-            undefined  // paymentsOnly
-          )
-        )
-        return response.body // Only return the body for caching
-      },
-      { ttl: XeroCache.CACHE_TYPES.BALANCE_SHEET.ttl }
-    )
-
-    const response = cachedData || await executeXeroAPICall(
-      tenantId,
-      async (client) => client.accountingApi.getReportBalanceSheet(
-        tenantId,
-        undefined, // date - defaults to today
-        undefined, // periods
-        undefined, // timeframe
-        undefined, // trackingOptionID1
-        undefined, // trackingOptionID2
-        undefined, // standardLayout
-        undefined  // paymentsOnly
-      )
-    )
-
-    const report = response.body.reports?.[0]
-    
-    if (!report || !report.rows) {
-      return NextResponse.json({
-        currentAssets: 0,
-        currentLiabilities: 0,
-        totalAssets: 0,
-        totalLiabilities: 0,
-        netAssets: 0,
-        equity: 0,
-        accountsReceivable: 0,
-        accountsPayable: 0,
-        inventory: 0,
-        cash: 0
-      })
-    }
-
-    // Parse the balance sheet report
-    let balanceSheet = {
-      currentAssets: 0,
-      currentLiabilities: 0,
-      totalAssets: 0,
-      totalLiabilities: 0,
-      netAssets: 0,
-      equity: 0,
-      accountsReceivable: 0,
-      accountsPayable: 0,
-      inventory: 0,
-      cash: 0
-    }
-
-    // Extract values from the report structure
-    report.rows.forEach(section => {
-      if (section.rowType === RowType.Section) {
-        const sectionTitle = section.title?.toLowerCase() || ''
-        
-        if (sectionTitle.includes('asset')) {
-          section.rows?.forEach(row => {
-            if (row.rowType === RowType.Row && row.cells) {
-              const accountName = row.cells[0]?.value?.toLowerCase() || ''
-              const value = parseFloat(row.cells[1]?.value || '0')
-              
-              if (accountName.includes('accounts receivable') || accountName.includes('debtors')) {
-                balanceSheet.accountsReceivable = value
-              } else if (accountName.includes('inventory') || accountName.includes('stock')) {
-                balanceSheet.inventory = value
-              } else if (accountName.includes('bank') || accountName.includes('cash')) {
-                balanceSheet.cash += value
-              }
-              
-              if (sectionTitle.includes('current')) {
-                balanceSheet.currentAssets += value
-              }
-              balanceSheet.totalAssets += value
-            } else if (row.rowType === RowType.SummaryRow && row.cells) {
-              const value = parseFloat(row.cells[1]?.value || '0')
-              if (sectionTitle.includes('current') && sectionTitle.includes('asset')) {
-                balanceSheet.currentAssets = value
-              }
-            }
-          })
-        } else if (sectionTitle.includes('liabilit')) {
-          section.rows?.forEach(row => {
-            if (row.rowType === RowType.Row && row.cells) {
-              const accountName = row.cells[0]?.value?.toLowerCase() || ''
-              const value = parseFloat(row.cells[1]?.value || '0')
-              
-              if (accountName.includes('accounts payable') || accountName.includes('creditors')) {
-                balanceSheet.accountsPayable = value
-              }
-              
-              if (sectionTitle.includes('current')) {
-                balanceSheet.currentLiabilities += value
-              }
-              balanceSheet.totalLiabilities += value
-            } else if (row.rowType === RowType.SummaryRow && row.cells) {
-              const value = parseFloat(row.cells[1]?.value || '0')
-              if (sectionTitle.includes('current') && sectionTitle.includes('liabilit')) {
-                balanceSheet.currentLiabilities = value
-              }
-            }
-          })
-        } else if (sectionTitle.includes('equity')) {
-          section.rows?.forEach(row => {
-            if (row.rowType === RowType.Row && row.cells) {
-              const value = parseFloat(row.cells[1]?.value || '0')
-              balanceSheet.equity += value
-            }
-          })
+    // Get all bank accounts with their latest balances
+    const bankAccounts = await prisma.bankAccount.findMany({
+      include: {
+        transactions: {
+          where: {
+            status: { not: 'DELETED' }
+          }
         }
       }
     })
+    
+    // Calculate current cash balance from bank transactions
+    let totalCash = 0
+    for (const account of bankAccounts) {
+      const balance = account.transactions.reduce((sum, tx) => {
+        // RECEIVE is positive, SPEND is negative
+        return sum + (tx.type === 'RECEIVE' ? tx.amount : -Math.abs(tx.amount))
+      }, 0)
+      totalCash += balance
+    }
+    
+    // Get accounts receivable (unpaid invoices - would need invoice sync)
+    const accountsReceivable = 0 // Placeholder until we sync invoices
+    
+    // Get accounts payable (unpaid bills - would need bill sync)  
+    const accountsPayable = 0 // Placeholder until we sync bills
+    
+    // Calculate basic balance sheet
+    const currentAssets = totalCash + accountsReceivable
+    const currentLiabilities = accountsPayable
+    const totalAssets = currentAssets
+    const totalLiabilities = currentLiabilities
+    const netAssets = totalAssets - totalLiabilities
+    const equity = netAssets
 
-    balanceSheet.netAssets = balanceSheet.totalAssets - balanceSheet.totalLiabilities
-
-    return NextResponse.json(balanceSheet)
+    // Return balance sheet data
+    return NextResponse.json({
+      currentAssets,
+      currentLiabilities,
+      totalAssets,
+      totalLiabilities,
+      netAssets,
+      equity,
+      accountsReceivable,
+      accountsPayable,
+      inventory: 0, // Not tracked in bank transactions
+      cash: totalCash
+    })
   } catch (error) {
     console.error('Balance sheet error:', error)
     return NextResponse.json(

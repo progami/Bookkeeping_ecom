@@ -1,89 +1,82 @@
 import { NextResponse } from 'next/server';
-import { getXeroClientWithTenant } from '@/lib/xero-client';
-import { executeXeroAPICall, batchXeroAPICalls } from '@/lib/xero-client-with-rate-limit';
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    console.log('[Account Transactions YTD] Starting fetch...');
-    
-    const xeroData = await getXeroClientWithTenant();
-    if (!xeroData) {
-      return NextResponse.json({ error: 'Not connected to Xero' }, { status: 401 });
-    }
-    
-    const { client: xero, tenantId } = xeroData;
+    console.log('[Account Transactions YTD] Fetching from database...');
     
     // Get current year start date for YTD
     const currentYear = new Date().getFullYear();
-    const fromDate = `${currentYear}-01-01`;
-    const toDate = new Date().toISOString().split('T')[0];
+    const fromDate = new Date(`${currentYear}-01-01`);
+    const toDate = new Date();
     
-    console.log(`[Account Transactions YTD] Fetching from ${fromDate} to ${toDate}`);
-    
-    // First get all accounts with rate limiting
-    const accountsResponse = await executeXeroAPICall(
-      tenantId,
-      async (client) => client.accountingApi.getAccounts(
-        tenantId,
-        undefined,
-        undefined,
-        'Code ASC'
-      )
-    );
-    
-    const accounts = accountsResponse.body.accounts || [];
-    const accountsWithYTD = [];
-    
-    // Batch account detail requests to avoid hitting rate limits
-    const accountDetailCalls = accounts.map(account => async (client: any) => {
-      try {
-        const accountResponse = await client.accountingApi.getAccount(
-          tenantId,
-          account.accountID!
-        );
-        
-        const accountDetail = accountResponse.body.accounts?.[0];
-        
-        if (accountDetail) {
-          // Log VAT and system accounts
-          if (account.code === '820' || account.code === '825' || account.name?.includes('VAT')) {
-            console.log(`[Account Transactions YTD] ${account.name} (${account.code}):`, {
-              type: account.type,
-              systemAccount: account.systemAccount,
-              balance: (accountDetail as any).balance,
-              status: account.status
-            });
-          }
-          
-          return {
-            accountID: account.accountID,
-            code: account.code,
-            name: account.name,
-            type: account.type,
-            balance: (accountDetail as any).balance || 0,
-            systemAccount: account.systemAccount,
-            status: account.status
-          };
-        }
-        return null;
-      } catch (error) {
-        console.error(`[Account Transactions YTD] Error fetching account ${account.code}:`, error);
-        return null;
+    // Get all GL accounts from database
+    const glAccounts = await prisma.gLAccount.findMany({
+      where: {
+        status: 'ACTIVE'
+      },
+      orderBy: {
+        code: 'asc'
       }
     });
     
-    // Execute in batches of 5 with 1 second delay between batches
-    const results = await batchXeroAPICalls(
-      tenantId,
-      accountDetailCalls,
-      { batchSize: 5, delayBetweenBatches: 1000 }
-    );
+    // Get all bank transactions for YTD
+    const bankTransactions = await prisma.bankTransaction.findMany({
+      where: {
+        date: {
+          gte: fromDate,
+          lte: toDate
+        },
+        status: {
+          not: 'DELETED'
+        }
+      }
+    });
     
-    // Filter out null results
-    const validAccounts = results.filter(account => account !== null);
-    accountsWithYTD.push(...validAccounts);
+    // Calculate YTD totals by account code
+    const accountTotals: Record<string, { debits: number, credits: number }> = {};
     
-    // Find and log VAT accounts
+    // Initialize all accounts with zero
+    glAccounts.forEach(account => {
+      accountTotals[account.code] = { debits: 0, credits: 0 };
+    });
+    
+    // Sum up transactions by account code
+    bankTransactions.forEach(tx => {
+      if (tx.accountCode && accountTotals[tx.accountCode]) {
+        if (tx.type === 'RECEIVE') {
+          accountTotals[tx.accountCode].credits += Math.abs(tx.amount);
+        } else {
+          accountTotals[tx.accountCode].debits += Math.abs(tx.amount);
+        }
+      }
+    });
+    
+    // Format response to match expected structure
+    const accountsWithYTD = glAccounts.map(account => {
+      const totals = accountTotals[account.code] || { debits: 0, credits: 0 };
+      const ytdMovement = totals.credits - totals.debits;
+      
+      return {
+        accountID: account.id,
+        code: account.code,
+        name: account.name,
+        type: account.type,
+        class: account.class,
+        status: account.status,
+        description: account.description,
+        systemAccount: account.systemAccount,
+        enablePaymentsToAccount: account.enablePaymentsToAccount,
+        showInExpenseClaims: account.showInExpenseClaims,
+        reportingCode: account.reportingCode,
+        reportingCodeName: account.reportingCodeName,
+        ytdDebits: totals.debits,
+        ytdCredits: totals.credits,
+        ytdMovement: ytdMovement
+      };
+    });
+    
+    // Log VAT accounts for debugging
     const vatAccounts = accountsWithYTD.filter(a => 
       a.code === '820' || 
       a.code === '825' || 
@@ -92,26 +85,20 @@ export async function GET() {
     
     console.log('[Account Transactions YTD] VAT Accounts found:', vatAccounts.length);
     vatAccounts.forEach(vat => {
-      console.log(`  - ${vat.name} (${vat.code}): Balance = ${vat.balance}`);
+      console.log(`  - ${vat.name} (${vat.code}): YTD Movement = ${vat.ytdMovement}`);
     });
     
     return NextResponse.json({
       accounts: accountsWithYTD,
       totalAccounts: accountsWithYTD.length,
-      dateRange: { fromDate, toDate }
+      dateRange: { 
+        fromDate: fromDate.toISOString().split('T')[0], 
+        toDate: toDate.toISOString().split('T')[0]
+      }
     });
     
   } catch (error: any) {
     console.error('[Account Transactions YTD] Error:', error);
-    
-    // Check if it's a rate limit error
-    if (error.response?.status === 429 || error.message?.includes('Daily API limit')) {
-      return NextResponse.json({ 
-        error: 'Rate limit exceeded',
-        message: error.message,
-        retryAfter: error.response?.headers?.['retry-after'] || 60
-      }, { status: 429 });
-    }
     
     return NextResponse.json({ 
       error: 'Failed to fetch account balances',
