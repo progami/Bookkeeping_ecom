@@ -138,7 +138,7 @@ export default function XeroDebugPage() {
           <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-6">
             <h2 className="text-xl font-semibold mb-4">Browser Info</h2>
             <pre className="p-4 bg-slate-800 rounded overflow-x-auto text-sm">
-              {JSON.stringify({
+              {typeof window !== 'undefined' ? JSON.stringify({
                 cookies: document.cookie || 'No cookies visible to JavaScript',
                 userAgent: navigator.userAgent,
                 location: {
@@ -146,7 +146,7 @@ export default function XeroDebugPage() {
                   host: window.location.host,
                   pathname: window.location.pathname
                 }
-              }, null, 2)}
+              }, null, 2) : 'Loading...'}
             </pre>
           </div>
         </div>

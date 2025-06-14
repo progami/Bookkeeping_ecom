@@ -1,4 +1,13 @@
 const { createServer } = require('https');
+// Suppress deprecation warning for url.parse
+process.removeAllListeners('warning');
+process.on('warning', (warning) => {
+  if (warning.name === 'DeprecationWarning' && warning.message.includes('url.parse')) {
+    return; // Ignore url.parse deprecation warnings
+  }
+  console.warn(warning);
+});
+
 const { parse } = require('url');
 const next = require('next');
 const fs = require('fs');
@@ -8,8 +17,8 @@ const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
 const port = 3003;
 
-// Configure the Next.js app
-const app = next({ dev, hostname, port });
+// Configure the Next.js app - don't pass hostname/port when using custom server
+const app = next({ dev });
 const handle = app.getRequestHandler();
 
 const httpsOptions = {

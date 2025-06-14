@@ -177,38 +177,36 @@ export default function FinanceDashboard() {
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h1 className="text-5xl font-bold text-white mb-3 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-                Finance Command Center
+                Financial Overview
               </h1>
               <p className="text-gray-400 text-lg">Real-time financial intelligence powered by Xero</p>
             </div>
             
             <div className="flex items-center gap-3">
-              {xeroStatus?.connected === false ? (
-                <button
-                  onClick={() => router.push('/bookkeeping')}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all flex items-center gap-2"
-                >
-                  <Shield className="h-4 w-4" />
-                  Connect to Xero
-                </button>
-              ) : (
-                <div className="flex items-center gap-3">
-                  {xeroStatus?.organization?.name && (
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                      <span className="text-sm">Connected to {xeroStatus.organization.name}</span>
-                    </div>
-                  )}
+              <div className="flex items-center gap-2">
+                {xeroStatus?.connected ? (
+                  <>
+                    <div className="w-2 h-2 bg-green-400 rounded-full" />
+                    <span className="text-sm text-gray-400">Connected to Xero</span>
+                  </>
+                ) : (
                   <button
-                    onClick={handleRefresh}
-                    disabled={refreshing}
-                    className="px-4 py-2 bg-slate-800/50 text-white rounded-lg border border-slate-700 hover:border-emerald-500 transition-all flex items-center gap-2 disabled:opacity-50"
+                    onClick={() => router.push('/bookkeeping')}
+                    className="text-sm text-red-400 hover:text-red-300 transition-colors flex items-center gap-2"
                   >
-                    <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                    Refresh
+                    Connect to Xero
                   </button>
-                </div>
-              )}
+                )}
+              </div>
+              
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="px-4 py-2 bg-slate-800/50 text-white rounded-lg border border-slate-700 hover:border-emerald-500 transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
               
               <select 
                 value={timeRange}
