@@ -44,6 +44,13 @@ interface ModuleStatus {
   }
 }
 
+interface XeroStatus {
+  connected: boolean
+  organization: {
+    name: string
+  } | null
+}
+
 export default function FinanceDashboard() {
   const router = useRouter()
   const [metrics, setMetrics] = useState<FinanceMetrics | null>(null)
@@ -51,7 +58,7 @@ export default function FinanceDashboard() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [timeRange, setTimeRange] = useState('30d')
-  const [xeroConnected, setXeroConnected] = useState<boolean | null>(null)
+  const [xeroStatus, setXeroStatus] = useState<XeroStatus | null>(null)
 
   useEffect(() => {
     fetchFinanceData()
@@ -64,7 +71,7 @@ export default function FinanceDashboard() {
       // First check Xero connection status
       const statusRes = await fetch('/api/v1/xero/status')
       const statusData = await statusRes.json()
-      setXeroConnected(statusData.connected || false)
+      setXeroStatus(statusData)
       
       // Fetch real data from Xero APIs
       const [balanceSheetRes, plRes, cashBalanceRes, vendorsRes] = await Promise.all([
@@ -107,7 +114,7 @@ export default function FinanceDashboard() {
         bookkeeping: {
           unreconciledCount: 0, // Will fetch from transactions
           lastSync: new Date().toISOString(),
-          syncStatus: statusData.connected ? 'connected' : 'disconnected'
+          syncStatus: statusData?.connected ? 'connected' : 'disconnected'
         },
         cashFlow: {
           forecast30Day: totalCash + (netIncome * 30 / 365), // Simple projection
@@ -176,7 +183,7 @@ export default function FinanceDashboard() {
             </div>
             
             <div className="flex items-center gap-3">
-              {xeroConnected === false ? (
+              {xeroStatus?.connected === false ? (
                 <button
                   onClick={() => router.push('/bookkeeping')}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all flex items-center gap-2"
@@ -185,14 +192,22 @@ export default function FinanceDashboard() {
                   Connect to Xero
                 </button>
               ) : (
-                <button
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                  className="px-4 py-2 bg-slate-800/50 text-white rounded-lg border border-slate-700 hover:border-emerald-500 transition-all flex items-center gap-2 disabled:opacity-50"
-                >
-                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                  Refresh
-                </button>
+                <div className="flex items-center gap-3">
+                  {xeroStatus?.organization?.name && (
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <CheckCircle className="h-4 w-4 text-green-400" />
+                      <span className="text-sm">Connected to {xeroStatus.organization.name}</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    className="px-4 py-2 bg-slate-800/50 text-white rounded-lg border border-slate-700 hover:border-emerald-500 transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                </div>
               )}
               
               <select 
@@ -219,7 +234,7 @@ export default function FinanceDashboard() {
         ) : (
           <>
             {/* Xero Connection Warning */}
-            {xeroConnected === false && (
+            {xeroStatus?.connected === false && (
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-6 mb-8 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <AlertCircle className="h-8 w-8 text-amber-400" />
