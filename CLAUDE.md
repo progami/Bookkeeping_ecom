@@ -1,5 +1,24 @@
 # Bookkeeping Application - Claude Code Documentation
 
+## MANDATORY TESTING REQUIREMENTS 🚨
+
+### TESTS MUST BE PASSED AFTER EVERY CODE CHANGE
+**This is non-negotiable. Before responding to the user, you MUST:**
+1. Run all UI tests with Playwright
+2. Verify ALL pages load without errors
+3. Test ALL interactive elements
+4. Fix any errors before proceeding
+
+### Comprehensive Testing Checklist
+- [ ] Start dev server: `npm run dev`
+- [ ] Test all pages load without errors
+- [ ] Test all buttons are clickable
+- [ ] Test navigation between pages
+- [ ] Check browser console for errors
+- [ ] Verify TypeScript compilation
+- [ ] Test Xero authentication flow
+- [ ] Confirm data loads from database
+
 ## Overview
 This is a Next.js bookkeeping application integrated with Xero API using a database-first architecture.
 
@@ -73,3 +92,36 @@ npm run prisma:generate
 ## Testing
 - Tests expect database queries, not Xero API calls
 - Current test status: ~110 passing, ~29 failing (mostly UI component tests)
+
+## UI Testing with Playwright
+
+### Test All Pages
+```typescript
+const pagesToTest = [
+  'https://localhost:3003/',
+  'https://localhost:3003/finance',
+  'https://localhost:3003/bookkeeping',
+  'https://localhost:3003/bookkeeping/transactions',
+  'https://localhost:3003/bookkeeping/chart-of-accounts',
+  'https://localhost:3003/cashflow',
+  'https://localhost:3003/analytics'
+]
+
+for (const url of pagesToTest) {
+  await page.goto(url)
+  await page.waitForLoadState('networkidle')
+  // Check for console errors
+  // Test all buttons
+  // Verify data loads
+}
+```
+
+### Authentication Testing
+- Email: ajarrar@trademanenterprise.com
+- Password: gW2r4*8&wFM.#fZ
+
+### REMEMBER: TEST ALL UI ELEMENTS
+1. Every button must be clicked
+2. Every page must load
+3. No console errors allowed
+4. Data must display from database

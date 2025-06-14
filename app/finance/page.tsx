@@ -7,7 +7,7 @@ import {
   FileText, Wallet, Calculator, ArrowUpRight, ArrowDownRight,
   Building2, Clock, AlertCircle, CheckCircle, Activity,
   Receipt, CreditCard, PieChart, Target, ArrowLeft,
-  RefreshCw, Shield, BookOpen, LineChart
+  RefreshCw, Shield, BookOpen, LineChart, Database
 } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 import { MetricCard } from '@/components/ui/metric-card'
