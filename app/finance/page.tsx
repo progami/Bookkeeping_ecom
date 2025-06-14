@@ -51,6 +51,7 @@ export default function FinanceDashboard() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [timeRange, setTimeRange] = useState('30d')
+  const [xeroConnected, setXeroConnected] = useState<boolean | null>(null)
 
   useEffect(() => {
     fetchFinanceData()
@@ -59,6 +60,11 @@ export default function FinanceDashboard() {
   const fetchFinanceData = async () => {
     try {
       setLoading(true)
+      
+      // First check Xero connection status
+      const statusRes = await fetch('/api/v1/xero/status')
+      const statusData = await statusRes.json()
+      setXeroConnected(statusData.connected || false)
       
       // Fetch real data from Xero APIs
       const [balanceSheetRes, plRes, cashBalanceRes, vendorsRes] = await Promise.all([
@@ -101,7 +107,7 @@ export default function FinanceDashboard() {
         bookkeeping: {
           unreconciledCount: 0, // Will fetch from transactions
           lastSync: new Date().toISOString(),
-          syncStatus: 'connected'
+          syncStatus: statusData.connected ? 'connected' : 'disconnected'
         },
         cashFlow: {
           forecast30Day: totalCash + (netIncome * 30 / 365), // Simple projection
@@ -170,14 +176,24 @@ export default function FinanceDashboard() {
             </div>
             
             <div className="flex items-center gap-3">
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="px-4 py-2 bg-slate-800/50 text-white rounded-lg border border-slate-700 hover:border-emerald-500 transition-all flex items-center gap-2 disabled:opacity-50"
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
+              {xeroConnected === false ? (
+                <button
+                  onClick={() => router.push('/bookkeeping')}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all flex items-center gap-2"
+                >
+                  <Shield className="h-4 w-4" />
+                  Connect to Xero
+                </button>
+              ) : (
+                <button
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="px-4 py-2 bg-slate-800/50 text-white rounded-lg border border-slate-700 hover:border-emerald-500 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+              )}
               
               <select 
                 value={timeRange}
@@ -202,6 +218,26 @@ export default function FinanceDashboard() {
           </div>
         ) : (
           <>
+            {/* Xero Connection Warning */}
+            {xeroConnected === false && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-6 mb-8 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <AlertCircle className="h-8 w-8 text-amber-400" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Xero Not Connected</h3>
+                    <p className="text-gray-400">Connect to Xero to view real-time financial data</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => router.push('/bookkeeping')}
+                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all flex items-center gap-2"
+                >
+                  Connect Now
+                  <ArrowUpRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+            
             {/* Financial Health Score Card */}
             <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-3xl p-8 mb-8">
               <div className="flex items-center justify-between flex-wrap gap-6">
