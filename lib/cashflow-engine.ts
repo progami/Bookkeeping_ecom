@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { getXeroClientWithTenant } from '@/lib/xero-client';
 import { 
   addDays, 
   addMonths,
@@ -196,8 +197,66 @@ export class CashFlowEngine {
   }
 
   private async getCurrentPosition(): Promise<CashPosition> {
-    // Get cash from bank accounts
-    const bankAccounts = await prisma.bankAccount.findMany({
+    try {
+      const xeroData = await getXeroClientWithTenant();
+      if (!xeroData) {
+        throw new Error('Xero not connected');
+      }
+      
+      const { client, tenantId } = xeroData;
+      
+      // Get real bank balances from Xero
+      const accountsResponse = await client.accountingApi.getAccounts(
+        tenantId,
+        undefined,
+        'Type=="BANK"',
+        undefined
+      );
+      
+      let totalCash = 0;
+      if (accountsResponse.body?.accounts) {
+        accountsResponse.body.accounts.forEach((account: any) => {
+          if (account.type === 'BANK' && account.status === 'ACTIVE') {
+            totalCash += account.balance || 0;
+          }
+        });
+      }
+      
+      // Get accounts receivable and payable from Balance Sheet
+      const balanceSheetResponse = await client.accountingApi.getReportBalanceSheet(
+        tenantId,
+        new Date().toISOString()
+      );
+      
+      let accountsReceivable = 0;
+      let accountsPayable = 0;
+      
+      if (balanceSheetResponse.body?.reports?.[0]?.rows) {
+        balanceSheetResponse.body.reports[0].rows.forEach((row: any) => {
+          if (row.rowType === 'Row' && row.cells) {
+            const accountName = row.cells[0]?.value || '';
+            const amount = parseFloat(row.cells[row.cells.length - 1]?.value || '0');
+            
+            if (accountName.toLowerCase().includes('accounts receivable') ||
+                accountName.toLowerCase().includes('debtors')) {
+              accountsReceivable = amount;
+            } else if (accountName.toLowerCase().includes('accounts payable') ||
+                       accountName.toLowerCase().includes('creditors')) {
+              accountsPayable = amount;
+            }
+          }
+        });
+      }
+      
+      return {
+        cash: totalCash,
+        accountsReceivable,
+        accountsPayable
+      };
+    } catch (error) {
+      console.error('Error getting current position from Xero:', error);
+      // Fallback to database if Xero fails
+      const bankAccounts = await prisma.bankAccount.findMany({
       where: { status: 'ACTIVE' },
     });
     
@@ -233,42 +292,214 @@ export class CashFlowEngine {
   }
 
   private async getOpenInvoices() {
-    return prisma.syncedInvoice.findMany({
-      where: {
-        type: 'ACCREC',
-        status: 'OPEN',
-        amountDue: { gt: 0 },
-      },
-      orderBy: { dueDate: 'asc' },
-    });
+    try {
+      const xeroData = await getXeroClientWithTenant();
+      if (!xeroData) {
+        // Fallback to database
+        return prisma.syncedInvoice.findMany({
+          where: {
+            type: 'ACCREC',
+            status: 'OPEN',
+            amountDue: { gt: 0 },
+          },
+          orderBy: { dueDate: 'asc' },
+        });
+      }
+      
+      const { client, tenantId } = xeroData;
+      
+      // Get open invoices from Xero
+      const response = await client.accountingApi.getInvoices(
+        tenantId,
+        undefined,
+        'Status=="AUTHORISED"',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        ['AUTHORISED'],
+        100
+      );
+      
+      const openInvoices: any[] = [];
+      
+      if (response.body?.invoices) {
+        response.body.invoices.forEach((invoice: any) => {
+          if (invoice.type === 'ACCREC' && invoice.amountDue > 0) {
+            openInvoices.push({
+              id: invoice.invoiceID,
+              contactId: invoice.contact?.contactID,
+              contactName: invoice.contact?.name,
+              invoiceNumber: invoice.invoiceNumber,
+              dueDate: new Date(invoice.dueDate || invoice.dueDateString),
+              date: new Date(invoice.date || invoice.dateString),
+              amountDue: invoice.amountDue,
+              total: invoice.total,
+              type: 'ACCREC',
+              status: 'OPEN'
+            });
+          }
+        });
+      }
+      
+      return openInvoices.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    } catch (error) {
+      console.error('Error fetching open invoices from Xero:', error);
+      // Fallback to database
+      return prisma.syncedInvoice.findMany({
+        where: {
+          type: 'ACCREC',
+          status: 'OPEN',
+          amountDue: { gt: 0 },
+        },
+        orderBy: { dueDate: 'asc' },
+      });
+    }
   }
 
   private async getOpenBills() {
-    return prisma.syncedInvoice.findMany({
-      where: {
-        type: 'ACCPAY',
-        status: 'OPEN',
-        amountDue: { gt: 0 },
-      },
-      orderBy: { dueDate: 'asc' },
-    });
+    try {
+      const xeroData = await getXeroClientWithTenant();
+      if (!xeroData) {
+        // Fallback to database
+        return prisma.syncedInvoice.findMany({
+          where: {
+            type: 'ACCPAY',
+            status: 'OPEN',
+            amountDue: { gt: 0 },
+          },
+          orderBy: { dueDate: 'asc' },
+        });
+      }
+      
+      const { client, tenantId } = xeroData;
+      
+      // Get open bills from Xero
+      const response = await client.accountingApi.getInvoices(
+        tenantId,
+        undefined,
+        'Type=="ACCPAY"&&Status=="AUTHORISED"',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        ['AUTHORISED'],
+        100
+      );
+      
+      const openBills: any[] = [];
+      
+      if (response.body?.invoices) {
+        response.body.invoices.forEach((invoice: any) => {
+          if (invoice.type === 'ACCPAY' && invoice.amountDue > 0) {
+            openBills.push({
+              id: invoice.invoiceID,
+              contactId: invoice.contact?.contactID,
+              contactName: invoice.contact?.name,
+              invoiceNumber: invoice.invoiceNumber,
+              dueDate: new Date(invoice.dueDate || invoice.dueDateString),
+              date: new Date(invoice.date || invoice.dateString),
+              amountDue: invoice.amountDue,
+              total: invoice.total,
+              type: 'ACCPAY',
+              status: 'OPEN'
+            });
+          }
+        });
+      }
+      
+      return openBills.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    } catch (error) {
+      console.error('Error fetching open bills from Xero:', error);
+      // Fallback to database
+      return prisma.syncedInvoice.findMany({
+        where: {
+          type: 'ACCPAY',
+          status: 'OPEN',
+          amountDue: { gt: 0 },
+        },
+        orderBy: { dueDate: 'asc' },
+      });
+    }
   }
 
   private async getRepeatingTransactions(days: number) {
-    const endDate = addDays(new Date(), days);
-    
-    return prisma.repeatingTransaction.findMany({
-      where: {
-        status: 'AUTHORISED',
-        OR: [
-          { endDate: null },
-          { endDate: { gte: new Date() } },
-        ],
-        nextScheduledDate: {
-          lte: endDate,
+    try {
+      const xeroData = await getXeroClientWithTenant();
+      if (!xeroData) {
+        // Fallback to database
+        const endDate = addDays(new Date(), days);
+        return prisma.repeatingTransaction.findMany({
+          where: {
+            status: 'AUTHORISED',
+            OR: [
+              { endDate: null },
+              { endDate: { gte: new Date() } },
+            ],
+            nextScheduledDate: {
+              lte: endDate,
+            },
+          },
+        });
+      }
+      
+      const { client, tenantId } = xeroData;
+      
+      // Get repeating invoices from Xero
+      const response = await client.accountingApi.getRepeatingInvoices(
+        tenantId,
+        undefined,
+        'Status=="AUTHORISED"'
+      );
+      
+      const repeatingTransactions: any[] = [];
+      const endDate = addDays(new Date(), days);
+      
+      if (response.body?.repeatingInvoices) {
+        response.body.repeatingInvoices.forEach((invoice: any) => {
+          if (invoice.status === 'AUTHORISED') {
+            // Calculate next scheduled dates based on schedule
+            const nextDate = invoice.schedule?.nextScheduledDate 
+              ? new Date(invoice.schedule.nextScheduledDate)
+              : null;
+              
+            if (nextDate && nextDate <= endDate) {
+              repeatingTransactions.push({
+                id: invoice.repeatingInvoiceID,
+                type: invoice.type,
+                contactId: invoice.contact?.contactID,
+                contactName: invoice.contact?.name,
+                scheduleUnit: invoice.schedule?.unit,
+                scheduleInterval: invoice.schedule?.dueDate || 0,
+                nextScheduledDate: nextDate,
+                endDate: invoice.schedule?.endDate ? new Date(invoice.schedule.endDate) : null,
+                amount: invoice.total || 0,
+                total: invoice.total || 0,
+                status: 'AUTHORISED'
+              });
+            }
+          }
+        });
+      }
+      
+      return repeatingTransactions;
+    } catch (error) {
+      console.error('Error fetching repeating transactions from Xero:', error);
+      // Fallback to database
+      const endDate = addDays(new Date(), days);
+      return prisma.repeatingTransaction.findMany({
+        where: {
+          status: 'AUTHORISED',
+          OR: [
+            { endDate: null },
+            { endDate: { gte: new Date() } },
+          ],
+          nextScheduledDate: {
+            lte: endDate,
+          },
         },
-      },
-    });
+      });
+    }
   }
 
   private async getPaymentPatterns() {
