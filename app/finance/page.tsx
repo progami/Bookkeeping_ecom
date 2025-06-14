@@ -166,7 +166,7 @@ export default function FinanceDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    <div className="min-h-screen bg-slate-950">
       <div className="container mx-auto px-4 py-8">
         
         {/* Enhanced Header */}
@@ -181,10 +181,10 @@ export default function FinanceDashboard() {
           
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-5xl font-bold text-white mb-3 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold text-white mb-2">
                 Financial Overview
               </h1>
-              <p className="text-gray-400 text-lg">Real-time financial intelligence powered by Xero</p>
+              <p className="text-gray-400">Real-time financial intelligence powered by Xero</p>
             </div>
             
             <div className="flex items-center gap-3">
@@ -228,12 +228,7 @@ export default function FinanceDashboard() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center h-96">
-            <div className="relative">
-              <div className="w-20 h-20 border-4 border-emerald-500/20 rounded-full animate-pulse" />
-              <div className="absolute inset-0 w-20 h-20 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-          </div>
+          <LoadingSpinner size="lg" variant="success" />
         ) : (
           <>
             {/* Xero Connection Warning */}
@@ -300,29 +295,13 @@ export default function FinanceDashboard() {
             {/* Key Financial Metrics - Enhanced Design */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {/* Cash Balance - Most Important */}
-              <div className="group relative overflow-hidden bg-gradient-to-br from-purple-500/20 to-purple-500/5 border border-purple-500/30 rounded-2xl p-6 hover:border-purple-400/50 transition-all duration-300">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-3 bg-purple-500/20 rounded-xl backdrop-blur-sm">
-                      <Wallet className="h-6 w-6 text-purple-400" />
-                    </div>
-                    <span className="text-xs font-medium text-purple-300">
-                      All bank accounts
-                    </span>
-                  </div>
-                  <div className="text-3xl font-bold text-white">
-                    {formatCurrency(metrics?.cashBalance || 0)}
-                  </div>
-                  <div className="text-sm text-purple-300 mt-1">Total Cash Balance</div>
-                  <div className="mt-3 pt-3 border-t border-purple-500/20">
-                    <div className="text-xs text-gray-400">30-day forecast</div>
-                    <div className="text-lg font-semibold text-white">
-                      {formatCurrency(moduleStatus?.cashFlow.forecast30Day || 0)}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <MetricCard
+                title="Total Cash Balance"
+                value={formatCurrency(metrics?.cashBalance || 0)}
+                subtitle={`Forecast: ${formatCurrency(moduleStatus?.cashFlow.forecast30Day || 0)}`}
+                icon={Wallet}
+                variant="info"
+              />
 
               {/* Revenue */}
               <div className="group relative overflow-hidden bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/30 rounded-2xl p-6 hover:border-emerald-400/50 transition-all duration-300">
@@ -550,61 +529,6 @@ export default function FinanceDashboard() {
                     <span className="px-2 py-1 bg-indigo-500/20 text-indigo-400 rounded text-xs">Vendor Analysis</span>
                     <span className="px-2 py-1 bg-indigo-500/20 text-indigo-400 rounded text-xs">Spend Trends</span>
                     <span className="px-2 py-1 bg-indigo-500/20 text-indigo-400 rounded text-xs">KPIs</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Developer Tools Section */}
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-              <Database className="h-6 w-6 mr-3 text-pink-400" />
-              Developer Tools
-            </h2>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {/* Database Explorer */}
-              <div 
-                className="group relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-pink-500/50 hover:shadow-lg hover:shadow-pink-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
-                onClick={() => router.push('/database')}
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/10 rounded-full blur-3xl group-hover:bg-pink-500/20 transition-all" />
-                
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 bg-pink-500/20 rounded-xl">
-                        <Database className="h-6 w-6 text-pink-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-semibold text-white">Database Explorer</h3>
-                        <p className="text-sm text-gray-400">Schema & data management</p>
-                      </div>
-                    </div>
-                    <ArrowUpRight className="h-5 w-5 text-gray-400 group-hover:text-pink-400 transition-colors" />
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-3 mb-4">
-                    <div className="bg-slate-900/50 rounded-lg p-3">
-                      <div className="text-2xl font-bold text-white">5</div>
-                      <div className="text-xs text-gray-400">Tables</div>
-                    </div>
-                    <div className="bg-slate-900/50 rounded-lg p-3">
-                      <div className="text-sm font-medium text-white">SQLite</div>
-                      <div className="text-xs text-gray-400">Database</div>
-                    </div>
-                    <div className="bg-slate-900/50 rounded-lg p-3">
-                      <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 bg-green-400 rounded-full" />
-                        <span className="text-sm text-white">Live</span>
-                      </div>
-                      <div className="text-xs text-gray-400">Status</div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2">
-                    <span className="px-2 py-1 bg-pink-500/20 text-pink-400 rounded text-xs">Schema View</span>
-                    <span className="px-2 py-1 bg-pink-500/20 text-pink-400 rounded text-xs">Data Browser</span>
-                    <span className="px-2 py-1 bg-orange-500/20 text-orange-400 rounded text-xs">Dev Tool</span>
                   </div>
                 </div>
               </div>
