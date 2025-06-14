@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import * as XLSX from 'xlsx';
 import { format, parse } from 'date-fns';
 

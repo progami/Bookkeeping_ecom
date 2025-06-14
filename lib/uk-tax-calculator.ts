@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { XeroClient, Organisation } from 'xero-node';
 import { 
   addDays, 

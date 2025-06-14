@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CashFlowEngine } from '@/lib/cashflow-engine';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {

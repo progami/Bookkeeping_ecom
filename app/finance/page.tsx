@@ -10,6 +10,11 @@ import {
   RefreshCw, Shield, BookOpen, LineChart
 } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
+import { MetricCard } from '@/components/ui/metric-card'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { BackButton } from '@/components/ui/back-button'
+import { PageHeader } from '@/components/ui/page-header'
+import { Button } from '@/components/ui/button'
 
 interface FinanceMetrics {
   totalRevenue: number

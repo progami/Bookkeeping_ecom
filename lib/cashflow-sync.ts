@@ -1,5 +1,5 @@
 import { XeroClient, CreditNote } from 'xero-node';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { rateLimiterManager } from '@/lib/xero-rate-limiter';
 import { 
   addDays, 
