@@ -46,6 +46,10 @@ prisma/migrations/
 test-results/
 playwright-report/
 playwright/.cache/
+test-videos/
+*-test.png
+homepage-test.png
+finance-page-test.png
 
 # IDE
 .vscode/
@@ -53,6 +57,7 @@ playwright/.cache/
 
 # logs
 /logs
+*.log
 
 # MCP configuration (contains sensitive credentials)
 .mcp.json

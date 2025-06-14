@@ -1,4 +1,13 @@
 const { createServer } = require('https');
+// Suppress deprecation warning for url.parse
+process.removeAllListeners('warning');
+process.on('warning', (warning) => {
+  if (warning.name === 'DeprecationWarning' && warning.message.includes('url.parse')) {
+    return; // Ignore url.parse deprecation warnings
+  }
+  console.warn(warning);
+});
+
 const { parse } = require('url');
 const next = require('next');
 const fs = require('fs');
@@ -121,8 +130,7 @@ app.prepare().then(() => {
   }
   
   createServer(httpsOptions, (req, res) => {
-    const parsedUrl = parse(req.url, true);
-    handle(req, res, parsedUrl);
+    handle(req, res);
   }).listen(PORT, (err) => {
     if (err) throw err;
     console.log(`> Ready on https://localhost:${PORT}`);
