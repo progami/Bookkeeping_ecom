@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getXeroClientWithTenant } from '@/lib/xero-client';
 
 export async function GET(request: NextRequest) {
   try {
+    const xeroData = await getXeroClientWithTenant()
+    
+    if (!xeroData || !xeroData.client || !xeroData.tenantId) {
+      return NextResponse.json(
+        { error: 'Xero not connected' },
+        { status: 401 }
+      )
+    }
+
+    const { client, tenantId } = xeroData
     const searchParams = request.nextUrl.searchParams;
     const period = searchParams.get('period') || '30d';
     
@@ -20,155 +30,111 @@ export async function GET(request: NextRequest) {
       case '90d':
         startDate.setDate(now.getDate() - 90);
         break;
-      case '365d':
+      case 'year':
         startDate.setDate(now.getDate() - 365);
         break;
       default:
         startDate.setDate(now.getDate() - 30);
     }
 
-    // Get all SPEND transactions grouped by vendor
-    const transactions = await prisma.bankTransaction.findMany({
-      where: {
-        type: 'SPEND',
-        date: {
-          gte: startDate,
-          lte: now
-        },
-        contactName: {
-          not: null
-        }
-      },
-      select: {
-        contactName: true,
-        amount: true,
-        date: true
-      }
-    });
+    // Get bills (purchases/expenses) from Xero for the period
+    const billsResponse = await client.accountingApi.getInvoices(
+      tenantId,
+      startDate.toISOString(),
+      undefined, // where
+      undefined, // order
+      undefined, // IDs
+      undefined, // InvoiceNumbers
+      undefined, // ContactIDs
+      undefined, // Statuses
+      100, // page size
+      undefined, // page
+      undefined, // includeArchived
+      undefined, // createdByMyApp
+      undefined // unitdp
+    );
 
-    // Group by vendor and calculate totals
-    const vendorTotals = transactions.reduce((acc: Record<string, {
+    // Filter for bills (type ACCPAY) and group by vendor
+    const vendorSpending: Record<string, {
+      contactId: string;
       name: string;
-      totalAmount: number;
+      totalSpend: number;
       transactionCount: number;
       lastTransaction: Date;
-    }>, transaction) => {
-      const vendor = transaction.contactName!;
-      
-      if (!acc[vendor]) {
-        acc[vendor] = {
-          name: vendor,
-          totalAmount: 0,
-          transactionCount: 0,
-          lastTransaction: transaction.date
-        };
-      }
-      
-      acc[vendor].totalAmount += Math.abs(transaction.amount);
-      acc[vendor].transactionCount += 1;
-      
-      if (transaction.date > acc[vendor].lastTransaction) {
-        acc[vendor].lastTransaction = transaction.date;
-      }
-      
-      return acc;
-    }, {});
+    }> = {};
 
-    // Convert to array and sort by total amount
-    const sortedVendors = Object.values(vendorTotals)
-      .sort((a, b) => b.totalAmount - a.totalAmount)
-      .slice(0, 5);
-
-    // Calculate total spend for percentage
-    const totalSpend = Object.values(vendorTotals)
-      .reduce((sum, vendor) => sum + vendor.totalAmount, 0);
-
-    // Add percentage and format response
-    const topVendors = sortedVendors.map((vendor, index) => ({
-      rank: index + 1,
-      name: vendor.name,
-      totalAmount: vendor.totalAmount,
-      transactionCount: vendor.transactionCount,
-      lastTransaction: vendor.lastTransaction,
-      percentageOfTotal: totalSpend > 0 ? (vendor.totalAmount / totalSpend) * 100 : 0,
-      averageTransactionAmount: vendor.totalAmount / vendor.transactionCount
-    }));
-
-    // Get period comparison data
-    let previousStartDate = new Date();
-    let previousEndDate = new Date(startDate);
-    
-    switch (period) {
-      case '7d':
-        previousStartDate.setDate(startDate.getDate() - 7);
-        break;
-      case '30d':
-        previousStartDate.setDate(startDate.getDate() - 30);
-        break;
-      case '90d':
-        previousStartDate.setDate(startDate.getDate() - 90);
-        break;
-      case '365d':
-        previousStartDate.setDate(startDate.getDate() - 365);
-        break;
+    if (billsResponse.body?.invoices) {
+      billsResponse.body.invoices.forEach((invoice: any) => {
+        // Only process bills (ACCPAY type) that are not draft or deleted
+        if (invoice.type === 'ACCPAY' && 
+            invoice.status !== 'DRAFT' && 
+            invoice.status !== 'DELETED' &&
+            invoice.contact?.contactID) {
+          
+          const contactId = invoice.contact.contactID;
+          const contactName = invoice.contact.name || 'Unknown Vendor';
+          const amount = invoice.total || 0;
+          const date = new Date(invoice.date || invoice.dateString);
+          
+          if (!vendorSpending[contactId]) {
+            vendorSpending[contactId] = {
+              contactId,
+              name: contactName,
+              totalSpend: 0,
+              transactionCount: 0,
+              lastTransaction: date
+            };
+          }
+          
+          vendorSpending[contactId].totalSpend += amount;
+          vendorSpending[contactId].transactionCount += 1;
+          
+          if (date > vendorSpending[contactId].lastTransaction) {
+            vendorSpending[contactId].lastTransaction = date;
+          }
+        }
+      });
     }
 
-    // Get previous period data for comparison
-    const previousTransactions = await prisma.bankTransaction.findMany({
-      where: {
-        type: 'SPEND',
-        date: {
-          gte: previousStartDate,
-          lt: previousEndDate
-        },
-        contactName: {
-          not: null
-        }
-      },
-      select: {
-        contactName: true,
-        amount: true
-      }
-    });
+    // Convert to array and sort by total spend
+    const sortedVendors = Object.values(vendorSpending)
+      .sort((a, b) => b.totalSpend - a.totalSpend)
+      .slice(0, 5);
 
-    const previousVendorTotals = previousTransactions.reduce((acc: Record<string, number>, transaction) => {
-      const vendor = transaction.contactName!;
-      acc[vendor] = (acc[vendor] || 0) + Math.abs(transaction.amount);
-      return acc;
-    }, {});
+    // Calculate total spend
+    const totalSpend = Object.values(vendorSpending)
+      .reduce((sum, vendor) => sum + vendor.totalSpend, 0);
 
-    // Add growth rate to top vendors
-    const vendorsWithGrowth = topVendors.map(vendor => {
-      const previousAmount = previousVendorTotals[vendor.name] || 0;
-      const growth = previousAmount > 0 
-        ? ((vendor.totalAmount - previousAmount) / previousAmount) * 100 
-        : vendor.totalAmount > 0 ? 100 : 0;
-      
-      return {
-        ...vendor,
-        growth,
-        previousAmount
-      };
-    });
+    // Format response with proper vendor data
+    const vendors = sortedVendors.map((vendor, index) => ({
+      rank: index + 1,
+      contactId: vendor.contactId,
+      name: vendor.name,
+      totalSpend: vendor.totalSpend,
+      transactionCount: vendor.transactionCount,
+      lastTransaction: vendor.lastTransaction.toISOString(),
+      percentageOfTotal: totalSpend > 0 ? (vendor.totalSpend / totalSpend) * 100 : 0,
+      averageTransactionAmount: vendor.totalSpend / vendor.transactionCount
+    }));
 
     return NextResponse.json({
-      success: true,
+      vendors,
       period,
-      startDate,
-      endDate: now,
+      startDate: startDate.toISOString(),
+      endDate: now.toISOString(),
       totalSpend,
-      vendorCount: Object.keys(vendorTotals).length,
-      topVendors: vendorsWithGrowth,
+      vendorCount: Object.keys(vendorSpending).length,
       summary: {
-        topVendorSpend: sortedVendors.reduce((sum, v) => sum + v.totalAmount, 0),
+        topVendorSpend: sortedVendors.reduce((sum, v) => sum + v.totalSpend, 0),
         topVendorPercentage: totalSpend > 0 
-          ? (sortedVendors.reduce((sum, v) => sum + v.totalAmount, 0) / totalSpend) * 100 
-          : 0
+          ? (sortedVendors.reduce((sum, v) => sum + v.totalSpend, 0) / totalSpend) * 100 
+          : 0,
+        currency: 'GBP'
       }
     });
 
   } catch (error: any) {
-    console.error('Error fetching top vendors:', error);
+    console.error('Error fetching top vendors from Xero:', error);
     return NextResponse.json(
       { 
         error: 'Failed to fetch top vendors',

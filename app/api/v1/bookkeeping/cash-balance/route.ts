@@ -1,83 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getXeroClient } from '@/lib/xero-client';
+import { getXeroClientWithTenant } from '@/lib/xero-client';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get Xero client via OAuth
-    const xeroClient = await getXeroClient();
+    const xeroData = await getXeroClientWithTenant()
     
-    if (!xeroClient) {
-      return NextResponse.json({
-        error: 'Not connected to Xero',
-        details: 'Please connect your Xero account first'
-      }, { status: 401 });
+    if (!xeroData || !xeroData.client || !xeroData.tenantId) {
+      return NextResponse.json(
+        { error: 'Xero not connected' },
+        { status: 401 }
+      )
     }
 
-    // Get the tenant ID from connected tenants
-    const tenants = await xeroClient.updateTenants();
-    
-    if (!tenants || tenants.length === 0) {
-      return NextResponse.json({
-        error: 'No Xero tenants found',
-        details: 'Please reconnect to Xero'
-      }, { status: 401 });
-    }
+    const { client, tenantId } = xeroData
 
-    const tenantId = tenants[0].tenantId;
+    console.log('Fetching bank account balances from Xero...');
     
-    if (!tenantId) {
-      return NextResponse.json({
-        error: 'No tenant selected',
-        details: 'Unable to determine Xero organization'
-      }, { status: 400 });
-    }
-
-    console.log('Fetching balance sheet from Xero...');
-    
-    // Fetch balance sheet report
-    const balanceSheet = await xeroClient.accountingApi.getReportBalanceSheet(
+    // Fetch bank accounts directly for more accurate data
+    const accountsResponse = await client.accountingApi.getAccounts(
       tenantId,
-      new Date().toISOString().split('T')[0]
+      undefined,
+      'Type=="BANK"',
+      undefined
     );
     
-    // Extract bank balances from the report
-    let totalCashInBank = 0;
+    // Extract bank balances from accounts
+    let totalBalance = 0;
     const bankAccounts: any[] = [];
     
-    if (balanceSheet.body?.reports?.[0]?.rows) {
-      const rows = balanceSheet.body.reports[0].rows;
-      
-      // Find the Bank section
-      rows.forEach((row: any) => {
-        if (row.rowType === 'Section' && row.title === 'Bank' && row.rows) {
-          row.rows.forEach((bankRow: any) => {
-            if (bankRow.rowType === 'Row' && bankRow.cells) {
-              const accountName = bankRow.cells[0]?.value || 'Unknown';
-              const balance = parseFloat(bankRow.cells[1]?.value || '0');
-              
-              if (!isNaN(balance)) {
-                totalCashInBank += balance;
-                bankAccounts.push({
-                  name: accountName,
-                  balance: balance,
-                  currency: 'GBP'
-                });
-              }
-            }
+    if (accountsResponse.body?.accounts) {
+      accountsResponse.body.accounts.forEach((account: any) => {
+        if (account.type === 'BANK' && account.status === 'ACTIVE') {
+          const balance = account.balance || 0;
+          totalBalance += balance;
+          
+          bankAccounts.push({
+            id: account.accountID,
+            name: account.name,
+            code: account.code,
+            balance: balance,
+            currency: account.currencyCode || 'GBP',
+            type: account.bankAccountType || 'BANK'
           });
         }
       });
     }
     
-    console.log('Successfully fetched balance from Xero:', totalCashInBank);
+    console.log('Successfully fetched balance from Xero:', totalBalance);
     
     return NextResponse.json({
-      success: true,
-      cashInBank: totalCashInBank,
+      totalBalance: totalBalance,
       currency: 'GBP',
-      source: 'xero-api',
-      lastUpdated: new Date().toISOString(),
-      breakdown: bankAccounts
+      accounts: bankAccounts,
+      count: bankAccounts.length,
+      lastUpdated: new Date().toISOString()
     });
     
   } catch (error: any) {
