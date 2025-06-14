@@ -179,7 +179,7 @@ export default function FinanceDashboard() {
               {xeroConnected === false ? (
                 <button
                   onClick={() => router.push('/bookkeeping')}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all flex items-center gap-2"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all flex items-center gap-2"
                 >
                   <Shield className="h-4 w-4" />
                   Connect to Xero
@@ -230,7 +230,7 @@ export default function FinanceDashboard() {
                 </div>
                 <button
                   onClick={() => router.push('/bookkeeping')}
-                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all flex items-center gap-2"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all flex items-center gap-2"
                 >
                   Connect Now
                   <ArrowUpRight className="h-4 w-4" />
