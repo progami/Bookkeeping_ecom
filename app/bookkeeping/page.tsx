@@ -211,6 +211,28 @@ export default function BookkeepingDashboard() {
                 Connect Xero
               </button>
             )}
+            {xeroStatus?.connected && (
+              <button 
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/v1/xero/sync', { method: 'POST' })
+                    if (res.ok) {
+                      const data = await res.json()
+                      toast.success(`Sync complete! ${data.summary.transactions} transactions synced`)
+                      fetchDashboardData() // Refresh the dashboard
+                    } else {
+                      toast.error('Sync failed')
+                    }
+                  } catch (error) {
+                    toast.error('Failed to sync data')
+                  }
+                }}
+                className="px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-lg hover:bg-emerald-600/30 transition-colors"
+              >
+                <Cloud className="h-4 w-4 inline mr-2" />
+                Sync All Data
+              </button>
+            )}
             <select 
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}

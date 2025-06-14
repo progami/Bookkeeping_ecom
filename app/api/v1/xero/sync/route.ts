@@ -250,10 +250,143 @@ export async function POST(request: NextRequest) {
       }
     });
     
+    // Step 4: Sync open invoices for cash flow forecasting
+    console.log('\nFetching open invoices...');
+    let totalInvoices = 0;
+    let totalBills = 0;
+    
+    try {
+      // Fetch customer invoices (ACCREC)
+      const customerInvoicesResponse = await executeXeroAPICall(
+        tenant.tenantId,
+        async (client) => client.accountingApi.getInvoices(
+          tenant.tenantId,
+          undefined,
+          'Status=="AUTHORISED"&&Type=="ACCREC"',
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          ['AUTHORISED'],
+          100
+        )
+      );
+      
+      const customerInvoices = customerInvoicesResponse.body.invoices || [];
+      console.log(`Found ${customerInvoices.length} customer invoices`);
+      
+      // Upsert customer invoices
+      for (const invoice of customerInvoices) {
+        if (!invoice.invoiceID || invoice.amountDue === 0) continue;
+        
+        await prisma.syncedInvoice.upsert({
+          where: { id: invoice.invoiceID },
+          update: {
+            contactId: invoice.contact?.contactID || '',
+            contactName: invoice.contact?.name || null,
+            invoiceNumber: invoice.invoiceNumber || null,
+            reference: invoice.reference || null,
+            dueDate: new Date(invoice.dueDate || invoice.dueDateString || new Date()),
+            date: new Date(invoice.date || invoice.dateString || new Date()),
+            amountDue: invoice.amountDue || 0,
+            total: invoice.total || 0,
+            type: 'ACCREC',
+            status: invoice.amountDue > 0 ? 'OPEN' : 'PAID',
+            lineAmountTypes: invoice.lineAmountTypes?.toString() || null,
+            currencyCode: invoice.currencyCode?.toString() || null,
+            lastModifiedUtc: new Date(),
+            updatedAt: new Date()
+          },
+          create: {
+            id: invoice.invoiceID,
+            contactId: invoice.contact?.contactID || '',
+            contactName: invoice.contact?.name || null,
+            invoiceNumber: invoice.invoiceNumber || null,
+            reference: invoice.reference || null,
+            dueDate: new Date(invoice.dueDate || invoice.dueDateString || new Date()),
+            date: new Date(invoice.date || invoice.dateString || new Date()),
+            amountDue: invoice.amountDue || 0,
+            total: invoice.total || 0,
+            type: 'ACCREC',
+            status: invoice.amountDue > 0 ? 'OPEN' : 'PAID',
+            lineAmountTypes: invoice.lineAmountTypes?.toString() || null,
+            currencyCode: invoice.currencyCode?.toString() || null,
+            lastModifiedUtc: new Date()
+          }
+        });
+        totalInvoices++;
+      }
+      
+      // Fetch supplier bills (ACCPAY)
+      const supplierBillsResponse = await executeXeroAPICall(
+        tenant.tenantId,
+        async (client) => client.accountingApi.getInvoices(
+          tenant.tenantId,
+          undefined,
+          'Status=="AUTHORISED"&&Type=="ACCPAY"',
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          ['AUTHORISED'],
+          100
+        )
+      );
+      
+      const supplierBills = supplierBillsResponse.body.invoices || [];
+      console.log(`Found ${supplierBills.length} supplier bills`);
+      
+      // Upsert supplier bills
+      for (const bill of supplierBills) {
+        if (!bill.invoiceID || bill.amountDue === 0) continue;
+        
+        await prisma.syncedInvoice.upsert({
+          where: { id: bill.invoiceID },
+          update: {
+            contactId: bill.contact?.contactID || '',
+            contactName: bill.contact?.name || null,
+            invoiceNumber: bill.invoiceNumber || null,
+            reference: bill.reference || null,
+            dueDate: new Date(bill.dueDate || bill.dueDateString || new Date()),
+            date: new Date(bill.date || bill.dateString || new Date()),
+            amountDue: bill.amountDue || 0,
+            total: bill.total || 0,
+            type: 'ACCPAY',
+            status: bill.amountDue > 0 ? 'OPEN' : 'PAID',
+            lineAmountTypes: bill.lineAmountTypes?.toString() || null,
+            currencyCode: bill.currencyCode?.toString() || null,
+            lastModifiedUtc: new Date(),
+            updatedAt: new Date()
+          },
+          create: {
+            id: bill.invoiceID,
+            contactId: bill.contact?.contactID || '',
+            contactName: bill.contact?.name || null,
+            invoiceNumber: bill.invoiceNumber || null,
+            reference: bill.reference || null,
+            dueDate: new Date(bill.dueDate || bill.dueDateString || new Date()),
+            date: new Date(bill.date || bill.dateString || new Date()),
+            amountDue: bill.amountDue || 0,
+            total: bill.total || 0,
+            type: 'ACCPAY',
+            status: bill.amountDue > 0 ? 'OPEN' : 'PAID',
+            lineAmountTypes: bill.lineAmountTypes?.toString() || null,
+            currencyCode: bill.currencyCode?.toString() || null,
+            lastModifiedUtc: new Date()
+          }
+        });
+        totalBills++;
+      }
+    } catch (invoiceError) {
+      console.error('Error syncing invoices:', invoiceError);
+    }
+
     console.log('\nSync completed successfully!');
     console.log(`GL Accounts: ${totalGLAccounts}`);
     console.log(`Bank accounts: ${totalAccounts}`);
     console.log(`Total transactions: ${totalTransactions}`);
+    console.log(`Customer invoices: ${totalInvoices}`);
+    console.log(`Supplier bills: ${totalBills}`);
     console.log(`Created: ${createdTransactions}, Updated: ${updatedTransactions}`);
     
     return NextResponse.json({
@@ -262,6 +395,8 @@ export async function POST(request: NextRequest) {
         glAccounts: totalGLAccounts,
         bankAccounts: totalAccounts,
         transactions: totalTransactions,
+        invoices: totalInvoices,
+        bills: totalBills,
         created: createdTransactions,
         updated: updatedTransactions
       }

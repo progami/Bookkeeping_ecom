@@ -201,52 +201,6 @@ export default function ChartOfAccountsPage() {
     }
   }
 
-  const syncAccounts = async () => {
-    try {
-      setSyncing(true)
-      const response = await fetch('/api/v1/xero/sync-gl-accounts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          includeArchived: showArchived
-        }),
-        credentials: 'include'
-      })
-      
-      // Check if response has content before parsing
-      const contentType = response.headers.get('content-type')
-      let data: any = {}
-      
-      if (contentType && contentType.includes('application/json')) {
-        try {
-          const text = await response.text()
-          if (text) {
-            data = JSON.parse(text)
-          }
-        } catch (parseError) {
-          console.error('Failed to parse response:', parseError)
-          data = { error: 'Invalid response format' }
-        }
-      }
-      
-      if (response.ok && data.success) {
-        setTotalFromXero(data.stats.total)
-        toast.success(`Synced ${data.stats.total} accounts from Xero (${data.stats.created} new, ${data.stats.updated} updated)`)
-        fetchAccounts()
-      } else {
-        const errorMsg = data.error || data.message || 'Unknown error'
-        toast.error(`Failed to sync: ${errorMsg}`)
-        console.error('Sync error:', data)
-      }
-    } catch (error: any) {
-      console.error('Sync error:', error)
-      toast.error(`Error syncing accounts: ${error.message || 'Network error'}`)
-    } finally {
-      setSyncing(false)
-    }
-  }
 
   const filteredAndSortedAccounts = accounts
     .filter(account => {
@@ -380,14 +334,6 @@ export default function ChartOfAccountsPage() {
               <Download className="h-4 w-4" />
               Export CSV
             </button>
-            <button
-              onClick={syncAccounts}
-              disabled={syncing}
-              className="px-4 py-2 bg-amber-600/20 text-amber-400 rounded-lg hover:bg-amber-600/30 transition-colors flex items-center gap-2 border border-amber-500/30"
-            >
-              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Syncing...' : 'Sync from Xero'}
-            </button>
           </div>
         </div>
       </div>
@@ -434,14 +380,8 @@ export default function ChartOfAccountsPage() {
           <BookOpen className="h-16 w-16 text-gray-600 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-white mb-2">No accounts found</h3>
           <p className="text-gray-400 mb-6">
-            Click &quot;Sync from Xero&quot; to import your Chart of Accounts
+            Go to the bookkeeping dashboard and click &quot;Sync All Data&quot; to import your Chart of Accounts
           </p>
-          <button
-            onClick={syncAccounts}
-            className="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
-          >
-            Sync from Xero
-          </button>
         </div>
       ) : (
         <div className="space-y-1">

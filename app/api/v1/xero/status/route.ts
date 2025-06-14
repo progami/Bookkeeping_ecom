@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getXeroClient } from '@/lib/xero-client';
+import { prisma } from '@/lib/prisma';
+import { cookies } from 'next/headers';
 
 // Force dynamic rendering to ensure cookies work properly
 export const dynamic = 'force-dynamic';
@@ -7,46 +8,44 @@ export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('Checking Xero status...');
-    const xero = await getXeroClient();
+    // Check if we have Xero credentials in cookies
+    const cookieStore = cookies();
+    const accessToken = cookieStore.get('xero-access-token');
+    const tenantId = cookieStore.get('xero-tenant-id');
+    const tenantName = cookieStore.get('xero-tenant-name');
+    const tenantType = cookieStore.get('xero-tenant-type');
     
-    if (!xero) {
-      console.log('No Xero client available - not connected');
-      return NextResponse.json({
-        connected: false,
-        organization: null
-      });
-    }
-    
-    console.log('Xero client obtained, checking tenants...');
-    
-    // Get organization info
-    try {
-      await xero.updateTenants();
-      const activeTenant = xero.tenants[0];
-      
-      if (!activeTenant) {
-        return NextResponse.json({
-          connected: false,
-          organization: null
-        });
+    // Check last sync status from database
+    const lastSync = await prisma.syncLog.findFirst({
+      where: {
+        syncType: 'bank_accounts',
+        status: 'success'
+      },
+      orderBy: {
+        completedAt: 'desc'
+      },
+      select: {
+        completedAt: true
       }
-      
-      return NextResponse.json({
-        connected: true,
-        organization: {
-          tenantId: activeTenant.tenantId,
-          tenantName: activeTenant.tenantName,
-          tenantType: activeTenant.tenantType
-        }
-      });
-    } catch (error) {
-      console.error('Error fetching tenant info:', error);
+    });
+
+    if (!accessToken || !tenantId) {
       return NextResponse.json({
         connected: false,
-        organization: null
+        organization: null,
+        lastSync: lastSync?.completedAt || null
       });
     }
+    
+    return NextResponse.json({
+      connected: true,
+      organization: {
+        tenantId: tenantId.value,
+        tenantName: tenantName?.value || 'Unknown Organization',
+        tenantType: tenantType?.value || 'ORGANISATION'
+      },
+      lastSync: lastSync?.completedAt || null
+    });
   } catch (error) {
     console.error('Error checking Xero status:', error);
     return NextResponse.json(

@@ -139,12 +139,6 @@ export default function FinanceDashboard() {
     }
   }
 
-  const handleRefresh = async () => {
-    setRefreshing(true)
-    await fetchFinanceData()
-    setRefreshing(false)
-    toast.success('Data refreshed')
-  }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-GB', {
@@ -204,14 +198,6 @@ export default function FinanceDashboard() {
                 )}
               </div>
               
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="px-4 py-2 bg-slate-800/50 text-white rounded-lg border border-slate-700 hover:border-emerald-500 transition-all flex items-center gap-2 disabled:opacity-50"
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
               
               <select 
                 value={timeRange}

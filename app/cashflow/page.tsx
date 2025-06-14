@@ -90,35 +90,6 @@ export default function CashFlowPage() {
     }
   }
 
-  const handleSync = async () => {
-    try {
-      setSyncing(true)
-      toast.loading('Syncing cash flow data...', { id: 'sync' })
-      
-      const response = await fetch('/api/v1/cashflow/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ syncType: 'DELTA' }),
-      })
-      
-      if (!response.ok) throw new Error('Sync failed')
-      
-      const result = await response.json()
-      
-      toast.success(
-        `Sync complete: ${result.summary.itemsSynced} items synced, ${result.summary.taxObligationsCreated} tax obligations created`,
-        { id: 'sync' }
-      )
-      
-      // Regenerate forecast
-      await regenerateForecast()
-    } catch (error) {
-      console.error('Sync error:', error)
-      toast.error('Sync failed', { id: 'sync' })
-    } finally {
-      setSyncing(false)
-    }
-  }
 
   const regenerateForecast = async () => {
     try {
@@ -255,14 +226,6 @@ export default function CashFlowPage() {
               <option value="365">1 year</option>
             </select>
             
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors flex items-center disabled:opacity-50"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-              Sync Data
-            </button>
           </div>
         </div>
       </div>

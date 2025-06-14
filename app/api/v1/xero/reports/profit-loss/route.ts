@@ -1,125 +1,148 @@
 import { NextResponse } from 'next/server'
-import { getXeroClientWithTenant } from '@/lib/xero-client'
-import { RowType } from 'xero-node'
+import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
-    const xeroData = await getXeroClientWithTenant()
-    
-    if (!xeroData || !xeroData.client || !xeroData.tenantId) {
-      return NextResponse.json(
-        { error: 'Xero not connected' },
-        { status: 401 }
-      )
-    }
+    // Get date range for last 30 days by default
+    const endDate = new Date()
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - 30)
 
-    const { client, tenantId } = xeroData
+    // Fetch transactions from database
+    const [revenueTransactions, expenseTransactions, glAccounts] = await Promise.all([
+      // Revenue transactions (RECEIVE type)
+      prisma.bankTransaction.findMany({
+        where: {
+          type: 'RECEIVE',
+          status: { not: 'DELETED' },
+          date: {
+            gte: startDate,
+            lte: endDate
+          }
+        },
+        select: {
+          amount: true,
+          accountCode: true
+        }
+      }),
+      
+      // Expense transactions (SPEND type)
+      prisma.bankTransaction.findMany({
+        where: {
+          type: 'SPEND',
+          status: { not: 'DELETED' },
+          date: {
+            gte: startDate,
+            lte: endDate
+          }
+        },
+        select: {
+          amount: true,
+          accountCode: true
+        }
+      }),
 
-    // Get profit & loss report from Xero
-    const response = await client.accountingApi.getReportProfitAndLoss(
-      tenantId,
-      undefined, // fromDate
-      undefined, // toDate
-      undefined, // periods
-      undefined, // timeframe
-      undefined, // trackingCategoryID
-      undefined, // trackingCategoryID2
-      undefined, // trackingOptionID
-      undefined, // trackingOptionID2
-      undefined, // standardLayout
-      undefined  // paymentsOnly
+      // Get GL accounts to determine account types
+      prisma.gLAccount.findMany({
+        where: {
+          status: 'ACTIVE'
+        },
+        select: {
+          code: true,
+          type: true,
+          class: true
+        }
+      })
+    ])
+
+    // Create account code lookup map
+    const accountTypes = new Map(
+      glAccounts.map(acc => [acc.code, { type: acc.type, class: acc.class }])
     )
 
-    const report = response.body.reports?.[0]
-    
-    if (!report || !report.rows) {
-      return NextResponse.json({
-        totalRevenue: 0,
-        totalExpenses: 0,
-        grossProfit: 0,
-        netProfit: 0,
-        operatingExpenses: 0,
-        costOfGoodsSold: 0
-      })
-    }
-
-    // Parse the P&L report
+    // Calculate P&L values from transactions
     let profitLoss = {
       totalRevenue: 0,
       totalExpenses: 0,
       grossProfit: 0,
       netProfit: 0,
       operatingExpenses: 0,
-      costOfGoodsSold: 0
+      costOfGoodsSold: 0,
+      revenue: 0,
+      expenses: 0,
+      revenueChange: 0,
+      profitChange: 0
     }
 
-    // Extract values from the report structure
-    report.rows.forEach(section => {
-      if (section.rowType === RowType.Section) {
-        const sectionTitle = section.title?.toLowerCase() || ''
-        
-        if (sectionTitle.includes('income') || sectionTitle.includes('revenue') || sectionTitle.includes('sales')) {
-          section.rows?.forEach(row => {
-            if (row.rowType === RowType.Row && row.cells) {
-              const value = parseFloat(row.cells[1]?.value || '0')
-              profitLoss.totalRevenue += value
-            } else if (row.rowType === RowType.SummaryRow && row.cells) {
-              const value = parseFloat(row.cells[1]?.value || '0')
-              if (sectionTitle.includes('total') && (sectionTitle.includes('income') || sectionTitle.includes('revenue'))) {
-                profitLoss.totalRevenue = value
-              }
-            }
-          })
-        } else if (sectionTitle.includes('cost of goods sold') || sectionTitle.includes('cost of sales')) {
-          section.rows?.forEach(row => {
-            if (row.rowType === RowType.Row && row.cells) {
-              const value = parseFloat(row.cells[1]?.value || '0')
-              profitLoss.costOfGoodsSold += value
-            } else if (row.rowType === RowType.SummaryRow && row.cells) {
-              const value = parseFloat(row.cells[1]?.value || '0')
-              profitLoss.costOfGoodsSold = value
-            }
-          })
-        } else if (sectionTitle.includes('expense') || sectionTitle.includes('operating')) {
-          section.rows?.forEach(row => {
-            if (row.rowType === RowType.Row && row.cells) {
-              const value = parseFloat(row.cells[1]?.value || '0')
-              profitLoss.operatingExpenses += value
-              profitLoss.totalExpenses += value
-            } else if (row.rowType === RowType.SummaryRow && row.cells) {
-              const value = parseFloat(row.cells[1]?.value || '0')
-              if (sectionTitle.includes('operating')) {
-                profitLoss.operatingExpenses = value
-              }
-            }
-          })
-        } else if (sectionTitle.includes('gross profit')) {
-          section.rows?.forEach(row => {
-            if (row.rowType === RowType.Row && row.cells) {
-              const value = parseFloat(row.cells[1]?.value || '0')
-              profitLoss.grossProfit = value
-            }
-          })
-        } else if (sectionTitle.includes('net profit') || sectionTitle.includes('net income')) {
-          section.rows?.forEach(row => {
-            if (row.rowType === RowType.Row && row.cells) {
-              const value = parseFloat(row.cells[1]?.value || '0')
-              profitLoss.netProfit = value
-            }
-          })
-        }
-      }
+    // Calculate revenue
+    revenueTransactions.forEach(tx => {
+      profitLoss.totalRevenue += tx.amount
+      profitLoss.revenue += tx.amount
     })
 
-    // Calculate totals if not already set
-    if (profitLoss.grossProfit === 0) {
-      profitLoss.grossProfit = profitLoss.totalRevenue - profitLoss.costOfGoodsSold
+    // Calculate expenses and categorize them
+    expenseTransactions.forEach(tx => {
+      const accountType = accountTypes.get(tx.accountCode || '')
+      
+      // Check if this is cost of goods sold based on account type
+      if (accountType && (
+        accountType.type === 'DIRECTCOSTS' || 
+        accountType.class === 'EXPENSE' && tx.accountCode?.startsWith('5') // Common COGS account codes
+      )) {
+        profitLoss.costOfGoodsSold += tx.amount
+      } else {
+        profitLoss.operatingExpenses += tx.amount
+      }
+      
+      profitLoss.totalExpenses += tx.amount
+      profitLoss.expenses += tx.amount
+    })
+
+    // Calculate gross and net profit
+    profitLoss.grossProfit = profitLoss.totalRevenue - profitLoss.costOfGoodsSold
+    profitLoss.netProfit = profitLoss.totalRevenue - profitLoss.totalExpenses
+
+    // Calculate period comparison (compare to previous 30 days)
+    const previousEndDate = new Date(startDate)
+    const previousStartDate = new Date(startDate)
+    previousStartDate.setDate(previousStartDate.getDate() - 30)
+
+    const [prevRevenue, prevExpenses] = await Promise.all([
+      prisma.bankTransaction.aggregate({
+        where: {
+          type: 'RECEIVE',
+          status: { not: 'DELETED' },
+          date: {
+            gte: previousStartDate,
+            lte: previousEndDate
+          }
+        },
+        _sum: { amount: true }
+      }),
+      prisma.bankTransaction.aggregate({
+        where: {
+          type: 'SPEND',
+          status: { not: 'DELETED' },
+          date: {
+            gte: previousStartDate,
+            lte: previousEndDate
+          }
+        },
+        _sum: { amount: true }
+      })
+    ])
+
+    const previousRevenueTotal = prevRevenue._sum.amount || 0
+    const previousExpenseTotal = prevExpenses._sum.amount || 0
+    const previousProfit = previousRevenueTotal - previousExpenseTotal
+
+    // Calculate percentage changes
+    if (previousRevenueTotal > 0) {
+      profitLoss.revenueChange = ((profitLoss.totalRevenue - previousRevenueTotal) / previousRevenueTotal) * 100
     }
-    
-    profitLoss.totalExpenses = profitLoss.costOfGoodsSold + profitLoss.operatingExpenses
-    
-    if (profitLoss.netProfit === 0) {
-      profitLoss.netProfit = profitLoss.totalRevenue - profitLoss.totalExpenses
+
+    if (previousProfit !== 0) {
+      profitLoss.profitChange = ((profitLoss.netProfit - previousProfit) / Math.abs(previousProfit)) * 100
     }
 
     return NextResponse.json(profitLoss)

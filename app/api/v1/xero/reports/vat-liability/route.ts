@@ -1,154 +1,116 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getXeroClientWithTenant } from '@/lib/xero-client';
-import { RowType } from 'xero-node';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    const xeroData = await getXeroClientWithTenant()
-    
-    if (!xeroData || !xeroData.client || !xeroData.tenantId) {
-      return NextResponse.json(
-        { error: 'Xero not connected' },
-        { status: 401 }
-      )
-    }
+    // Get recent transactions to calculate VAT from database
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 3); // Last 3 months
 
-    const { client, tenantId } = xeroData
+    // Fetch transactions from database
+    const transactions = await prisma.bankTransaction.findMany({
+      where: {
+        status: { not: 'DELETED' },
+        date: {
+          gte: startDate,
+          lte: endDate
+        }
+      },
+      select: {
+        type: true,
+        amount: true,
+        lineItems: true,
+        taxType: true
+      }
+    });
 
-    // Since getReportBASorGST is not available in all regions,
-    // we'll calculate VAT liability from GL accounts instead
-    const accountsResponse = await client.accountingApi.getAccounts(
-      tenantId,
-      undefined, // ifModifiedSince
-      'Type=="CURRLIAB"&&Name.Contains("VAT")||Name.Contains("GST")||Code=="820"||Code=="825"' // where
-    );
-    
-    const vatAccounts = accountsResponse.body?.accounts || [];
-    
-    // Calculate VAT liability from account balances
-    let currentLiability = 0;
-    let vatCollected = 0;
-    let vatPaid = 0;
-    
-    // Get Trial Balance for current balances
-    const trialBalanceResponse = await client.accountingApi.getReportTrialBalance(
-      tenantId,
-      undefined // date - will use today
-    );
-    
-    const report = trialBalanceResponse.body?.reports?.[0];
-    
-    if (report?.rows) {
-      report.rows.forEach((row: any) => {
-        // Look for GST/VAT collected rows
-        if (row.rowType === RowType.Row && row.cells) {
-          const title = row.cells[0]?.value || '';
-          const amount = parseFloat(row.cells[row.cells.length - 1]?.value || '0');
-          
-          if (title.toLowerCase().includes('gst collected') || 
-              title.toLowerCase().includes('vat collected') ||
-              title.toLowerCase().includes('output tax')) {
-            vatCollected += amount;
-          } else if (title.toLowerCase().includes('gst paid') || 
-                     title.toLowerCase().includes('vat paid') ||
-                     title.toLowerCase().includes('input tax')) {
-            vatPaid += amount;
+    let vatOnSales = 0;
+    let vatOnPurchases = 0;
+
+    // Calculate VAT from transactions
+    transactions.forEach(tx => {
+      // Parse line items if they exist
+      let taxAmount = 0;
+      
+      if (tx.lineItems) {
+        try {
+          const lineItems = JSON.parse(tx.lineItems);
+          if (Array.isArray(lineItems)) {
+            // Calculate tax from line items
+            lineItems.forEach((item: any) => {
+              if (item.taxAmount) {
+                taxAmount += parseFloat(item.taxAmount) || 0;
+              } else if (item.unitAmount && item.quantity && item.taxType) {
+                // Estimate tax based on tax type
+                const lineTotal = item.unitAmount * item.quantity;
+                // Assume standard UK VAT rate of 20% for taxable items
+                if (item.taxType !== 'NONE' && item.taxType !== 'EXEMPTOUTPUT') {
+                  taxAmount += lineTotal * 0.2; // 20% VAT
+                }
+              }
+            });
+          }
+        } catch (e) {
+          // If line items parsing fails, estimate from transaction amount
+          if (tx.taxType && tx.taxType !== 'NONE') {
+            // Estimate 20% VAT on the transaction amount
+            taxAmount = tx.amount * (0.2 / 1.2); // Extract VAT from VAT-inclusive amount
           }
         }
-        
-        // Look for summary row with net amount
-        if (row.rowType === RowType.SummaryRow && row.cells) {
-          const title = row.cells[0]?.value || '';
-          if (title.toLowerCase().includes('net gst') || 
-              title.toLowerCase().includes('net vat') ||
-              title.toLowerCase().includes('amount owing')) {
-            currentLiability = parseFloat(row.cells[row.cells.length - 1]?.value || '0');
-          }
-        }
-      });
-    }
+      } else if (tx.taxType && tx.taxType !== 'NONE') {
+        // No line items, estimate from transaction
+        taxAmount = tx.amount * (0.2 / 1.2);
+      }
 
-    // If we didn't find a summary, calculate it
-    if (currentLiability === 0 && (vatCollected > 0 || vatPaid > 0)) {
-      currentLiability = vatCollected - vatPaid;
-    }
+      // Accumulate VAT based on transaction type
+      if (tx.type === 'RECEIVE') {
+        vatOnSales += taxAmount;
+      } else if (tx.type === 'SPEND') {
+        vatOnPurchases += taxAmount;
+      }
+    });
+
+    const netVat = vatOnSales - vatOnPurchases;
+
+    // Also check if we have any tax obligations stored
+    const vatObligations = await prisma.taxObligation.findMany({
+      where: {
+        type: 'VAT',
+        status: 'PENDING',
+        dueDate: {
+          gte: new Date()
+        }
+      },
+      orderBy: {
+        dueDate: 'asc'
+      }
+    });
+
+    // Use the next VAT obligation amount if available
+    const upcomingVatPayment = vatObligations[0]?.amount || 0;
 
     return NextResponse.json({
-      currentLiability: Math.abs(currentLiability),
-      vatCollected,
-      vatPaid,
-      netAmount: currentLiability,
+      currentLiability: Math.abs(netVat),
+      vatCollected: vatOnSales,
+      vatPaid: vatOnPurchases,
+      netAmount: netVat,
+      upcomingPayment: upcomingVatPayment,
+      nextPaymentDue: vatObligations[0]?.dueDate || null,
       reportDate: new Date().toISOString(),
-      reportPeriod: report?.reportTitles?.[0] || 'Current Period',
-      currency: 'GBP'
+      reportPeriod: 'Last 3 months',
+      currency: 'GBP',
+      calculatedFromTransactions: true
     });
 
   } catch (error: any) {
-    console.error('Error fetching VAT liability:', error);
-    
-    // If VAT report is not available, try to calculate from transactions
-    try {
-      const xeroData = await getXeroClientWithTenant()
-      if (!xeroData) {
-        throw new Error('Xero not connected');
-      }
-      
-      const { client, tenantId } = xeroData;
-      
-      // Get recent transactions to calculate VAT
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - 3); // Last 3 months
-      
-      const invoicesResponse = await client.accountingApi.getInvoices(
-        tenantId,
-        startDate,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        ['AUTHORISED', 'PAID'],
-        100
-      );
-      
-      let vatOnSales = 0;
-      let vatOnPurchases = 0;
-      
-      if (invoicesResponse.body?.invoices) {
-        invoicesResponse.body.invoices.forEach((invoice: any) => {
-          if (invoice.totalTax) {
-            if (invoice.type === 'ACCREC') {
-              vatOnSales += invoice.totalTax;
-            } else if (invoice.type === 'ACCPAY') {
-              vatOnPurchases += invoice.totalTax;
-            }
-          }
-        });
-      }
-      
-      const netVat = vatOnSales - vatOnPurchases;
-      
-      return NextResponse.json({
-        currentLiability: Math.abs(netVat),
-        vatCollected: vatOnSales,
-        vatPaid: vatOnPurchases,
-        netAmount: netVat,
-        reportDate: new Date().toISOString(),
-        reportPeriod: 'Last 3 months',
-        currency: 'GBP',
-        calculatedFromTransactions: true
-      });
-      
-    } catch (fallbackError) {
-      console.error('Fallback VAT calculation failed:', fallbackError);
-      return NextResponse.json(
-        { 
-          error: 'Failed to fetch VAT liability',
-          details: error.message || 'Unknown error'
-        },
-        { status: 500 }
-      );
-    }
+    console.error('Error calculating VAT liability:', error);
+    return NextResponse.json(
+      { 
+        error: 'Failed to calculate VAT liability',
+        details: error.message || 'Unknown error'
+      },
+      { status: 500 }
+    );
   }
 }

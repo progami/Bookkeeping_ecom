@@ -78,31 +78,6 @@ export default function TransactionsPage() {
     }
   }
 
-  const syncTransactions = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch('/api/v1/xero/sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        toast.success(`Synced ${data.stats.created} new and ${data.stats.updated} updated transactions`)
-        fetchTransactions()
-      } else {
-        const error = await response.json()
-        toast.error(error.error || 'Failed to sync transactions')
-      }
-    } catch (error) {
-      console.error('Error syncing transactions:', error)
-      toast.error('Error syncing transactions')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const filteredTransactions = transactions.filter(transaction => {
     const matchesSearch = 
@@ -185,14 +160,6 @@ export default function TransactionsPage() {
             >
               <Download className="h-4 w-4" />
               Export CSV
-            </button>
-            <button
-              onClick={syncTransactions}
-              disabled={loading}
-              className="px-4 py-2 bg-indigo-600/20 text-indigo-400 rounded-lg hover:bg-indigo-600/30 transition-colors flex items-center gap-2 border border-indigo-500/30"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Sync from Xero
             </button>
           </div>
         </div>
