@@ -25,11 +25,6 @@ export async function GET(request: NextRequest) {
     ])
 
     return NextResponse.json({
-      totalRules: 0, // Rules have been removed
-      activeRules: 0,
-      inactiveRules: 0,
-      matchRate: 0,
-      recentActivity: [], // No rule activity anymore
       unreconciledCount,
       reconciliationRate: recentTransactions.length > 0 
         ? Math.round((recentTransactions.filter(tx => tx.isReconciled).length / recentTransactions.length) * 100)

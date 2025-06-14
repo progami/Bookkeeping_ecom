@@ -7,7 +7,7 @@ import {
   BarChart3, ArrowLeft, Zap, Cloud, LogOut, Upload,
   DollarSign, Building2, RefreshCw, Receipt, Clock, 
   Wallet, ArrowUpRight, CreditCard, CheckCircle, X,
-  BookOpen, Settings, AlertTriangle
+  BookOpen, AlertTriangle
 } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 
@@ -48,11 +48,6 @@ interface DashboardStats {
     status: 'reconciled' | 'unreconciled'
     bankAccount: string
   }>
-  automation: {
-    totalRules: number
-    activeRules: number
-    matchRate: number
-  }
 }
 
 interface XeroStatus {
@@ -129,12 +124,7 @@ export default function BookkeepingDashboard() {
           needsAttention: accountsData?.accounts?.filter((acc: any) => acc.unreconciledTransactions > 10).length || 0,
           reconciliationRate: accountsData?.reconciliationRate || 0
         },
-        recentTransactions: analyticsData?.recentTransactions || [],
-        automation: {
-          totalRules: statsData?.totalRules || 0,
-          activeRules: statsData?.activeRules || 0,
-          matchRate: statsData?.matchRate || 85
-        }
+        recentTransactions: analyticsData?.recentTransactions || []
       })
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
@@ -437,29 +427,6 @@ export default function BookkeepingDashboard() {
                 </div>
               </button>
 
-              {/* Manage Rules */}
-              <button
-                onClick={() => router.push('/bookkeeping/rules')}
-                className="group relative overflow-hidden bg-gradient-to-br from-indigo-600/20 to-blue-600/20 border border-indigo-500/30 rounded-2xl p-6 hover:border-indigo-500 transition-all duration-300 text-left"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative z-10">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="p-3 bg-indigo-500/20 rounded-xl">
-                      <Settings className="h-8 w-8 text-indigo-400" />
-                    </div>
-                    {(stats?.automation.activeRules ?? 0) > 0 && (
-                      <span className="px-2 py-1 bg-green-500/20 rounded text-xs text-green-400 font-medium">
-                        {stats?.automation.activeRules} active
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Automation Rules</h3>
-                  <p className="text-sm text-gray-400 line-clamp-2">
-                    Create rules to auto-categorize transactions
-                  </p>
-                </div>
-              </button>
 
               {/* SOP Tables */}
               <button
