@@ -15,11 +15,11 @@ export async function GET(request: NextRequest) {
   // Handle errors
   if (error) {
     console.error('Xero OAuth error:', error, errorDescription);
-    return NextResponse.redirect(`${baseUrl}/bookkeeping?error=${encodeURIComponent(errorDescription || error)}`);
+    return NextResponse.redirect(`${baseUrl}/finance?error=${encodeURIComponent(errorDescription || error)}`);
   }
   
   if (!code) {
-    return NextResponse.redirect(`${baseUrl}/bookkeeping?error=no_code`);
+    return NextResponse.redirect(`${baseUrl}/finance?error=no_code`);
   }
   
   // Verify state (CSRF protection)
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     console.error('Received state:', state);
     console.error('Cookie state:', storedState);
     console.error('Memory has state:', stateInMemory);
-    return NextResponse.redirect(`${baseUrl}/bookkeeping?error=invalid_state`);
+    return NextResponse.redirect(`${baseUrl}/finance?error=invalid_state`);
   }
   
   // Clean up the state from memory
@@ -84,8 +84,8 @@ export async function GET(request: NextRequest) {
       console.log('Expires at:', tokenSet.expires_at);
       
       // Create response with redirect
-      console.log('[Callback] Creating redirect response to:', `${baseUrl}/bookkeeping?connected=true`);
-      const response = NextResponse.redirect(`${baseUrl}/bookkeeping?connected=true`);
+      console.log('[Callback] Creating redirect response to:', `${baseUrl}/finance?connected=true`);
+      const response = NextResponse.redirect(`${baseUrl}/finance?connected=true`);
       
       // Store token in secure cookie using the response
       const tokenData = {
@@ -158,8 +158,8 @@ export async function GET(request: NextRequest) {
         console.log('Manual token exchange successful!');
         
         // Create response with redirect
-        console.log('[Callback-Manual] Creating redirect response to:', `${baseUrl}/bookkeeping?connected=true`);
-        const response = NextResponse.redirect(`${baseUrl}/bookkeeping?connected=true`);
+        console.log('[Callback-Manual] Creating redirect response to:', `${baseUrl}/finance?connected=true`);
+        const response = NextResponse.redirect(`${baseUrl}/finance?connected=true`);
         
         // Create TokenSet object
         const tokenSet = {
@@ -221,6 +221,6 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    return NextResponse.redirect(`${baseUrl}/bookkeeping?error=${errorMessage}`);
+    return NextResponse.redirect(`${baseUrl}/finance?error=${errorMessage}`);
   }
 }

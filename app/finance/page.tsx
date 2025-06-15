@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   TrendingUp, TrendingDown, DollarSign, BarChart3, 
   FileText, Wallet, Calculator, ArrowUpRight, ArrowDownRight,
@@ -61,6 +61,7 @@ interface XeroStatus {
 
 export default function FinanceDashboard() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { 
     hasData, 
     hasActiveToken, 
@@ -75,6 +76,21 @@ export default function FinanceDashboard() {
   const [refreshing, setRefreshing] = useState(false)
   const [timeRange, setTimeRange] = useState('30d')
   const [xeroStatus, setXeroStatus] = useState<XeroStatus | null>(null)
+
+  useEffect(() => {
+    // Check for OAuth callback params
+    const connected = searchParams.get('connected')
+    const error = searchParams.get('error')
+    
+    if (connected === 'true') {
+      toast.success('Successfully connected to Xero!')
+      // Remove query params from URL
+      window.history.replaceState({}, document.title, '/finance')
+    } else if (error) {
+      toast.error(`Failed to connect to Xero: ${error}`)
+      window.history.replaceState({}, document.title, '/finance')
+    }
+  }, [searchParams])
 
   useEffect(() => {
     fetchFinanceData()
@@ -180,6 +196,7 @@ export default function FinanceDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-950">
+      <Toaster position="top-right" />
       <div className="container mx-auto px-4 py-8">
         
         {/* Enhanced Header */}

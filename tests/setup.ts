@@ -39,3 +39,29 @@ global.console = {
   info: vi.fn(),
   debug: vi.fn(),
 }
+
+// Mock ResizeObserver for recharts
+global.ResizeObserver = vi.fn(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}))
+
+// Mock window.URL.createObjectURL for file downloads
+if (typeof window !== 'undefined') {
+  window.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+  window.URL.revokeObjectURL = vi.fn()
+}
+
+// Mock document.createElement for download links
+const originalCreateElement = document.createElement.bind(document)
+Object.defineProperty(global.document, 'createElement', {
+  value: vi.fn((tag: string) => {
+    const element = originalCreateElement(tag)
+    if (tag === 'a') {
+      element.click = vi.fn()
+    }
+    return element
+  }),
+  writable: true,
+})
