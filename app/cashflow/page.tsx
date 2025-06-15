@@ -11,6 +11,7 @@ import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } fro
 import toast, { Toaster } from 'react-hot-toast'
 import { measurePageLoad } from '@/lib/performance-utils'
 import { ModuleHeader } from '@/components/ui/module-header'
+import { EmptyState } from '@/components/ui/empty-state'
 import dynamic from 'next/dynamic'
 
 // Lazy load heavy chart components
@@ -242,6 +243,16 @@ export default function CashFlowPage() {
             <div className="absolute inset-0 w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
           </div>
         </div>
+      ) : !forecast || forecast.length === 0 ? (
+        <EmptyState 
+          title="Cash Flow Forecasting"
+          description="Connect your Xero account to generate accurate cash flow forecasts based on your real financial data."
+          icon={
+            <div className="w-20 h-20 bg-cyan-500/20 rounded-full flex items-center justify-center mx-auto">
+              <Activity className="h-10 w-10 text-cyan-400" />
+            </div>
+          }
+        />
       ) : (
         <>
           {/* Summary Cards */}

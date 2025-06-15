@@ -13,6 +13,7 @@ import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { measurePageLoad } from '@/lib/performance-utils'
 import { ModuleHeader } from '@/components/ui/module-header'
+import { EmptyState } from '@/components/ui/empty-state'
 
 interface FinancialOverview {
   cashInBank: number
@@ -256,42 +257,25 @@ export default function BookkeepingDashboard() {
       />
 
       {/* Content based on state */}
-      {!hasData ? (
-        /* First time setup - need to connect and sync */
-        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-12 text-center">
-          <Cloud className="h-16 w-16 text-gray-600 mx-auto mb-4" />
-          <h2 className="text-2xl font-semibold text-white mb-2">
-            {hasActiveToken ? 'Initial Setup Required' : 'Connect to Xero'}
-          </h2>
-          <p className="text-gray-400 mb-6 max-w-md mx-auto">
-            {hasActiveToken 
-              ? 'Your Xero account is connected. Click below to sync your data for the first time.'
-              : 'Connect your Xero account to sync bank transactions, manage reconciliations, and automate your bookkeeping workflow.'
-            }
-          </p>
-          <button 
-            onClick={hasActiveToken ? syncData : connectToXero}
-            disabled={isSyncing}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSyncing ? (
-              <>
-                <RefreshCw className="h-5 w-5 inline mr-2 animate-spin" />
-                Syncing Data...
-              </>
-            ) : hasActiveToken ? (
-              <>
-                <RefreshCw className="h-5 w-5 inline mr-2" />
-                Start Initial Sync
-              </>
-            ) : (
-              <>
-                <Cloud className="h-5 w-5 inline mr-2" />
-                Connect Xero Account
-              </>
-            )}
-          </button>
-        </div>
+      {!hasActiveToken && !hasData ? (
+        <EmptyState 
+          title="Connect to Xero"
+          description="Connect your Xero account to sync bank transactions, manage reconciliations, and automate your bookkeeping workflow."
+          actionLabel="Connect Xero Account"
+          onAction={connectToXero}
+        />
+      ) : !hasData && hasActiveToken ? (
+        <EmptyState 
+          title="Initial Setup Required"
+          description="Your Xero account is connected. Click below to sync your data for the first time."
+          actionLabel={isSyncing ? "Syncing Data..." : "Start Initial Sync"}
+          onAction={syncData}
+          icon={
+            <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
+              <RefreshCw className={`h-10 w-10 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
+            </div>
+          }
+        />
       ) : dataLoading ? (
         /* Loading dashboard data */
         <div className="flex items-center justify-center h-64">

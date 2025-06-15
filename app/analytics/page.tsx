@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { measurePageLoad } from '@/lib/performance-utils'
 import { ModuleHeader } from '@/components/ui/module-header'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   LineChart, Line, BarChart, Bar, PieChart as RePieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -251,6 +252,16 @@ export default function BusinessAnalytics() {
               <div className="absolute inset-0 w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
             </div>
           </div>
+        ) : vendors.length === 0 ? (
+          <EmptyState 
+            title="Business Analytics"
+            description="Connect your Xero account to analyze vendor spending patterns, track expenses, and gain valuable business insights."
+            icon={
+              <div className="w-20 h-20 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto">
+                <BarChart3 className="h-10 w-10 text-indigo-400" />
+              </div>
+            }
+          />
         ) : (
           <>
             {/* Enhanced Key Metrics */}

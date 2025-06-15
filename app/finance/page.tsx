@@ -15,6 +15,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { BackButton } from '@/components/ui/back-button'
 import { PageHeader } from '@/components/ui/page-header'
 import { ModuleHeader } from '@/components/ui/module-header'
+import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -192,7 +193,7 @@ export default function FinanceDashboard() {
                   <>
                     <div className="w-2 h-2 bg-green-400 rounded-full" />
                     <span className="text-sm text-gray-400">
-                      {organization?.name || 'Connected to Xero'}
+                      {organization?.tenantName || 'Connected to Xero'}
                     </span>
                   </>
                 ) : (
@@ -287,27 +288,15 @@ export default function FinanceDashboard() {
 
         {loading ? (
           <LoadingSpinner size="lg" variant="success" />
+        ) : !hasActiveToken ? (
+          <EmptyState 
+            title="Welcome to Your Financial Hub"
+            description="Connect your Xero account to unlock real-time financial insights, automated bookkeeping, and powerful analytics."
+            actionLabel="Connect to Xero"
+          />
         ) : (
           <>
-            {/* Xero Connection Warning */}
-            {xeroStatus?.connected === false && (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-6 mb-8 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <AlertCircle className="h-8 w-8 text-amber-400" />
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">Xero Not Connected</h3>
-                    <p className="text-gray-400">Connect to Xero to view real-time financial data</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => router.push('/bookkeeping')}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all flex items-center gap-2"
-                >
-                  Connect Now
-                  <ArrowUpRight className="h-4 w-4" />
-                </button>
-              </div>
-            )}
+            {/* Remove the warning since we now show empty state when not connected */}
             
             {/* Financial Health Score Card */}
             <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-3xl p-8 mb-8">
@@ -475,11 +464,11 @@ export default function FinanceDashboard() {
                     <div className="bg-slate-900/50 rounded-lg p-3">
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${
-                          moduleStatus?.bookkeeping.syncStatus === 'connected' ? 'bg-green-400' : 'bg-red-400'
+                          hasActiveToken ? 'bg-green-400' : 'bg-gray-400'
                         }`} />
                         <span className="text-sm text-white">Xero</span>
                       </div>
-                      <div className="text-xs text-gray-400">Connected</div>
+                      <div className="text-xs text-gray-400">{hasActiveToken ? 'Connected' : 'Not Connected'}</div>
                     </div>
                     <div className="bg-slate-900/50 rounded-lg p-3">
                       <div className="text-sm font-medium text-white">3</div>
