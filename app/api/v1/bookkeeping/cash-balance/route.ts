@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     
     bankAccounts.forEach((account) => {
       const rate = conversionRates[account.currencyCode || 'GBP'] || 1;
-      const balanceInGBP = account.balance * rate;
+      const balanceInGBP = account.balance.toNumber() * rate;
       totalBalance += balanceInGBP;
       
       accountsWithBalance.push({
