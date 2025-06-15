@@ -1,8 +1,14 @@
+import crypto from 'crypto';
+
 // Store states in memory with size limit to prevent memory leaks
 const MAX_STATES = 1000; // Maximum number of states to store
 const STATE_TTL = 10 * 60 * 1000; // 10 minutes
 
-export const stateStore = new Map<string, { timestamp: number }>();
+export const stateStore = new Map<string, { 
+  timestamp: number;
+  codeVerifier?: string;
+  codeChallenge?: string;
+}>();
 
 // Clean up old states and enforce size limit
 export function cleanupStates() {
@@ -48,3 +54,14 @@ export function stopBackgroundCleanup() {
 
 // Auto-start cleanup when module loads
 startBackgroundCleanup();
+
+// Generate PKCE code verifier and challenge
+export function generatePKCEPair() {
+  const codeVerifier = crypto.randomBytes(32).toString('base64url');
+  const codeChallenge = crypto
+    .createHash('sha256')
+    .update(codeVerifier)
+    .digest('base64url');
+  
+  return { codeVerifier, codeChallenge };
+}

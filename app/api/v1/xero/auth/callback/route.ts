@@ -29,7 +29,8 @@ export async function GET(request: NextRequest) {
   
   // Verify state (CSRF protection)
   const storedState = request.cookies.get('xero_state')?.value;
-  const stateInMemory = state ? stateStore.has(state) : false;
+  const stateData = state ? stateStore.get(state) : null;
+  const stateInMemory = !!stateData;
   
   structuredLogger.debug('OAuth callback received', {
     component: 'xero-auth-callback',

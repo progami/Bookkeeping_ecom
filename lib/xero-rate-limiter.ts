@@ -163,6 +163,11 @@ export class XeroRateLimiter {
       return apiFunction();
     });
   }
+
+  // Get the underlying Bottleneck limiter
+  getLimiter(): Bottleneck {
+    return this.limiter;
+  }
 }
 
 // Singleton manager for rate limiters per tenant

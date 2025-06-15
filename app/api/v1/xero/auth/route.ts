@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUrl } from '@/lib/xero-client';
-import { stateStore, cleanupStates } from '@/lib/oauth-state';
+import { stateStore, cleanupStates, generatePKCEPair } from '@/lib/oauth-state';
 import crypto from 'crypto';
 import { structuredLogger } from '@/lib/logger';
 
@@ -12,11 +12,18 @@ export async function GET(request: NextRequest) {
     // Generate a cryptographically secure random state for CSRF protection
     const state = crypto.randomBytes(32).toString('hex');
     
-    // Store state in memory
-    stateStore.set(state, { timestamp: Date.now() });
+    // Generate PKCE pair
+    const { codeVerifier, codeChallenge } = generatePKCEPair();
     
-    // Get the authorization URL
-    const authUrl = await getAuthUrl(state);
+    // Store state and PKCE in memory
+    stateStore.set(state, { 
+      timestamp: Date.now(),
+      codeVerifier,
+      codeChallenge
+    });
+    
+    // Get the authorization URL with PKCE
+    const authUrl = await getAuthUrl(state, codeChallenge);
     
     // Also try to store state in cookie as backup
     const response = NextResponse.redirect(authUrl);

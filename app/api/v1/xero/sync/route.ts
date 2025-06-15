@@ -4,26 +4,49 @@ import { prisma } from '@/lib/prisma';
 import { BankTransaction } from 'xero-node';
 import { executeXeroAPICall, paginatedXeroAPICall } from '@/lib/xero-client-with-rate-limit';
 import { structuredLogger } from '@/lib/logger';
+import { withIdempotency } from '@/lib/idempotency';
 
 export async function POST(request: NextRequest) {
   let syncLog: any;
 
   try {
-    // Use transaction for entire sync operation
-    const result = await prisma.$transaction(async (tx) => {
-      // Create sync log within transaction
-      syncLog = await tx.syncLog.create({
-        data: {
-          syncType: 'full_sync',
-          status: 'in_progress',
-          startedAt: new Date()
-        }
-      });
+    // Parse request body for sync type
+    const body = await request.json().catch(() => ({}));
+    const forceFullSync = body.forceFullSync === true;
+    
+    // Get last successful sync for incremental sync
+    const lastSuccessfulSync = await prisma.syncLog.findFirst({
+      where: { status: 'success' },
+      orderBy: { completedAt: 'desc' }
+    });
+    
+    const syncType = forceFullSync || !lastSuccessfulSync ? 'full_sync' : 'incremental_sync';
+    const modifiedSince = !forceFullSync && lastSuccessfulSync?.completedAt || undefined;
+    
+    // Use idempotency for sync operations
+    const idempotencyKey = {
+      operation: 'xero_sync',
+      syncType,
+      modifiedSince: modifiedSince?.toISOString()
+    };
+    
+    const result = await withIdempotency(idempotencyKey, async () => {
+      // Use transaction for entire sync operation
+      return await prisma.$transaction(async (tx) => {
+        // Create sync log within transaction
+        syncLog = await tx.syncLog.create({
+          data: {
+            syncType,
+            status: 'in_progress',
+            startedAt: new Date()
+          }
+        });
 
-      return await performSync(tx, syncLog);
-    }, {
-      maxWait: 5000, // 5 seconds max wait
-      timeout: 600000, // 10 minutes timeout for long sync operations
+        return await performSync(tx, syncLog, modifiedSince);
+      }, {
+        maxWait: 5000, // 5 seconds max wait
+        timeout: 600000, // 10 minutes timeout for long sync operations
+      });
     });
 
     return NextResponse.json(result);
@@ -49,7 +72,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function performSync(tx: any, syncLog: any) {
+async function performSync(tx: any, syncLog: any, modifiedSince?: Date) {
   try {
     const xero = await getXeroClient();
     
@@ -65,10 +88,11 @@ async function performSync(tx: any, syncLog: any) {
     
     const tenant = xero.tenants[0];
     
-    structuredLogger.info('Starting full sync', { 
+    structuredLogger.info(`Starting ${modifiedSince ? 'incremental' : 'full'} sync`, { 
       component: 'xero-sync',
       tenantName: tenant.tenantName,
-      tenantId: tenant.tenantId 
+      tenantId: tenant.tenantId,
+      modifiedSince: modifiedSince?.toISOString()
     });
     
     let totalAccounts = 0;

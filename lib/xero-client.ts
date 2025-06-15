@@ -6,11 +6,12 @@ import { XeroSession, XeroTokenSet } from './xero-session';
 import { tokenRefreshLock } from './token-refresh-lock';
 import { structuredLogger } from './logger';
 
+// Minimized scopes - only request what we need
 export const xeroConfig = {
   clientId: process.env.XERO_CLIENT_ID || '',
   clientSecret: process.env.XERO_CLIENT_SECRET || '',
   redirectUris: [process.env.XERO_REDIRECT_URI || 'https://localhost:3003/api/v1/xero/auth/callback'],
-  scopes: 'accounting.transactions accounting.settings accounting.reports.read offline_access'
+  scopes: 'accounting.transactions.read accounting.reports.read accounting.settings.read offline_access'
 };
 
 export function createXeroClient(state?: string) {
@@ -170,7 +171,7 @@ export async function getXeroClientWithTenant(): Promise<{ client: XeroClient; t
   return { client: xeroClient, tenantId };
 }
 
-export async function getAuthUrl(state?: string): Promise<string> {
+export async function getAuthUrl(state?: string, codeChallenge?: string): Promise<string> {
   // Pass the state to createXeroClient so it's included in the config
   const xero = createXeroClient(state);
   
@@ -182,9 +183,17 @@ export async function getAuthUrl(state?: string): Promise<string> {
   }
   
   // Get the consent URL - the state will be included automatically
-  const authUrl = await xero.buildConsentUrl();
+  let authUrl = await xero.buildConsentUrl();
   
-  console.log('[getAuthUrl] Built auth URL:', authUrl);
+  // Add PKCE challenge if provided
+  if (codeChallenge) {
+    const url = new URL(authUrl);
+    url.searchParams.set('code_challenge', codeChallenge);
+    url.searchParams.set('code_challenge_method', 'S256');
+    authUrl = url.toString();
+  }
+  
+  console.log('[getAuthUrl] Built auth URL with PKCE:', authUrl);
   
   return authUrl;
 }
