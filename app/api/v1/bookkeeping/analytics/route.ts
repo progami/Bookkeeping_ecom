@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
       if (!categoryMap.has(category)) {
         categoryMap.set(category, 0);
       }
-      categoryMap.set(category, categoryMap.get(category) + Math.abs(tx.amount));
+      categoryMap.set(category, categoryMap.get(category) + Math.abs(tx.amount.toNumber()));
     });
     
     const totalCategoryAmount = Array.from(categoryMap.values()).reduce((a, b) => a + b, 0);
