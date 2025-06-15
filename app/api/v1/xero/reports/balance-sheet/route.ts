@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { headers } from 'next/headers'
 
 export async function GET() {
   try {
+    // Set cache headers for better performance
+    const responseHeaders = {
+      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      'CDN-Cache-Control': 'max-age=600',
+    };
     // Calculate balance sheet from database
     
     // Get all bank accounts with their latest balances
@@ -40,7 +46,7 @@ export async function GET() {
     const netAssets = totalAssets - totalLiabilities
     const equity = netAssets
 
-    // Return balance sheet data
+    // Return balance sheet data with cache headers
     return NextResponse.json({
       currentAssets,
       currentLiabilities,
@@ -52,6 +58,8 @@ export async function GET() {
       accountsPayable,
       inventory: 0, // Not tracked in bank transactions
       cash: totalCash
+    }, {
+      headers: responseHeaders
     })
   } catch (error) {
     console.error('Balance sheet error:', error)

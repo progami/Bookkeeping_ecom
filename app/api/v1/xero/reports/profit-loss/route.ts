@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
+    // Set cache headers for better performance
+    const responseHeaders = {
+      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      'CDN-Cache-Control': 'max-age=600',
+    };
     // Get date range for last 30 days by default
     const endDate = new Date()
     const startDate = new Date()
@@ -145,7 +150,9 @@ export async function GET() {
       profitLoss.profitChange = ((profitLoss.netProfit - previousProfit) / Math.abs(previousProfit)) * 100
     }
 
-    return NextResponse.json(profitLoss)
+    return NextResponse.json(profitLoss, {
+      headers: responseHeaders
+    })
   } catch (error) {
     console.error('Profit & Loss error:', error)
     return NextResponse.json(

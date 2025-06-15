@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { getXeroClientWithTenant } from '@/lib/xero-client';
+import { redis } from '@/lib/redis';
 import { 
   addDays, 
   addMonths,
@@ -68,6 +69,22 @@ export class CashFlowEngine {
   }
 
   async generateForecast(days: number = 90): Promise<DailyForecast[]> {
+    // Check if we have a recent forecast cached
+    const cacheKey = `forecast:${days}`;
+    const cached = await redis.get(`bookkeeping:${cacheKey}`);
+    if (cached) {
+      try {
+        const parsedCache = JSON.parse(cached);
+        // Check if cache is less than 5 minutes old
+        if (parsedCache.timestamp && Date.now() - parsedCache.timestamp < 5 * 60 * 1000) {
+          console.log('[CashFlow] Returning cached forecast');
+          return parsedCache.data;
+        }
+      } catch (e) {
+        console.error('[CashFlow] Cache parse error:', e);
+      }
+    }
+    
     // Get current position
     const currentPosition = await this.getCurrentPosition();
     
@@ -187,11 +204,22 @@ export class CashFlowEngine {
         alerts,
       });
 
-      // Store forecast in database
-      await this.storeForecast(forecast[forecast.length - 1]);
+      // Don't store each day individually to reduce DB writes
+      // await this.storeForecast(forecast[forecast.length - 1]);
 
       runningBalance = closingBalance;
     }
+    
+    // Store all forecasts in batch at the end
+    await this.storeForecastBatch(forecast);
+    
+    // Cache the result
+    await redis.set(
+      `bookkeeping:forecast:${days}`,
+      JSON.stringify({ data: forecast, timestamp: Date.now() }),
+      'EX',
+      300 // 5 minute cache
+    );
 
     return forecast;
   }
@@ -796,5 +824,53 @@ export class CashFlowEngine {
         alerts: JSON.stringify(forecast.alerts),
       },
     });
+  }
+  
+  private async storeForecastBatch(forecasts: DailyForecast[]): Promise<void> {
+    // Use transaction for batch insert/update
+    await prisma.$transaction(
+      forecasts.map(forecast => 
+        prisma.cashFlowForecast.upsert({
+          where: { date: forecast.date },
+          create: {
+            date: forecast.date,
+            openingBalance: forecast.openingBalance,
+            fromInvoices: forecast.inflows.fromInvoices,
+            fromRepeating: forecast.inflows.fromRepeating,
+            fromOther: forecast.inflows.fromOther,
+            totalInflows: forecast.inflows.total,
+            toBills: forecast.outflows.toBills,
+            toRepeating: forecast.outflows.toRepeating,
+            toTaxes: forecast.outflows.toTaxes,
+            toPatterns: forecast.outflows.toPatterns,
+            toBudgets: forecast.outflows.toBudgets,
+            totalOutflows: forecast.outflows.total,
+            closingBalance: forecast.closingBalance,
+            bestCase: forecast.scenarios.bestCase,
+            worstCase: forecast.scenarios.worstCase,
+            confidenceLevel: forecast.confidenceLevel,
+            alerts: JSON.stringify(forecast.alerts),
+          },
+          update: {
+            openingBalance: forecast.openingBalance,
+            fromInvoices: forecast.inflows.fromInvoices,
+            fromRepeating: forecast.inflows.fromRepeating,
+            fromOther: forecast.inflows.fromOther,
+            totalInflows: forecast.inflows.total,
+            toBills: forecast.outflows.toBills,
+            toRepeating: forecast.outflows.toRepeating,
+            toTaxes: forecast.outflows.toTaxes,
+            toPatterns: forecast.outflows.toPatterns,
+            toBudgets: forecast.outflows.toBudgets,
+            totalOutflows: forecast.outflows.total,
+            closingBalance: forecast.closingBalance,
+            bestCase: forecast.scenarios.bestCase,
+            worstCase: forecast.scenarios.worstCase,
+            confidenceLevel: forecast.confidenceLevel,
+            alerts: JSON.stringify(forecast.alerts),
+          },
+        })
+      )
+    );
   }
 }

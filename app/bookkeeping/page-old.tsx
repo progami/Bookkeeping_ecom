@@ -7,11 +7,9 @@ import {
   BarChart3, ArrowLeft, Zap, Cloud,
   DollarSign, Building2, Receipt, Clock, 
   Wallet, ArrowUpRight, CreditCard, CheckCircle,
-  BookOpen, AlertTriangle, RefreshCw
+  BookOpen, AlertTriangle
 } from 'lucide-react'
-import toast from 'react-hot-toast'
-import { useAuth } from '@/contexts/AuthContext'
-import { measurePageLoad } from '@/lib/performance-utils'
+import toast, { Toaster } from 'react-hot-toast'
 
 interface FinancialOverview {
   cashInBank: number
@@ -61,70 +59,60 @@ interface DashboardStats {
   }>
 }
 
+interface XeroStatus {
+  connected: boolean
+  organization: {
+    tenantId: string
+    tenantName: string
+    tenantType: string
+  } | null
+}
+
 export default function BookkeepingDashboard() {
-  // Measure page performance
-  if (typeof window !== 'undefined') {
-    measurePageLoad('Bookkeeping Dashboard');
-  }
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { 
-    hasData, 
-    hasActiveToken, 
-    organization, 
-    lastSync,
-    isLoading: authLoading,
-    isSyncing,
-    connectToXero,
-    syncData 
-  } = useAuth()
-  
   const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [dataLoading, setDataLoading] = useState(true)
+  const [xeroStatus, setXeroStatus] = useState<XeroStatus | null>(null)
+  const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('30d')
 
   useEffect(() => {
-    // Check for OAuth callback params
-    const connected = searchParams.get('connected')
-    const error = searchParams.get('error')
+    const loadData = async () => {
+      setLoading(true)
+      
+      // Check for OAuth callback params
+      const connected = searchParams.get('connected')
+      const error = searchParams.get('error')
+      
+      if (connected === 'true') {
+        toast.success('Successfully connected to Xero!')
+        // Add a small delay before checking status to ensure cookie is set
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      } else if (error) {
+        toast.error(`Failed to connect to Xero: ${error}`)
+      }
+      
+      // Run both checks in parallel
+      await Promise.all([
+        fetchDashboardData(),
+        checkXeroStatus()
+      ])
+      
+      setLoading(false)
+    }
     
-    if (connected === 'true') {
-      toast.success('Successfully connected to Xero!')
-    } else if (error) {
-      toast.error(`Failed to connect to Xero: ${error}`)
-    }
-  }, [searchParams])
-
-  useEffect(() => {
-    // Only fetch dashboard data if we have data in the database
-    if (hasData && !authLoading) {
-      fetchDashboardData()
-    } else if (!authLoading) {
-      setDataLoading(false)
-    }
-  }, [hasData, authLoading, timeRange])
+    loadData()
+  }, [searchParams, timeRange])
 
   const fetchDashboardData = async () => {
     try {
-      setDataLoading(true)
-      
-      // Fetch multiple data sources in parallel with cache headers
+      // Fetch multiple data sources in parallel
       const [balanceSheetRes, plRes, vatRes, statsResponse, accountsResponse] = await Promise.all([
-        fetch('/api/v1/xero/reports/balance-sheet', {
-          headers: { 'Cache-Control': 'max-age=300' }
-        }),
-        fetch('/api/v1/xero/reports/profit-loss', {
-          headers: { 'Cache-Control': 'max-age=300' }
-        }),
-        fetch('/api/v1/xero/reports/vat-liability', {
-          headers: { 'Cache-Control': 'max-age=600' }
-        }),
-        fetch('/api/v1/bookkeeping/stats', {
-          headers: { 'Cache-Control': 'max-age=60' }
-        }),
-        fetch('/api/v1/bookkeeping/bank-accounts', {
-          headers: { 'Cache-Control': 'max-age=180' }
-        })
+        fetch('/api/v1/xero/reports/balance-sheet'),
+        fetch('/api/v1/xero/reports/profit-loss'),
+        fetch('/api/v1/xero/reports/vat-liability'),
+        fetch('/api/v1/bookkeeping/stats'),
+        fetch('/api/v1/bookkeeping/bank-accounts')
       ])
 
       const balanceSheetData = balanceSheetRes.ok ? await balanceSheetRes.json() : null
@@ -172,10 +160,30 @@ export default function BookkeepingDashboard() {
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
       toast.error('Failed to load dashboard data')
-    } finally {
-      setDataLoading(false)
     }
   }
+
+  const checkXeroStatus = async () => {
+    try {
+      console.log('Checking Xero status...')
+      const response = await fetch('/api/v1/xero/status')
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Xero status response:', data)
+        setXeroStatus(data)
+      } else {
+        console.error('Xero status response not ok:', response.status)
+      }
+    } catch (error) {
+      console.error('Error checking Xero status:', error)
+    }
+  }
+
+
+  const handleConnectXero = () => {
+    window.location.href = '/api/v1/xero/auth'
+  }
+
 
   const formatCurrency = (amount: number, currency = 'GBP') => {
     return new Intl.NumberFormat('en-GB', {
@@ -184,29 +192,6 @@ export default function BookkeepingDashboard() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount)
-  }
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Never'
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
-  // Show loading while auth is checking
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-emerald-500/20 rounded-full animate-pulse" />
-          <div className="absolute inset-0 w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -230,36 +215,37 @@ export default function BookkeepingDashboard() {
           </div>
           
           <div className="flex gap-3">
-            {/* Show sync button if we have data */}
-            {hasData && (
-              <>
-                {hasActiveToken ? (
-                  <button 
-                    onClick={syncData}
-                    disabled={isSyncing}
-                    className="px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-lg hover:bg-emerald-600/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                    {isSyncing ? 'Syncing...' : 'Sync All Data'}
-                  </button>
-                ) : (
-                  <button 
-                    onClick={connectToXero}
-                    className="px-4 py-2 bg-amber-600/20 text-amber-400 rounded-lg hover:bg-amber-600/30 transition-colors flex items-center gap-2"
-                  >
-                    <Cloud className="h-4 w-4" />
-                    Reconnect to Sync
-                  </button>
-                )}
-                {lastSync && (
-                  <div className="text-sm text-gray-400 flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Last sync: {formatDate(lastSync)}
-                  </div>
-                )}
-              </>
+            {!xeroStatus?.connected && (
+              <button 
+                onClick={handleConnectXero}
+                className="px-4 py-2 bg-green-600/20 text-green-400 rounded-lg hover:bg-green-600/30 transition-colors"
+              >
+                <Cloud className="h-4 w-4 inline mr-2" />
+                Connect Xero
+              </button>
             )}
-            
+            {xeroStatus?.connected && (
+              <button 
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/v1/xero/sync', { method: 'POST' })
+                    if (res.ok) {
+                      const data = await res.json()
+                      toast.success(`Sync complete! ${data.summary.transactions} transactions synced`)
+                      fetchDashboardData() // Refresh the dashboard
+                    } else {
+                      toast.error('Sync failed')
+                    }
+                  } catch (error) {
+                    toast.error('Failed to sync data')
+                  }
+                }}
+                className="px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-lg hover:bg-emerald-600/30 transition-colors"
+              >
+                <Cloud className="h-4 w-4 inline mr-2" />
+                Sync All Data
+              </button>
+            )}
             <select 
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
@@ -273,75 +259,34 @@ export default function BookkeepingDashboard() {
         </div>
       </div>
 
-      {/* Content based on state */}
-      {!hasData ? (
-        /* First time setup - need to connect and sync */
-        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-12 text-center">
-          <Cloud className="h-16 w-16 text-gray-600 mx-auto mb-4" />
-          <h2 className="text-2xl font-semibold text-white mb-2">
-            {hasActiveToken ? 'Initial Setup Required' : 'Connect to Xero'}
-          </h2>
-          <p className="text-gray-400 mb-6 max-w-md mx-auto">
-            {hasActiveToken 
-              ? 'Your Xero account is connected. Click below to sync your data for the first time.'
-              : 'Connect your Xero account to sync bank transactions, manage reconciliations, and automate your bookkeeping workflow.'
-            }
-          </p>
-          <button 
-            onClick={hasActiveToken ? syncData : connectToXero}
-            disabled={isSyncing}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSyncing ? (
-              <>
-                <RefreshCw className="h-5 w-5 inline mr-2 animate-spin" />
-                Syncing Data...
-              </>
-            ) : hasActiveToken ? (
-              <>
-                <RefreshCw className="h-5 w-5 inline mr-2" />
-                Start Initial Sync
-              </>
-            ) : (
-              <>
-                <Cloud className="h-5 w-5 inline mr-2" />
-                Connect Xero Account
-              </>
-            )}
-          </button>
-        </div>
-      ) : dataLoading ? (
-        /* Loading dashboard data */
-        <div className="flex items-center justify-center h-64">
+      {/* Loading State */}
+      {loading ? (
+        <div className="flex items-center justify-center h-64" role="status" aria-label="Loading">
           <div className="relative">
             <div className="w-16 h-16 border-4 border-emerald-500/20 rounded-full animate-pulse" />
             <div className="absolute inset-0 w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
           </div>
         </div>
+      ) : !xeroStatus?.connected ? (
+        /* Connect to Xero CTA */
+        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-12 text-center">
+          <Cloud className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-semibold text-white mb-2">Connect to Xero</h2>
+          <p className="text-gray-400 mb-6 max-w-md mx-auto">
+            Connect your Xero account to sync bank transactions, manage reconciliations, and automate your bookkeeping workflow.
+          </p>
+          <button 
+            onClick={handleConnectXero}
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Cloud className="h-5 w-5 inline mr-2" />
+            Connect Xero Account
+          </button>
+        </div>
       ) : (
         <>
-          {/* Token expired warning */}
-          {!hasActiveToken && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 mb-6 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="h-5 w-5 text-amber-400" />
-                <div>
-                  <p className="text-white font-medium">Xero connection expired</p>
-                  <p className="text-sm text-gray-400">Reconnect to sync new data</p>
-                </div>
-              </div>
-              <button 
-                onClick={connectToXero}
-                className="px-4 py-2 bg-amber-600/20 text-amber-400 rounded-lg hover:bg-amber-600/30 transition-colors"
-              >
-                Reconnect
-              </button>
-            </div>
-          )}
-
           {/* Financial Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            {/* Rest of the dashboard content remains the same */}
             {/* Cash in Bank */}
             <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-emerald-500/50 transition-all duration-300">
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -355,7 +300,7 @@ export default function BookkeepingDashboard() {
                 <div className="text-3xl font-bold text-white">
                   {formatCurrency(stats?.financial.cashInBank || 0)}
                 </div>
-                <p className="text-sm text-gray-400 mt-2">Cash in Bank</p>
+                <div className="text-sm text-gray-400 mt-1">Cash in Bank</div>
               </div>
             </div>
 
@@ -473,6 +418,7 @@ export default function BookkeepingDashboard() {
                 </div>
               </button>
 
+
               {/* SOP Tables */}
               <button
                 onClick={() => router.push('/bookkeeping/sop-tables')}
@@ -512,6 +458,7 @@ export default function BookkeepingDashboard() {
               </button>
             </div>
           </div>
+
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Bank Accounts */}
@@ -638,7 +585,7 @@ export default function BookkeepingDashboard() {
                   
                   {(!stats?.recentTransactions || stats.recentTransactions.length === 0) && (
                     <div className="text-center py-8 text-gray-400">
-                      <Activity className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <Receipt className="h-12 w-12 mx-auto mb-2 opacity-50" />
                       <p>No recent transactions</p>
                     </div>
                   )}
@@ -646,10 +593,14 @@ export default function BookkeepingDashboard() {
               </div>
             </div>
 
-            {/* Reconciliation Status */}
+            {/* Right Column */}
             <div className="space-y-6">
+              {/* Reconciliation Status */}
               <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
-                <h2 className="text-xl font-semibold text-white mb-6">Reconciliation</h2>
+                <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
+                  <div className="w-1 h-6 bg-amber-500 rounded-full mr-3" />
+                  Reconciliation
+                </h2>
                 
                 <div className="space-y-4">
                   <div className="text-center">
@@ -659,36 +610,40 @@ export default function BookkeepingDashboard() {
                     <p className="text-sm text-gray-400">Unreconciled Transactions</p>
                   </div>
                   
-                  <div className="h-px bg-slate-700" />
-                  
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">Reconciliation Rate</span>
-                      <span className="text-sm font-medium text-white">
-                        {stats?.reconciliation.reconciliationRate || 0}%
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">Needs Attention</span>
-                      <span className="text-sm font-medium text-amber-400">
-                        {stats?.reconciliation.needsAttention || 0} accounts
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <button
-                    onClick={() => router.push('/bookkeeping/transactions')}
-                    className="w-full py-3 bg-purple-600/20 text-purple-400 rounded-xl hover:bg-purple-600/30 transition-colors flex items-center justify-center gap-2 border border-purple-500/30"
-                  >
-                    <Activity className="h-4 w-4" />
-                    Start Reconciling
-                  </button>
+                  {(stats?.reconciliation.totalUnreconciled ?? 0) > 0 && (
+                    <>
+                      <div className="h-px bg-slate-700" />
+                      <div className="space-y-3">
+                        {(stats?.reconciliation.needsAttention ?? 0) > 0 && (
+                          <div className="flex items-center justify-between p-3 bg-amber-500/10 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle className="h-4 w-4 text-amber-400" />
+                              <span className="text-sm text-amber-400">Needs Attention</span>
+                            </div>
+                            <span className="text-sm font-medium text-amber-400">
+                              {stats?.reconciliation.needsAttention} accounts
+                            </span>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => router.push('/bookkeeping/transactions?filter=unreconciled')}
+                          className="w-full px-4 py-3 bg-amber-600/20 text-amber-400 rounded-xl hover:bg-amber-600/30 transition-all"
+                        >
+                          <CheckCircle className="h-4 w-4 inline mr-2" />
+                          Start Reconciling
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
+
+
             </div>
           </div>
         </>
       )}
+      
     </div>
   )
 }

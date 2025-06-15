@@ -7,6 +7,13 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const days = parseInt(searchParams.get('days') || '90');
     const includeScenarios = searchParams.get('scenarios') === 'true';
+    
+    // Set cache headers based on forecast days
+    const cacheTime = days <= 30 ? 300 : 600; // 5 min for short, 10 min for long forecasts
+    const responseHeaders = {
+      'Cache-Control': `public, s-maxage=${cacheTime}, stale-while-revalidate=${cacheTime * 2}`,
+      'CDN-Cache-Control': `max-age=${cacheTime * 2}`,
+    };
 
     // Generate forecast
     const engine = new CashFlowEngine();
@@ -40,7 +47,9 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: responseHeaders
+    });
   } catch (error) {
     console.error('Forecast generation error:', error);
     return NextResponse.json(

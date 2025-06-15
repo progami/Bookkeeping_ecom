@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, TrendingUp, Building2, DollarSign, Calendar, BarChart3 } from 'lucide-react'
+import { measurePageLoad } from '@/lib/performance-utils'
 
 interface VendorData {
   name: string
@@ -12,6 +13,10 @@ interface VendorData {
 }
 
 export default function BusinessAnalytics() {
+  // Measure page performance
+  if (typeof window !== 'undefined') {
+    measurePageLoad('Business Analytics');
+  }
   const router = useRouter()
   const [vendors, setVendors] = useState<VendorData[]>([])
   const [loading, setLoading] = useState(true)
@@ -27,7 +32,9 @@ export default function BusinessAnalytics() {
   const fetchVendorData = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/v1/analytics/top-vendors')
+      const response = await fetch('/api/v1/analytics/top-vendors', {
+        headers: { 'Cache-Control': 'max-age=600' } // 10 min cache
+      })
       
       if (response.ok) {
         const data = await response.json()

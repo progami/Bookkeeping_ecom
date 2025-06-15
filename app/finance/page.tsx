@@ -79,12 +79,20 @@ export default function FinanceDashboard() {
       const statusData = await statusRes.json()
       setXeroStatus(statusData)
       
-      // Fetch real data from Xero APIs
+      // Fetch real data from Xero APIs with caching headers
       const [balanceSheetRes, plRes, cashBalanceRes, vendorsRes] = await Promise.all([
-        fetch('/api/v1/xero/reports/balance-sheet'),
-        fetch('/api/v1/xero/reports/profit-loss'),
-        fetch('/api/v1/bookkeeping/cash-balance'),
-        fetch('/api/v1/analytics/top-vendors')
+        fetch('/api/v1/xero/reports/balance-sheet', {
+          headers: { 'Cache-Control': 'max-age=300' } // 5 min cache
+        }),
+        fetch('/api/v1/xero/reports/profit-loss', {
+          headers: { 'Cache-Control': 'max-age=300' } // 5 min cache
+        }),
+        fetch('/api/v1/bookkeeping/cash-balance', {
+          headers: { 'Cache-Control': 'max-age=60' } // 1 min cache
+        }),
+        fetch('/api/v1/analytics/top-vendors', {
+          headers: { 'Cache-Control': 'max-age=600' } // 10 min cache
+        })
       ])
 
       const balanceSheet = balanceSheetRes.ok ? await balanceSheetRes.json() : null
@@ -383,6 +391,12 @@ export default function FinanceDashboard() {
               <div 
                 className="group relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
                 onClick={() => router.push('/bookkeeping')}
+                onMouseEnter={() => {
+                  // Prefetch data for bookkeeping module on hover
+                  import('@/lib/performance-utils').then(({ prefetchSubModuleData }) => {
+                    prefetchSubModuleData('bookkeeping');
+                  });
+                }}
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all" />
                 
@@ -432,6 +446,12 @@ export default function FinanceDashboard() {
               <div 
                 className="group relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
                 onClick={() => router.push('/cashflow')}
+                onMouseEnter={() => {
+                  // Prefetch data for cashflow module on hover
+                  import('@/lib/performance-utils').then(({ prefetchSubModuleData }) => {
+                    prefetchSubModuleData('cashflow');
+                  });
+                }}
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl group-hover:bg-cyan-500/20 transition-all" />
                 
@@ -478,6 +498,12 @@ export default function FinanceDashboard() {
               <div 
                 className="group relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
                 onClick={() => router.push('/analytics')}
+                onMouseEnter={() => {
+                  // Prefetch data for analytics module on hover
+                  import('@/lib/performance-utils').then(({ prefetchSubModuleData }) => {
+                    prefetchSubModuleData('analytics');
+                  });
+                }}
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-all" />
                 
