@@ -18,6 +18,7 @@ import { ModuleHeader } from '@/components/ui/module-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
+import { StandardPageHeader } from '@/components/ui/standard-page-header'
 
 interface FinanceMetrics {
   totalRevenue: number
@@ -204,86 +205,13 @@ export default function FinanceDashboard() {
       <div className="container mx-auto px-4 py-8">
         
         {/* Enhanced Header */}
-        <ModuleHeader 
+        <StandardPageHeader 
           title="Financial Overview"
           subtitle="Real-time financial intelligence powered by Xero"
-          actions={
-            <>
-              {hasActiveToken && (
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-400 rounded-full" />
-                  <span className="text-sm text-gray-400">
-                    {organization?.tenantName || 'Connected to Xero'}
-                  </span>
-                </div>
-              )}
-              
-              {/* Refresh button - always visible when connected */}
-              {hasActiveToken && (
-                <button 
-                  onClick={syncData}
-                  disabled={isSyncing}
-                  className="px-4 py-2 bg-slate-800/50 text-gray-300 rounded-lg hover:bg-slate-800/70 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border border-slate-700"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                  {isSyncing ? 'Syncing...' : 'Refresh'}
-                </button>
-              )}
-              
-              {/* Connect/Disconnect toggle button */}
-              <button 
-                key={`auth-toggle-${hasActiveToken}`}
-                onClick={async () => {
-                  if (hasActiveToken) {
-                    // Disconnect flow
-                    if (confirm('This will disconnect your Xero account. You\'ll need to reconnect to sync data. Continue?')) {
-                      await disconnectFromXero();
-                    }
-                  } else {
-                    // Connect flow
-                    window.location.href = '/api/v1/xero/auth';
-                  }
-                }}
-                className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${
-                  hasActiveToken 
-                    ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30' 
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                }`}
-              >
-                {hasActiveToken ? (
-                  <>
-                    <LogOut className="h-4 w-4" />
-                    Disconnect
-                  </>
-                ) : (
-                  <>
-                    <Cloud className="h-4 w-4" />
-                    Connect to Xero
-                  </>
-                )}
-              </button>
-              
-              <button
-                onClick={() => router.push('/database-schema')}
-                className="px-3 py-2 bg-slate-800/50 text-gray-400 rounded-lg border border-slate-700 hover:border-slate-600 hover:text-white transition-all flex items-center gap-2"
-                title="View Database Schema"
-              >
-                <Database className="h-4 w-4" />
-                <span className="text-sm">DB Schema</span>
-              </button>
-              
-              <select 
-                value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value)}
-                className="px-4 py-2 bg-slate-800/50 text-white rounded-lg border border-slate-700 focus:border-emerald-500 focus:outline-none"
-              >
-                <option value="7d">Last 7 days</option>
-                <option value="30d">Last 30 days</option>
-                <option value="90d">Last 90 days</option>
-                <option value="ytd">Year to Date</option>
-              </select>
-            </>
-          }
+          showBackButton={false}
+          showTimeRangeSelector={true}
+          timeRange={timeRange}
+          onTimeRangeChange={setTimeRange}
         />
 
         {!hasActiveToken ? (

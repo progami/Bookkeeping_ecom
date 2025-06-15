@@ -3,6 +3,7 @@ import { getXeroClient } from '@/lib/xero-client';
 import { prisma } from '@/lib/prisma';
 import { BankTransaction } from 'xero-node';
 import { executeXeroAPICall, paginatedXeroAPICall } from '@/lib/xero-client-with-rate-limit';
+import { structuredLogger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   let syncLog: any;
@@ -27,11 +28,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error('Sync error:', error);
+    structuredLogger.error('Sync error', error, { component: 'xero-sync' });
     
     // Update sync log if it was created
     if (syncLog?.id) {
-      await tx.syncLog.update({
+      await prisma.syncLog.update({
         where: { id: syncLog.id },
         data: {
           status: 'failed',
@@ -64,7 +65,11 @@ async function performSync(tx: any, syncLog: any) {
     
     const tenant = xero.tenants[0];
     
-    console.log('Starting full sync for tenant:', tenant.tenantName);
+    structuredLogger.info('Starting full sync', { 
+      component: 'xero-sync',
+      tenantName: tenant.tenantName,
+      tenantId: tenant.tenantId 
+    });
     
     let totalAccounts = 0;
     let totalTransactions = 0;
@@ -73,7 +78,7 @@ async function performSync(tx: any, syncLog: any) {
     let totalGLAccounts = 0;
     
     // Step 1: Sync all GL accounts (Chart of Accounts) first
-    console.log('Fetching GL accounts...');
+    structuredLogger.debug('Fetching GL accounts', { component: 'xero-sync' });
     const glAccountsResponse = await xero.accountingApi.getAccounts(
       tenant.tenantId,
       undefined,
@@ -82,7 +87,10 @@ async function performSync(tx: any, syncLog: any) {
     );
     
     const glAccounts = glAccountsResponse.body.accounts || [];
-    console.log(`Found ${glAccounts.length} GL accounts`);
+    structuredLogger.info('GL accounts retrieved', { 
+      component: 'xero-sync',
+      count: glAccounts.length 
+    });
     
     // Upsert GL accounts
     for (const account of glAccounts) {
@@ -120,10 +128,13 @@ async function performSync(tx: any, syncLog: any) {
       totalGLAccounts++;
     }
     
-    console.log(`Synced ${totalGLAccounts} GL accounts`);
+    structuredLogger.info('GL accounts synced', { 
+      component: 'xero-sync',
+      count: totalGLAccounts 
+    });
     
     // Step 2: Sync all bank accounts with rate limiting
-    console.log('Fetching bank accounts...');
+    structuredLogger.debug('Fetching bank accounts', { component: 'xero-sync' });
     const accountsResponse = await executeXeroAPICall(
       tenant.tenantId,
       async (client) => client.accountingApi.getAccounts(
@@ -134,7 +145,10 @@ async function performSync(tx: any, syncLog: any) {
     );
     
     const bankAccounts = accountsResponse.body.accounts || [];
-    console.log(`Found ${bankAccounts.length} bank accounts`);
+    structuredLogger.info('Bank accounts retrieved', { 
+      component: 'xero-sync',
+      count: bankAccounts.length 
+    });
     
     // Upsert bank accounts
     for (const account of bankAccounts) {
@@ -265,7 +279,11 @@ async function performSync(tx: any, syncLog: any) {
           }
       }
       
-      console.log(`  Total for ${account.name}: ${accountTransactions} transactions`);
+      structuredLogger.debug('Account sync complete', { 
+        component: 'xero-sync',
+        accountName: account.name,
+        transactionCount: accountTransactions 
+      });
     }
     
     // Update sync log
@@ -289,7 +307,7 @@ async function performSync(tx: any, syncLog: any) {
     });
     
     // Step 4: Sync open invoices for cash flow forecasting
-    console.log('\nFetching open invoices...');
+    structuredLogger.debug('Fetching open invoices', { component: 'xero-sync' });
     let totalInvoices = 0;
     let totalBills = 0;
     
@@ -311,7 +329,10 @@ async function performSync(tx: any, syncLog: any) {
       );
       
       const customerInvoices = customerInvoicesResponse.body.invoices || [];
-      console.log(`Found ${customerInvoices.length} customer invoices`);
+      structuredLogger.info('Customer invoices retrieved', { 
+        component: 'xero-sync',
+        count: customerInvoices.length 
+      });
       
       // Upsert customer invoices
       for (const invoice of customerInvoices) {
@@ -372,7 +393,10 @@ async function performSync(tx: any, syncLog: any) {
       );
       
       const supplierBills = supplierBillsResponse.body.invoices || [];
-      console.log(`Found ${supplierBills.length} supplier bills`);
+      structuredLogger.info('Supplier bills retrieved', { 
+        component: 'xero-sync',
+        count: supplierBills.length 
+      });
       
       // Upsert supplier bills
       for (const bill of supplierBills) {
@@ -416,16 +440,19 @@ async function performSync(tx: any, syncLog: any) {
         totalBills++;
       }
     } catch (invoiceError) {
-      console.error('Error syncing invoices:', invoiceError);
+      structuredLogger.error('Error syncing invoices', invoiceError, { component: 'xero-sync' });
     }
 
-    console.log('\nSync completed successfully!');
-    console.log(`GL Accounts: ${totalGLAccounts}`);
-    console.log(`Bank accounts: ${totalAccounts}`);
-    console.log(`Total transactions: ${totalTransactions}`);
-    console.log(`Customer invoices: ${totalInvoices}`);
-    console.log(`Supplier bills: ${totalBills}`);
-    console.log(`Created: ${createdTransactions}, Updated: ${updatedTransactions}`);
+    structuredLogger.info('Sync completed successfully', {
+      component: 'xero-sync',
+      glAccounts: totalGLAccounts,
+      bankAccounts: totalAccounts,
+      totalTransactions,
+      customerInvoices: totalInvoices,
+      supplierBills: totalBills,
+      created: createdTransactions,
+      updated: updatedTransactions
+    });
     
     return {
       success: true,
@@ -441,7 +468,7 @@ async function performSync(tx: any, syncLog: any) {
     };
     
   } catch (error: any) {
-    console.error('Sync error:', error);
+    structuredLogger.error('Sync error', error, { component: 'xero-sync' });
     
     await tx.syncLog.update({
       where: { id: syncLog.id },

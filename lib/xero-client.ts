@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { serialize, parse } from 'cookie';
 import { XeroSession, XeroTokenSet } from './xero-session';
 import { tokenRefreshLock } from './token-refresh-lock';
-import { logger } from './log-sanitizer';
+import { structuredLogger } from './logger';
 
 export const xeroConfig = {
   clientId: process.env.XERO_CLIENT_ID || '',
@@ -48,22 +48,23 @@ export async function clearTokenSet() {
 
 export async function getXeroClient(): Promise<XeroClient | null> {
   try {
-    console.log('[getXeroClient] Starting Xero client retrieval...');
-    console.log('[getXeroClient] Environment check:', {
+    structuredLogger.debug('Starting Xero client retrieval', {
+      component: 'xero-client',
       hasClientId: !!process.env.XERO_CLIENT_ID,
       hasClientSecret: !!process.env.XERO_CLIENT_SECRET,
       redirectUri: process.env.XERO_REDIRECT_URI
     });
     
     const tokenSet = await getStoredTokenSet();
-    console.log('[getXeroClient] Token retrieval complete');
+    structuredLogger.debug('Token retrieval complete', { component: 'xero-client' });
     
     if (!tokenSet) {
-      console.log('[getXeroClient] No token set found - user not authenticated');
+      structuredLogger.info('No token set found - user not authenticated', { component: 'xero-client' });
       return null;
     }
     
-    logger.log('[getXeroClient] Token set retrieved:', {
+    structuredLogger.debug('Token set retrieved', {
+      component: 'xero-client',
       hasAccessToken: !!tokenSet.access_token,
       hasRefreshToken: !!tokenSet.refresh_token,
       expiresAt: tokenSet.expires_at,
@@ -73,7 +74,8 @@ export async function getXeroClient(): Promise<XeroClient | null> {
     
     // Validate token structure
     if (!tokenSet.access_token || !tokenSet.refresh_token) {
-      console.error('[getXeroClient] Invalid token structure - missing required fields:', {
+      structuredLogger.error('Invalid token structure - missing required fields', undefined, {
+        component: 'xero-client',
         hasAccessToken: !!tokenSet.access_token,
         hasRefreshToken: !!tokenSet.refresh_token
       });
@@ -87,7 +89,7 @@ export async function getXeroClient(): Promise<XeroClient | null> {
     try {
       xero.setTokenSet(tokenSet);
     } catch (error) {
-      console.error('Failed to set token on Xero client:', error);
+      structuredLogger.error('Failed to set token on Xero client', error, { component: 'xero-client' });
       return null;
     }
     
@@ -96,7 +98,8 @@ export async function getXeroClient(): Promise<XeroClient | null> {
     const now = Math.floor(Date.now() / 1000);
     const bufferTime = 300; // 5 minutes buffer
     
-    console.log('Token expiry check:', { 
+    structuredLogger.debug('Token expiry check', { 
+      component: 'xero-client',
       expiresAt, 
       now, 
       needsRefresh: expiresAt < (now + bufferTime),
@@ -105,7 +108,10 @@ export async function getXeroClient(): Promise<XeroClient | null> {
     
     if (expiresAt < (now + bufferTime)) {
       try {
-        console.log('Token needs refresh (expires in', expiresAt - now, 'seconds)...');
+        structuredLogger.info('Token needs refresh', { 
+          component: 'xero-client',
+          expiresIn: expiresAt - now 
+        });
         
         // Use lock to prevent concurrent refreshes
         const refreshKey = `xero-refresh-${tokenSet.refresh_token?.substring(0, 8) || 'default'}`;
@@ -113,7 +119,7 @@ export async function getXeroClient(): Promise<XeroClient | null> {
         const newTokenSet = await tokenRefreshLock.acquireRefreshLock(
           refreshKey,
           async () => {
-            console.log('Executing token refresh...');
+            structuredLogger.debug('Executing token refresh', { component: 'xero-client' });
             const refreshedToken = await xero.refreshWithRefreshToken(
               xeroConfig.clientId, 
               xeroConfig.clientSecret, 
@@ -122,7 +128,10 @@ export async function getXeroClient(): Promise<XeroClient | null> {
             
             // Store the new token set
             await storeTokenSet(refreshedToken);
-            console.log('Token stored successfully, new expiry:', refreshedToken.expires_at);
+            structuredLogger.debug('Token stored successfully', { 
+              component: 'xero-client',
+              newExpiry: refreshedToken.expires_at 
+            });
             
             return refreshedToken;
           }
@@ -130,9 +139,9 @@ export async function getXeroClient(): Promise<XeroClient | null> {
         
         // Set the new token on the client
         xero.setTokenSet(newTokenSet);
-        console.log('Token refresh completed successfully');
+        structuredLogger.info('Token refresh completed successfully', { component: 'xero-client' });
       } catch (error: any) {
-        console.error('Failed to refresh token:', error.message || error);
+        structuredLogger.error('Failed to refresh token', error, { component: 'xero-client' });
         await clearTokenSet();
         return null;
       }
@@ -140,7 +149,7 @@ export async function getXeroClient(): Promise<XeroClient | null> {
     
     return xero;
   } catch (error) {
-    console.error('Unexpected error in getXeroClient:', error);
+    structuredLogger.error('Unexpected error in getXeroClient', error, { component: 'xero-client' });
     return null;
   }
 }

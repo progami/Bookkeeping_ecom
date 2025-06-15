@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUrl } from '@/lib/xero-client';
 import { stateStore, cleanupStates } from '@/lib/oauth-state';
 import crypto from 'crypto';
+import { structuredLogger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,17 +28,18 @@ export async function GET(request: NextRequest) {
       path: '/'
     });
     
-    console.log('OAuth initiated with state:', state);
-    console.log('States in memory:', Array.from(stateStore.keys()));
+    structuredLogger.info('OAuth initiated', {
+      component: 'xero-auth',
+      stateLength: state.length,
+      statesInMemory: stateStore.size
+    });
     
     return response;
   } catch (error: any) {
-    console.error('Error initiating Xero OAuth:', error);
-    console.error('Auth error details:', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
-      name: error.name
+    structuredLogger.error('Error initiating Xero OAuth', error, {
+      component: 'xero-auth',
+      errorCode: error.code,
+      errorName: error.name
     });
     
     // Return a more detailed error response

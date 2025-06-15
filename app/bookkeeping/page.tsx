@@ -12,7 +12,7 @@ import {
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { measurePageLoad } from '@/lib/performance-utils'
-import { ModuleHeader } from '@/components/ui/module-header'
+import { StandardPageHeader } from '@/components/ui/standard-page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 
 interface FinancialOverview {
@@ -220,43 +220,15 @@ export default function BookkeepingDashboard() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
-      <ModuleHeader 
+      <StandardPageHeader 
         title="Bookkeeping Dashboard"
         subtitle="Manage your financial records and transactions"
-        actions={
-          <>
-            {/* Show sync button if we have data */}
-            {hasData && (
-              <>
-                {!hasActiveToken && (
-                  <button 
-                    onClick={connectToXero}
-                    className="px-4 py-2 bg-amber-600/20 text-amber-400 rounded-lg hover:bg-amber-600/30 transition-colors flex items-center gap-2"
-                  >
-                    <Cloud className="h-4 w-4" />
-                    Reconnect to Xero
-                  </button>
-                )}
-                {lastSync && (
-                  <div className="text-sm text-gray-400 flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Last sync: {formatDate(lastSync)}
-                  </div>
-                )}
-              </>
-            )}
-            
-            <select 
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-              className="px-4 py-2 bg-slate-800/50 text-white rounded-lg border border-slate-700 focus:border-emerald-500 focus:outline-none"
-            >
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="90d">Last 90 days</option>
-            </select>
-          </>
-        }
+        showBackButton={true}
+        backTo="/finance"
+        backLabel="Back to Finance"
+        showTimeRangeSelector={true}
+        timeRange={timeRange}
+        onTimeRangeChange={setTimeRange}
       />
 
       {/* Content based on state */}

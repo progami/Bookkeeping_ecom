@@ -7,7 +7,7 @@ import {
   Download, PieChart, TrendingDown, Activity
 } from 'lucide-react'
 import { measurePageLoad } from '@/lib/performance-utils'
-import { ModuleHeader } from '@/components/ui/module-header'
+import { StandardPageHeader } from '@/components/ui/standard-page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -218,32 +218,23 @@ export default function BusinessAnalytics() {
     <div className="min-h-screen bg-slate-950 text-gray-100">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <ModuleHeader 
+        <StandardPageHeader 
           title="Business Analytics"
           subtitle="Comprehensive insights into your business performance"
+          showBackButton={true}
           backTo="/finance"
           backLabel="Back to Finance"
-          actions={
-            <>
-              <button
-                onClick={exportData}
-                className="px-4 py-2 bg-indigo-600/20 text-indigo-400 rounded-lg hover:bg-indigo-600/30 transition-colors flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Export
-              </button>
-              
-              <select 
-                value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value)}
-                className="px-4 py-2 bg-slate-800/50 text-white rounded-lg border border-slate-700 focus:border-indigo-500 focus:outline-none"
-              >
-                <option value="7d">7 days</option>
-                <option value="30d">30 days</option>
-                <option value="90d">90 days</option>
-                <option value="year">Year</option>
-              </select>
-            </>
+          showTimeRangeSelector={true}
+          timeRange={timeRange}
+          onTimeRangeChange={setTimeRange}
+          additionalActions={
+            <button
+              onClick={exportData}
+              className="px-4 py-2 bg-indigo-600/20 text-indigo-400 rounded-lg hover:bg-indigo-600/30 transition-colors flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export
+            </button>
           }
         />
 
