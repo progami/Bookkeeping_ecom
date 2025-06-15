@@ -5,14 +5,16 @@ import { BankTransaction } from 'xero-node';
 import { executeXeroAPICall, paginatedXeroAPICall } from '@/lib/xero-client-with-rate-limit';
 import { structuredLogger } from '@/lib/logger';
 import { withIdempotency } from '@/lib/idempotency';
+import { withValidation } from '@/lib/validation/middleware';
+import { xeroSyncSchema } from '@/lib/validation/schemas';
 
-export async function POST(request: NextRequest) {
-  let syncLog: any;
+export const POST = withValidation(
+  { bodySchema: xeroSyncSchema },
+  async (request, { body }) => {
+    let syncLog: any;
 
-  try {
-    // Parse request body for sync type
-    const body = await request.json().catch(() => ({}));
-    const forceFullSync = body.forceFullSync === true;
+    try {
+      const forceFullSync = body?.forceFullSync || false;
     
     // Get last successful sync for incremental sync
     const lastSuccessfulSync = await prisma.syncLog.findFirst({
@@ -70,7 +72,8 @@ export async function POST(request: NextRequest) {
       message: error.message
     }, { status: 500 });
   }
-}
+  }
+)
 
 async function performSync(tx: any, syncLog: any, modifiedSince?: Date) {
   try {

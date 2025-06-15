@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withValidation } from '@/lib/validation/middleware';
+import { analyticsPeriodSchema } from '@/lib/validation/schemas';
 
-export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams;
-    const period = searchParams.get('period') || '30d';
+export const GET = withValidation(
+  { querySchema: analyticsPeriodSchema },
+  async (request, { query }) => {
+    try {
+      const period = query?.period || '30d';
     
     // Calculate date range
     const now = new Date();
@@ -118,29 +121,30 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.amount - a.amount);
 
-    return NextResponse.json({
-      success: true,
-      categories,
-      period,
-      startDate: startDate.toISOString(),
-      endDate: now.toISOString(),
-      totalSpend,
-      summary: {
-        topCategory: categories[0]?.category || 'N/A',
-        topCategoryPercentage: categories[0]?.percentage || 0,
-        categoryCount: categories.length
-      }
-    });
+      return NextResponse.json({
+        success: true,
+        categories,
+        period,
+        startDate: startDate.toISOString(),
+        endDate: now.toISOString(),
+        totalSpend,
+        summary: {
+          topCategory: categories[0]?.category || 'N/A',
+          topCategoryPercentage: categories[0]?.percentage || 0,
+          categoryCount: categories.length
+        }
+      });
 
-  } catch (error: any) {
-    console.error('Error fetching category breakdown:', error);
-    
-    return NextResponse.json(
-      { 
-        error: 'Failed to fetch category breakdown',
-        details: error.message || 'Unknown error'
-      },
-      { status: 500 }
-    );
+    } catch (error: any) {
+      console.error('Error fetching category breakdown:', error);
+      
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch category breakdown',
+          details: error.message || 'Unknown error'
+        },
+        { status: 500 }
+      );
+    }
   }
-}
+)

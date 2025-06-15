@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withValidation } from '@/lib/validation/middleware';
+import { analyticsPeriodSchema } from '@/lib/validation/schemas';
 
-export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams;
-    const period = searchParams.get('period') || '30d';
+export const GET = withValidation(
+  { querySchema: analyticsPeriodSchema },
+  async (request, { query }) => {
+    try {
+      const period = query?.period || '30d';
     
     // Calculate date range
     const now = new Date();
@@ -147,32 +150,33 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({
-      success: true,
-      topVendors,
-      period,
-      startDate: startDate.toISOString(),
-      endDate: now.toISOString(),
-      totalSpend,
-      vendorCount: Object.keys(vendorSpending).length,
-      summary: {
-        topVendorSpend: sortedVendors.reduce((sum, v) => sum + v.totalAmount, 0),
-        topVendorPercentage: totalSpend > 0 
-          ? (sortedVendors.reduce((sum, v) => sum + v.totalAmount, 0) / totalSpend) * 100 
-          : 0,
-        currency: 'GBP'
-      }
-    });
+      return NextResponse.json({
+        success: true,
+        topVendors,
+        period,
+        startDate: startDate.toISOString(),
+        endDate: now.toISOString(),
+        totalSpend,
+        vendorCount: Object.keys(vendorSpending).length,
+        summary: {
+          topVendorSpend: sortedVendors.reduce((sum, v) => sum + v.totalAmount, 0),
+          topVendorPercentage: totalSpend > 0 
+            ? (sortedVendors.reduce((sum, v) => sum + v.totalAmount, 0) / totalSpend) * 100 
+            : 0,
+          currency: 'GBP'
+        }
+      });
 
-  } catch (error: any) {
-    console.error('Error fetching top vendors from database:', error);
-    
-    return NextResponse.json(
-      { 
-        error: 'Failed to fetch top vendors',
-        details: error.message || 'Unknown error'
-      },
-      { status: 500 }
-    );
+    } catch (error: any) {
+      console.error('Error fetching top vendors from database:', error);
+      
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch top vendors',
+          details: error.message || 'Unknown error'
+        },
+        { status: 500 }
+      );
+    }
   }
-}
+)

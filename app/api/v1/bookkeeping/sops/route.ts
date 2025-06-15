@@ -1,18 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { withValidation } from '@/lib/validation/middleware'
+import { z } from 'zod'
+
+// Validation schemas
+const sopQuerySchema = z.object({
+  year: z.string().regex(/^\d{4}$/).optional(),
+  chartOfAccount: z.string().optional(),
+  isActive: z.enum(['true', 'false']).optional()
+});
+
+const createSOPSchema = z.object({
+  year: z.string().regex(/^\d{4}$/, 'Year must be YYYY format'),
+  chartOfAccount: z.string().min(1).max(100),
+  serviceType: z.string().min(1).max(100),
+  referenceTemplate: z.string().min(1),
+  referenceExample: z.string().min(1),
+  descriptionTemplate: z.string().min(1),
+  descriptionExample: z.string().min(1),
+  notes: z.string().optional()
+});
 
 // GET all SOPs with optional filtering
-export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams
-    const year = searchParams.get('year')
-    const chartOfAccount = searchParams.get('chartOfAccount')
-    const isActive = searchParams.get('isActive')
-
+export const GET = withValidation(
+  { querySchema: sopQuerySchema },
+  async (request, { query }) => {
     const where: any = {}
-    if (year) where.year = year
-    if (chartOfAccount) where.chartOfAccount = chartOfAccount
-    if (isActive !== null) where.isActive = isActive === 'true'
+    if (query?.year) where.year = query.year
+    if (query?.chartOfAccount) where.chartOfAccount = query.chartOfAccount
+    if (query?.isActive !== undefined) where.isActive = query.isActive === 'true'
 
     const sops = await prisma.standardOperatingProcedure.findMany({
       where,
@@ -23,31 +39,19 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json(sops)
-  } catch (error) {
-    console.error('Error fetching SOPs:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch SOPs' },
-      { status: 500 }
-    )
   }
-}
+)
 
 // POST - Create new SOP
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    
-    // Validate required fields
-    const required = ['year', 'chartOfAccount', 'serviceType', 'referenceTemplate', 
-                     'referenceExample', 'descriptionTemplate', 'descriptionExample']
-    
-    for (const field of required) {
-      if (!body[field]) {
-        return NextResponse.json(
-          { error: `Missing required field: ${field}` },
-          { status: 400 }
-        )
-      }
+export const POST = withValidation(
+  { bodySchema: createSOPSchema },
+  async (request, { body }) => {
+
+    if (!body) {
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      )
     }
 
     // Check if SOP already exists
@@ -73,14 +77,8 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(sop, { status: 201 })
-  } catch (error) {
-    console.error('Error creating SOP:', error)
-    return NextResponse.json(
-      { error: 'Failed to create SOP' },
-      { status: 500 }
-    )
   }
-}
+)
 
 // PUT - Update multiple SOPs (bulk update)
 export async function PUT(request: NextRequest) {

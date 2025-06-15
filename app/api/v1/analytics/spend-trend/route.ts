@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withValidation } from '@/lib/validation/middleware';
+import { analyticsPeriodSchema } from '@/lib/validation/schemas';
 
-export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams;
-    const period = searchParams.get('period') || '30d';
+export const GET = withValidation(
+  { querySchema: analyticsPeriodSchema },
+  async (request, { query }) => {
+    try {
+      const period = query?.period || '30d';
     
     // Calculate date range
     const now = new Date();
@@ -116,24 +119,25 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      trend,
-      period,
-      groupBy,
-      startDate: startDate.toISOString(),
-      endDate: now.toISOString()
-    });
+      return NextResponse.json({
+        success: true,
+        trend,
+        period,
+        groupBy,
+        startDate: startDate.toISOString(),
+        endDate: now.toISOString()
+      });
 
-  } catch (error: any) {
-    console.error('Error fetching spend trend:', error);
-    
-    return NextResponse.json(
-      { 
-        error: 'Failed to fetch spend trend',
-        details: error.message || 'Unknown error'
-      },
-      { status: 500 }
-    );
+    } catch (error: any) {
+      console.error('Error fetching spend trend:', error);
+      
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch spend trend',
+          details: error.message || 'Unknown error'
+        },
+        { status: 500 }
+      );
+    }
   }
-}
+)

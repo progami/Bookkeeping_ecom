@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CashFlowEngine } from '@/lib/cashflow-engine';
 import { prisma } from '@/lib/prisma';
+import { withValidation } from '@/lib/validation/middleware';
+import { cashFlowForecastQuerySchema, cashFlowForecastBodySchema } from '@/lib/validation/schemas';
 
-export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams;
-    const days = parseInt(searchParams.get('days') || '90');
-    const includeScenarios = searchParams.get('scenarios') === 'true';
+export const GET = withValidation(
+  { querySchema: cashFlowForecastQuerySchema },
+  async (request, { query }) => {
+    try {
+      const days = query?.days || 90;
+      const includeScenarios = query?.scenarios || false;
     
     // Set cache headers based on forecast days
     const cacheTime = days <= 30 ? 300 : 600; // 5 min for short, 10 min for long forecasts
@@ -47,21 +50,25 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    return NextResponse.json(response, {
-      headers: responseHeaders
-    });
-  } catch (error) {
-    console.error('Forecast generation error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Forecast failed' },
-      { status: 500 }
-    );
+      return NextResponse.json(response, {
+        headers: responseHeaders
+      });
+    } catch (error) {
+      console.error('Forecast generation error:', error);
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Forecast failed' },
+        { status: 500 }
+      );
+    }
   }
-}
+)
 
-export async function POST(request: NextRequest) {
-  try {
-    const { days = 90, regenerate = false } = await request.json();
+export const POST = withValidation(
+  { bodySchema: cashFlowForecastBodySchema },
+  async (request, { body }) => {
+    try {
+      const days = body?.days || 90;
+      const regenerate = body?.regenerate || false;
 
     if (regenerate) {
       // Clear existing forecast
@@ -76,16 +83,17 @@ export async function POST(request: NextRequest) {
     const engine = new CashFlowEngine();
     const forecast = await engine.generateForecast(days);
 
-    return NextResponse.json({
-      success: true,
-      daysGenerated: forecast.length,
-      message: `Forecast generated for ${days} days`,
-    });
-  } catch (error) {
-    console.error('Forecast generation error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Forecast failed' },
-      { status: 500 }
-    );
+      return NextResponse.json({
+        success: true,
+        daysGenerated: forecast.length,
+        message: `Forecast generated for ${days} days`,
+      });
+    } catch (error) {
+      console.error('Forecast generation error:', error);
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Forecast failed' },
+        { status: 500 }
+      );
+    }
   }
-}
+)

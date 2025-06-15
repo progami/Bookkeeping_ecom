@@ -3,20 +3,7 @@ import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { getXeroClientWithTenant } from '@/lib/xero-client';
 import { structuredLogger } from '@/lib/logger';
-import { z } from 'zod';
-
-// Webhook event schema
-const WebhookEventSchema = z.object({
-  events: z.array(z.object({
-    resourceUrl: z.string(),
-    resourceId: z.string(),
-    eventDateUtc: z.string(),
-    eventType: z.enum(['Create', 'Update', 'Delete']),
-    eventCategory: z.enum(['INVOICE', 'CONTACT', 'PAYMENT', 'BANKTRANSACTION', 'BANKACCOUNT'])
-  })),
-  firstEventSequence: z.number(),
-  lastEventSequence: z.number()
-});
+import { xeroWebhookSchema } from '@/lib/validation/schemas';
 
 // Verify webhook signature
 function verifyWebhookSignature(payload: string, signature: string): boolean {
@@ -56,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse webhook payload
-    const webhookData = WebhookEventSchema.parse(JSON.parse(rawBody));
+    const webhookData = xeroWebhookSchema.parse(JSON.parse(rawBody));
     
     structuredLogger.info('Webhook received', {
       component: 'xero-webhooks',
