@@ -15,7 +15,6 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { BackButton } from '@/components/ui/back-button'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
-import { DatabaseSchema } from '@/components/ui/database-schema'
 
 interface FinanceMetrics {
   totalRevenue: number
@@ -207,6 +206,14 @@ export default function FinanceDashboard() {
                 )}
               </div>
               
+              <button
+                onClick={() => router.push('/database-schema')}
+                className="px-3 py-2 bg-slate-800/50 text-gray-400 rounded-lg border border-slate-700 hover:border-slate-600 hover:text-white transition-all flex items-center gap-2"
+                title="View Database Schema"
+              >
+                <Database className="h-4 w-4" />
+                <span className="text-sm">DB Schema</span>
+              </button>
               
               <select 
                 value={timeRange}
@@ -287,95 +294,85 @@ export default function FinanceDashboard() {
               </div>
             </div>
 
-            {/* Key Financial Metrics - Enhanced Design */}
+            {/* Key Financial Metrics - Non-clickable info cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {/* Cash Balance - Most Important */}
-              <MetricCard
-                title="Total Cash Balance"
-                value={formatCurrency(metrics?.cashBalance || 0)}
-                subtitle={`Forecast: ${formatCurrency(moduleStatus?.cashFlow.forecast30Day || 0)}`}
-                icon={Wallet}
-                variant="info"
-              />
+              <div className="relative bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-blue-500/20 rounded-xl">
+                    <Wallet className="h-6 w-6 text-blue-400" />
+                  </div>
+                  <span className="text-xs text-gray-500 uppercase tracking-wider">Total</span>
+                </div>
+                <div className="text-3xl font-bold text-white">
+                  {formatCurrency(metrics?.cashBalance || 0)}
+                </div>
+                <div className="text-sm text-gray-400 mt-1">Cash Balance</div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Forecast: {formatCurrency(moduleStatus?.cashFlow.forecast30Day || 0)}
+                </div>
+              </div>
 
               {/* Revenue */}
-              <div className="group relative overflow-hidden bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/30 rounded-2xl p-6 hover:border-emerald-400/50 transition-all duration-300">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-3 bg-emerald-500/20 rounded-xl backdrop-blur-sm">
-                      <TrendingUp className="h-6 w-6 text-emerald-400" />
-                    </div>
-                    <span className={`text-xs font-medium ${
-                      (metrics?.revenueGrowth ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'
-                    }`}>
-                      {formatPercentage(metrics?.revenueGrowth || 0)}
-                    </span>
+              <div className="relative bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-emerald-500/20 rounded-xl">
+                    <TrendingUp className="h-6 w-6 text-emerald-400" />
                   </div>
-                  <div className="text-3xl font-bold text-white">
-                    {formatCurrency(metrics?.totalRevenue || 0)}
-                  </div>
-                  <div className="text-sm text-emerald-300 mt-1">Total Revenue</div>
-                  <div className="mt-3 pt-3 border-t border-emerald-500/20">
-                    <div className="text-xs text-gray-400">Receivables</div>
-                    <div className="text-lg font-semibold text-white">
-                      {formatCurrency(metrics?.accountsReceivable || 0)}
-                    </div>
-                  </div>
+                  <span className={`text-xs font-medium ${
+                    (metrics?.revenueGrowth ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {formatPercentage(metrics?.revenueGrowth || 0)}
+                  </span>
+                </div>
+                <div className="text-3xl font-bold text-white">
+                  {formatCurrency(metrics?.totalRevenue || 0)}
+                </div>
+                <div className="text-sm text-gray-400 mt-1">Total Revenue</div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Receivables: {formatCurrency(metrics?.accountsReceivable || 0)}
                 </div>
               </div>
 
               {/* Expenses */}
-              <div className="group relative overflow-hidden bg-gradient-to-br from-red-500/20 to-red-500/5 border border-red-500/30 rounded-2xl p-6 hover:border-red-400/50 transition-all duration-300">
-                <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-3 bg-red-500/20 rounded-xl backdrop-blur-sm">
-                      <TrendingDown className="h-6 w-6 text-red-400" />
-                    </div>
-                    <span className={`text-xs font-medium ${
-                      (metrics?.expenseGrowth ?? 0) <= 0 ? 'text-green-400' : 'text-red-400'
-                    }`}>
-                      {formatPercentage(metrics?.expenseGrowth || 0)}
-                    </span>
+              <div className="relative bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-red-500/20 rounded-xl">
+                    <TrendingDown className="h-6 w-6 text-red-400" />
                   </div>
-                  <div className="text-3xl font-bold text-white">
-                    {formatCurrency(metrics?.totalExpenses || 0)}
-                  </div>
-                  <div className="text-sm text-red-300 mt-1">Total Expenses</div>
-                  <div className="mt-3 pt-3 border-t border-red-500/20">
-                    <div className="text-xs text-gray-400">Payables</div>
-                    <div className="text-lg font-semibold text-white">
-                      {formatCurrency(metrics?.accountsPayable || 0)}
-                    </div>
-                  </div>
+                  <span className={`text-xs font-medium ${
+                    (metrics?.expenseGrowth ?? 0) <= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {formatPercentage(metrics?.expenseGrowth || 0)}
+                  </span>
+                </div>
+                <div className="text-3xl font-bold text-white">
+                  {formatCurrency(metrics?.totalExpenses || 0)}
+                </div>
+                <div className="text-sm text-gray-400 mt-1">Total Expenses</div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Payables: {formatCurrency(metrics?.accountsPayable || 0)}
                 </div>
               </div>
 
               {/* Net Income */}
-              <div className="group relative overflow-hidden bg-gradient-to-br from-cyan-500/20 to-cyan-500/5 border border-cyan-500/30 rounded-2xl p-6 hover:border-cyan-400/50 transition-all duration-300">
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-3 bg-cyan-500/20 rounded-xl backdrop-blur-sm">
-                      <Activity className="h-6 w-6 text-cyan-400" />
-                    </div>
-                    <span className="text-xs font-medium text-cyan-300">
-                      {metrics?.profitMargin.toFixed(1)}% margin
-                    </span>
+              <div className="relative bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-cyan-500/20 rounded-xl">
+                    <Activity className="h-6 w-6 text-cyan-400" />
                   </div>
-                  <div className={`text-3xl font-bold ${
-                    (metrics?.netIncome ?? 0) >= 0 ? 'text-white' : 'text-red-400'
-                  }`}>
-                    {formatCurrency(metrics?.netIncome || 0)}
-                  </div>
-                  <div className="text-sm text-cyan-300 mt-1">Net Profit</div>
-                  <div className="mt-3 pt-3 border-t border-cyan-500/20">
-                    <div className="text-xs text-gray-400">Per day average</div>
-                    <div className="text-lg font-semibold text-white">
-                      {formatCurrency((metrics?.netIncome || 0) / 30)}
-                    </div>
-                  </div>
+                  <span className="text-xs font-medium text-gray-500">
+                    {metrics?.profitMargin.toFixed(1)}% margin
+                  </span>
+                </div>
+                <div className={`text-3xl font-bold ${
+                  (metrics?.netIncome ?? 0) >= 0 ? 'text-white' : 'text-red-400'
+                }`}>
+                  {formatCurrency(metrics?.netIncome || 0)}
+                </div>
+                <div className="text-sm text-gray-400 mt-1">Net Profit</div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Daily avg: {formatCurrency((metrics?.netIncome || 0) / 30)}
                 </div>
               </div>
             </div>
@@ -547,13 +544,6 @@ export default function FinanceDashboard() {
               </div>
             </div>
 
-            {/* Database Schema Section */}
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-              <Database className="h-6 w-6 mr-3 text-teal-400" />
-              System Architecture
-            </h2>
-            
-            <DatabaseSchema />
           </>
         )}
       </div>

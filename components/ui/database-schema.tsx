@@ -7,22 +7,6 @@ import {
 } from 'lucide-react'
 
 const SCHEMA_INFO = {
-  GLAccount: {
-    description: 'Chart of Accounts from Xero',
-    icon: '📊',
-    columns: [
-      { name: 'id', type: 'String', isPrimary: true, isOptional: false },
-      { name: 'code', type: 'String', isPrimary: false, isOptional: false },
-      { name: 'name', type: 'String', isPrimary: false, isOptional: false },
-      { name: 'type', type: 'String', isPrimary: false, isOptional: false },
-      { name: 'status', type: 'String', isPrimary: false, isOptional: true },
-      { name: 'description', type: 'String', isPrimary: false, isOptional: true },
-      { name: 'systemAccount', type: 'Boolean', isPrimary: false, isOptional: false },
-      { name: 'class', type: 'String', isPrimary: false, isOptional: true },
-      { name: 'createdAt', type: 'DateTime', isPrimary: false, isOptional: false },
-      { name: 'updatedAt', type: 'DateTime', isPrimary: false, isOptional: false }
-    ]
-  },
   BankAccount: {
     description: 'Bank accounts synced from Xero',
     icon: '🏦',
@@ -55,40 +39,87 @@ const SCHEMA_INFO = {
       { name: 'createdAt', type: 'DateTime', isPrimary: false, isOptional: false }
     ]
   },
-  SyncedInvoice: {
-    description: 'Invoices synced from Xero for cash flow',
-    icon: '📄',
+  GLAccount: {
+    description: 'Chart of Accounts from Xero',
+    icon: '📊',
     columns: [
       { name: 'id', type: 'String', isPrimary: true, isOptional: false },
-      { name: 'contactId', type: 'String', isPrimary: false, isOptional: false },
-      { name: 'contactName', type: 'String', isPrimary: false, isOptional: true },
-      { name: 'invoiceNumber', type: 'String', isPrimary: false, isOptional: true },
-      { name: 'dueDate', type: 'DateTime', isPrimary: false, isOptional: false },
-      { name: 'amountDue', type: 'Float', isPrimary: false, isOptional: false },
-      { name: 'total', type: 'Float', isPrimary: false, isOptional: false },
+      { name: 'code', type: 'String', isPrimary: false, isOptional: false },
+      { name: 'name', type: 'String', isPrimary: false, isOptional: false },
       { name: 'type', type: 'String', isPrimary: false, isOptional: false },
-      { name: 'status', type: 'String', isPrimary: false, isOptional: false },
+      { name: 'status', type: 'String', isPrimary: false, isOptional: true },
+      { name: 'description', type: 'String', isPrimary: false, isOptional: true },
+      { name: 'systemAccount', type: 'Boolean', isPrimary: false, isOptional: false },
+      { name: 'class', type: 'String', isPrimary: false, isOptional: true },
+      { name: 'createdAt', type: 'DateTime', isPrimary: false, isOptional: false },
+      { name: 'updatedAt', type: 'DateTime', isPrimary: false, isOptional: false }
+    ]
+  },
+  Contact: {
+    description: 'Customers and suppliers from Xero',
+    icon: '👥',
+    columns: [
+      { name: 'id', type: 'String', isPrimary: true, isOptional: false },
+      { name: 'xeroContactId', type: 'String', isPrimary: false, isOptional: false },
+      { name: 'name', type: 'String', isPrimary: false, isOptional: false },
+      { name: 'email', type: 'String', isPrimary: false, isOptional: true },
+      { name: 'contactNumber', type: 'String', isPrimary: false, isOptional: true },
+      { name: 'isSupplier', type: 'Boolean', isPrimary: false, isOptional: false },
+      { name: 'isCustomer', type: 'Boolean', isPrimary: false, isOptional: false },
+      { name: 'balanceOwed', type: 'Float', isPrimary: false, isOptional: false },
+      { name: 'createdAt', type: 'DateTime', isPrimary: false, isOptional: false },
+      { name: 'updatedAt', type: 'DateTime', isPrimary: false, isOptional: false }
+    ]
+  },
+  TaxRate: {
+    description: 'Tax rates configured in Xero',
+    icon: '💰',
+    columns: [
+      { name: 'id', type: 'String', isPrimary: true, isOptional: false },
+      { name: 'name', type: 'String', isPrimary: false, isOptional: false },
+      { name: 'taxType', type: 'String', isPrimary: false, isOptional: false },
+      { name: 'effectiveRate', type: 'Float', isPrimary: false, isOptional: false },
+      { name: 'canApplyToRevenue', type: 'Boolean', isPrimary: false, isOptional: false },
+      { name: 'canApplyToExpenses', type: 'Boolean', isPrimary: false, isOptional: false },
+      { name: 'createdAt', type: 'DateTime', isPrimary: false, isOptional: false },
+      { name: 'updatedAt', type: 'DateTime', isPrimary: false, isOptional: false }
+    ]
+  },
+  CashFlowForecast: {
+    description: 'Daily cash flow projections',
+    icon: '📈',
+    columns: [
+      { name: 'id', type: 'String', isPrimary: true, isOptional: false },
+      { name: 'date', type: 'DateTime', isPrimary: false, isOptional: false },
+      { name: 'expectedBalance', type: 'Float', isPrimary: false, isOptional: false },
+      { name: 'incomingFunds', type: 'Float', isPrimary: false, isOptional: false },
+      { name: 'outgoingFunds', type: 'Float', isPrimary: false, isOptional: false },
+      { name: 'actualBalance', type: 'Float', isPrimary: false, isOptional: true },
       { name: 'createdAt', type: 'DateTime', isPrimary: false, isOptional: false }
     ]
   },
-  SyncLog: {
-    description: 'History of data synchronization operations',
+  SyncHistory: {
+    description: 'History of data sync operations',
     icon: '🔄',
     columns: [
       { name: 'id', type: 'String', isPrimary: true, isOptional: false },
       { name: 'syncType', type: 'String', isPrimary: false, isOptional: false },
-      { name: 'status', type: 'String', isPrimary: false, isOptional: false },
-      { name: 'startedAt', type: 'DateTime', isPrimary: false, isOptional: false },
-      { name: 'completedAt', type: 'DateTime', isPrimary: false, isOptional: true },
       { name: 'recordsCreated', type: 'Int', isPrimary: false, isOptional: false },
       { name: 'recordsUpdated', type: 'Int', isPrimary: false, isOptional: false },
-      { name: 'errorMessage', type: 'String', isPrimary: false, isOptional: true }
+      { name: 'recordsFailed', type: 'Int', isPrimary: false, isOptional: false },
+      { name: 'syncedAt', type: 'DateTime', isPrimary: false, isOptional: false },
+      { name: 'completedAt', type: 'DateTime', isPrimary: false, isOptional: true },
+      { name: 'error', type: 'String', isPrimary: false, isOptional: true }
     ]
   }
 }
 
-export function DatabaseSchema() {
-  const [isExpanded, setIsExpanded] = useState(false)
+interface DatabaseSchemaProps {
+  onTableClick?: (tableName: string) => void
+}
+
+export function DatabaseSchema({ onTableClick }: DatabaseSchemaProps) {
+  const [isExpanded, setIsExpanded] = useState(onTableClick ? true : false)
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
 
   const getTypeIcon = (type: string) => {
@@ -132,7 +163,12 @@ export function DatabaseSchema() {
                 {Object.entries(SCHEMA_INFO).map(([name, info]) => (
                   <div
                     key={name}
-                    onClick={() => setSelectedTable(name)}
+                    onClick={() => {
+                      setSelectedTable(name)
+                      if (onTableClick) {
+                        onTableClick(name)
+                      }
+                    }}
                     className={`p-3 bg-slate-900/50 rounded-lg cursor-pointer transition-all ${
                       selectedTable === name
                         ? 'ring-2 ring-teal-500 bg-slate-900/80'
@@ -145,6 +181,9 @@ export function DatabaseSchema() {
                         <h5 className="font-medium text-white text-sm">{name}</h5>
                         <p className="text-xs text-gray-400">{info.description}</p>
                       </div>
+                      {onTableClick && (
+                        <Table className="h-4 w-4 text-gray-400" />
+                      )}
                     </div>
                   </div>
                 ))}
