@@ -77,31 +77,35 @@ export default function BookkeepingDashboard() {
   const [timeRange, setTimeRange] = useState('30d')
 
   useEffect(() => {
-    // Check for OAuth callback params
-    const connected = searchParams.get('connected')
-    const error = searchParams.get('error')
-    
-    if (connected === 'true') {
-      toast.success('Successfully connected to Xero!')
-      // Add a small delay before checking status to ensure cookie is set
-      setTimeout(() => {
+    const loadData = async () => {
+      setLoading(true)
+      
+      // Check for OAuth callback params
+      const connected = searchParams.get('connected')
+      const error = searchParams.get('error')
+      
+      if (connected === 'true') {
+        toast.success('Successfully connected to Xero!')
+        // Add a small delay before checking status to ensure cookie is set
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      } else if (error) {
+        toast.error(`Failed to connect to Xero: ${error}`)
+      }
+      
+      // Run both checks in parallel
+      await Promise.all([
+        fetchDashboardData(),
         checkXeroStatus()
-      }, 1000)
-    } else if (error) {
-      toast.error(`Failed to connect to Xero: ${error}`)
+      ])
+      
+      setLoading(false)
     }
     
-    fetchDashboardData()
-    // Check status immediately for non-callback requests
-    if (!connected) {
-      checkXeroStatus()
-    }
+    loadData()
   }, [searchParams, timeRange])
 
   const fetchDashboardData = async () => {
     try {
-      setLoading(true)
-      
       // Fetch multiple data sources in parallel
       const [balanceSheetRes, plRes, vatRes, statsResponse, accountsResponse] = await Promise.all([
         fetch('/api/v1/xero/reports/balance-sheet'),
@@ -156,8 +160,6 @@ export default function BookkeepingDashboard() {
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
       toast.error('Failed to load dashboard data')
-    } finally {
-      setLoading(false)
     }
   }
 
