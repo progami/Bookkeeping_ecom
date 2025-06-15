@@ -7,6 +7,7 @@ import {
   Download, PieChart, TrendingDown, Activity
 } from 'lucide-react'
 import { measurePageLoad } from '@/lib/performance-utils'
+import { ModuleHeader } from '@/components/ui/module-header'
 import {
   LineChart, Line, BarChart, Bar, PieChart as RePieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -214,22 +215,13 @@ export default function BusinessAnalytics() {
     <div className="min-h-screen bg-slate-950 text-gray-100">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => router.push('/finance')}
-            className="text-gray-400 hover:text-white transition-colors mb-4 inline-flex items-center"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Finance
-          </button>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2">Business Analytics</h1>
-              <p className="text-gray-400">Comprehensive insights into your business performance</p>
-            </div>
-            
-            <div className="flex items-center gap-3">
+        <ModuleHeader 
+          title="Business Analytics"
+          subtitle="Comprehensive insights into your business performance"
+          backTo="/finance"
+          backLabel="Back to Finance"
+          actions={
+            <>
               <button
                 onClick={exportData}
                 className="px-4 py-2 bg-indigo-600/20 text-indigo-400 rounded-lg hover:bg-indigo-600/30 transition-colors flex items-center gap-2"
@@ -246,11 +238,11 @@ export default function BusinessAnalytics() {
                 <option value="7d">7 days</option>
                 <option value="30d">30 days</option>
                 <option value="90d">90 days</option>
-                <option value="year">year</option>
+                <option value="year">Year</option>
               </select>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {loading ? (
           <div className="flex items-center justify-center h-64" role="status" aria-label="Loading">

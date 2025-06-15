@@ -12,6 +12,7 @@ import {
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { measurePageLoad } from '@/lib/performance-utils'
+import { ModuleHeader } from '@/components/ui/module-header'
 
 interface FinancialOverview {
   cashInBank: number
@@ -215,43 +216,21 @@ export default function BookkeepingDashboard() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
-      <div className="mb-8">
-        <button
-          onClick={() => router.push('/')}
-          className="text-gray-400 hover:text-white transition-colors mb-4 inline-flex items-center"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Home
-        </button>
-        
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Bookkeeping Dashboard</h1>
-            <p className="text-gray-400">
-              Manage your financial records and transactions
-            </p>
-          </div>
-          
-          <div className="flex gap-3">
+      <ModuleHeader 
+        title="Bookkeeping Dashboard"
+        subtitle="Manage your financial records and transactions"
+        actions={
+          <>
             {/* Show sync button if we have data */}
             {hasData && (
               <>
-                {hasActiveToken ? (
-                  <button 
-                    onClick={syncData}
-                    disabled={isSyncing}
-                    className="px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-lg hover:bg-emerald-600/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                    {isSyncing ? 'Syncing...' : 'Sync All Data'}
-                  </button>
-                ) : (
+                {!hasActiveToken && (
                   <button 
                     onClick={connectToXero}
                     className="px-4 py-2 bg-amber-600/20 text-amber-400 rounded-lg hover:bg-amber-600/30 transition-colors flex items-center gap-2"
                   >
                     <Cloud className="h-4 w-4" />
-                    Reconnect to Sync
+                    Reconnect to Xero
                   </button>
                 )}
                 {lastSync && (
@@ -272,9 +251,9 @@ export default function BookkeepingDashboard() {
               <option value="30d">Last 30 days</option>
               <option value="90d">Last 90 days</option>
             </select>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Content based on state */}
       {!hasData ? (

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClientWithTenant } from '@/lib/xero-client';
-import { BankTransaction } from 'xero-node';
+import { BankTransaction, AccountType } from 'xero-node';
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     // Tax accounts typically have Type "CURRLIAB" (Current Liability) and are tax-related
     const vatAccounts = allAccounts.filter(account => {
       // Check if it's a tax account by type and name
-      const isTaxType = account.type === 'CURRLIAB' || account.type === 'LIABILITY';
+      const isTaxType = account.type === AccountType.CURRLIAB || account.type === AccountType.LIABILITY;
       const isTaxName = account.name?.toLowerCase().includes('vat') || 
                         account.name?.toLowerCase().includes('gst') ||
                         account.name?.toLowerCase().includes('tax') ||

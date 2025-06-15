@@ -10,6 +10,7 @@ import {
 import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
 import toast, { Toaster } from 'react-hot-toast'
 import { measurePageLoad } from '@/lib/performance-utils'
+import { ModuleHeader } from '@/components/ui/module-header'
 import dynamic from 'next/dynamic'
 
 // Lazy load heavy chart components
@@ -214,39 +215,25 @@ export default function CashFlowPage() {
       <Toaster position="top-right" />
       
       {/* Header */}
-      <div className="mb-8">
-        <button
-          onClick={() => router.push('/finance')}
-          className="text-gray-400 hover:text-white transition-colors mb-4 inline-flex items-center"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Finance
-        </button>
-        
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Cash Flow Forecast</h1>
-            <p className="text-gray-400">
-              {forecastDays}-day projection with {Math.round((summary?.averageConfidence || 0) * 100)}% average confidence
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <select
-              value={forecastDays}
-              onChange={(e) => setForecastDays(parseInt(e.target.value))}
-              className="px-4 py-2 bg-slate-800/50 text-white rounded-lg border border-slate-700 focus:border-cyan-500 focus:outline-none"
-            >
-              <option value="30">30 days</option>
-              <option value="60">60 days</option>
-              <option value="90">90 days</option>
-              <option value="180">180 days</option>
-              <option value="365">1 year</option>
-            </select>
-            
-          </div>
-        </div>
-      </div>
+      <ModuleHeader 
+        title="Cash Flow Forecast"
+        subtitle={`${forecastDays}-day projection with ${Math.round((summary?.averageConfidence || 0) * 100)}% average confidence`}
+        backTo="/finance"
+        backLabel="Back to Finance"
+        actions={
+          <select
+            value={forecastDays}
+            onChange={(e) => setForecastDays(parseInt(e.target.value))}
+            className="px-4 py-2 bg-slate-800/50 text-white rounded-lg border border-slate-700 focus:border-cyan-500 focus:outline-none"
+          >
+            <option value="30">30 days</option>
+            <option value="60">60 days</option>
+            <option value="90">90 days</option>
+            <option value="180">180 days</option>
+            <option value="365">1 year</option>
+          </select>
+        }
+      />
 
       {loading ? (
         <div className="flex items-center justify-center h-64">

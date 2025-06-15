@@ -7,13 +7,14 @@ import {
   FileText, Wallet, Calculator, ArrowUpRight, ArrowDownRight,
   Building2, Clock, AlertCircle, CheckCircle, Activity,
   Receipt, CreditCard, PieChart, Target, ArrowLeft,
-  RefreshCw, Shield, BookOpen, LineChart, Database
+  RefreshCw, Shield, BookOpen, LineChart, Database, LogOut, Cloud
 } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 import { MetricCard } from '@/components/ui/metric-card'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { BackButton } from '@/components/ui/back-button'
 import { PageHeader } from '@/components/ui/page-header'
+import { ModuleHeader } from '@/components/ui/module-header'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -181,24 +182,11 @@ export default function FinanceDashboard() {
       <div className="container mx-auto px-4 py-8">
         
         {/* Enhanced Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => router.push('/')}
-            className="text-gray-400 hover:text-white transition-colors mb-4 inline-flex items-center group"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-            Back to Home
-          </button>
-          
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2">
-                Financial Overview
-              </h1>
-              <p className="text-gray-400">Real-time financial intelligence powered by Xero</p>
-            </div>
-            
-            <div className="flex items-center gap-3">
+        <ModuleHeader 
+          title="Financial Overview"
+          subtitle="Real-time financial intelligence powered by Xero"
+          actions={
+            <>
               <div className="flex items-center gap-2">
                 {xeroStatus?.connected ? (
                   <>
@@ -217,17 +205,62 @@ export default function FinanceDashboard() {
                 )}
               </div>
               
-              {/* Sync button */}
+              {/* Refresh button - always visible when connected */}
               {hasActiveToken && (
                 <button 
                   onClick={syncData}
                   disabled={isSyncing}
-                  className="px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-lg hover:bg-emerald-600/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-4 py-2 bg-slate-800/50 text-gray-300 rounded-lg hover:bg-slate-800/70 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border border-slate-700"
                 >
                   <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                  {isSyncing ? 'Syncing...' : 'Sync'}
+                  {isSyncing ? 'Syncing...' : 'Refresh'}
                 </button>
               )}
+              
+              {/* Connect/Disconnect toggle button */}
+              <button 
+                onClick={async () => {
+                  if (hasActiveToken) {
+                    // Disconnect flow
+                    if (confirm('This will disconnect your Xero account. You\'ll need to reconnect to sync data. Continue?')) {
+                      try {
+                        const response = await fetch('/api/v1/xero/disconnect', { 
+                          method: 'POST',
+                          credentials: 'include'
+                        });
+                        if (response.ok) {
+                          toast.success('Disconnected from Xero');
+                          window.location.reload();
+                        } else {
+                          toast.error('Failed to disconnect');
+                        }
+                      } catch (error) {
+                        toast.error('Error disconnecting from Xero');
+                      }
+                    }
+                  } else {
+                    // Connect flow
+                    window.location.href = '/api/v1/xero/auth';
+                  }
+                }}
+                className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${
+                  hasActiveToken 
+                    ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30' 
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                }`}
+              >
+                {hasActiveToken ? (
+                  <>
+                    <LogOut className="h-4 w-4" />
+                    Disconnect
+                  </>
+                ) : (
+                  <>
+                    <Cloud className="h-4 w-4" />
+                    Connect to Xero
+                  </>
+                )}
+              </button>
               
               <button
                 onClick={() => router.push('/database-schema')}
@@ -248,9 +281,9 @@ export default function FinanceDashboard() {
                 <option value="90d">Last 90 days</option>
                 <option value="ytd">Year to Date</option>
               </select>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {loading ? (
           <LoadingSpinner size="lg" variant="success" />
