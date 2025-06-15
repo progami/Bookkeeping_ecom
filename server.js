@@ -30,13 +30,25 @@ app.prepare().then(() => {
   createServer(httpsOptions, async (req, res) => {
     try {
       const parsedUrl = parse(req.url, true);
-      await handle(req, res, parsedUrl);
+      const { pathname } = parsedUrl;
+      
+      // Handle Next.js static files and hot reloading
+      if (pathname.startsWith('/_next') || pathname.startsWith('/__nextjs')) {
+        await handle(req, res, parsedUrl);
+      } else {
+        // Add small delay for initial page loads in dev mode to ensure bundles are ready
+        if (dev && !req.headers.referer) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        await handle(req, res, parsedUrl);
+      }
     } catch (err) {
       console.error('Error occurred handling', req.url, err);
       res.statusCode = 500;
       res.end('Internal server error');
     }
-  }).listen(port, () => {
+  }).listen(port, (err) => {
+    if (err) throw err;
     console.log(`> Server listening at https://${hostname}:${port}`);
   });
 });

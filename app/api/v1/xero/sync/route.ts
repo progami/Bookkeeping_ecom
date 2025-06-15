@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClient } from '@/lib/xero-client';
 import { prisma } from '@/lib/prisma';
 import { BankTransaction } from 'xero-node';
-import { executeXeroAPICall, paginatedXeroAPICall } from '@/lib/xero-client-with-rate-limit';
 
 export async function POST(request: NextRequest) {
   const syncLog = await prisma.syncLog.create({
@@ -21,6 +20,11 @@ export async function POST(request: NextRequest) {
     }
     
     await xero.updateTenants();
+    
+    if (!xero.tenants || xero.tenants.length === 0) {
+      throw new Error('No Xero tenants found. Please reconnect to Xero.');
+    }
+    
     const tenant = xero.tenants[0];
     
     console.log('Starting full sync for tenant:', tenant.tenantName);
@@ -33,14 +37,11 @@ export async function POST(request: NextRequest) {
     
     // Step 1: Sync all GL accounts (Chart of Accounts) first
     console.log('Fetching GL accounts...');
-    const glAccountsResponse = await executeXeroAPICall(
+    const glAccountsResponse = await xero.accountingApi.getAccounts(
       tenant.tenantId,
-      async (client) => client.accountingApi.getAccounts(
-        tenant.tenantId,
-        undefined,
-        undefined,
-        'Code ASC'
-      )
+      undefined,
+      undefined,
+      'Code ASC'
     );
     
     const glAccounts = glAccountsResponse.body.accounts || [];
@@ -235,7 +236,7 @@ export async function POST(request: NextRequest) {
       where: { id: syncLog.id },
       data: {
         status: 'success',
-        completedAt: new Date().toISOString().split('T')[0],
+        completedAt: new Date(),
         recordsCreated: createdTransactions,
         recordsUpdated: updatedTransactions,
         details: JSON.stringify({
@@ -409,7 +410,7 @@ export async function POST(request: NextRequest) {
       where: { id: syncLog.id },
       data: {
         status: 'failed',
-        completedAt: new Date().toISOString().split('T')[0],
+        completedAt: new Date(),
         errorMessage: error.message
       }
     });

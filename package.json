@@ -16,6 +16,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:populate-sops": "tsx scripts/populate-sops.ts",
+    "db:reset": "tsx scripts/reset-database.ts",
     "postinstall": "prisma generate",
     "type-check": "tsc --noEmit",
     "test": "vitest",

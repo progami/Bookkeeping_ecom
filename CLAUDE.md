@@ -7,6 +7,13 @@
 3. Test specific functionality that changed
 4. Fix errors before proceeding
 
+**Browser Testing:**
+1. Open https://localhost:3003 in browser
+2. Navigate to modified pages
+3. Check browser console for errors
+4. Test actual functionality (click buttons, verify data)
+5. Confirm visual elements render correctly
+
 ## 🔧 QUICK COMMANDS
 
 ### Development

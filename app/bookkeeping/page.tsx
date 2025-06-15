@@ -109,14 +109,15 @@ export default function BookkeepingDashboard() {
       setDataLoading(true)
       
       // Fetch multiple data sources in parallel with cache headers
+      // Use live API endpoints when connected to Xero
       const [balanceSheetRes, plRes, vatRes, statsResponse, accountsResponse] = await Promise.all([
-        fetch('/api/v1/xero/reports/balance-sheet', {
+        fetch(hasActiveToken ? '/api/v1/xero/reports/balance-sheet-live' : '/api/v1/xero/reports/balance-sheet', {
           headers: { 'Cache-Control': 'max-age=300' }
         }),
-        fetch('/api/v1/xero/reports/profit-loss', {
+        fetch(hasActiveToken ? `/api/v1/xero/reports/profit-loss-live?timeRange=${timeRange}` : '/api/v1/xero/reports/profit-loss', {
           headers: { 'Cache-Control': 'max-age=300' }
         }),
-        fetch('/api/v1/xero/reports/vat-liability', {
+        fetch(hasActiveToken ? '/api/v1/xero/reports/vat-liability-live' : '/api/v1/xero/reports/vat-liability', {
           headers: { 'Cache-Control': 'max-age=600' }
         }),
         fetch('/api/v1/bookkeeping/stats', {
@@ -136,7 +137,9 @@ export default function BookkeepingDashboard() {
       // Transform and combine data
       setStats({
         financial: {
-          cashInBank: accountsData?.accounts?.reduce((sum: number, acc: any) => sum + (acc.balance || 0), 0) || 0,
+          // Use cash from Xero balance sheet if available (when connected), otherwise calculate from local DB
+          cashInBank: balanceSheetData?.cashInBank || 
+                     accountsData?.accounts?.reduce((sum: number, acc: any) => sum + (acc.balance || 0), 0) || 0,
           balanceSheet: {
             totalAssets: balanceSheetData?.totalAssets || 0,
             totalLiabilities: balanceSheetData?.totalLiabilities || 0,
@@ -147,7 +150,7 @@ export default function BookkeepingDashboard() {
             expenses: plData?.expenses || 0,
             netProfit: plData?.netProfit || 0
           },
-          vatLiability: vatData?.currentLiability || 0,
+          vatLiability: vatData?.currentLiability || vatData?.netAmount || 0,
           netCashFlow: (plData?.revenue || 0) - (plData?.expenses || 0),
           periodComparison: {
             revenueChange: plData?.revenueChange || 0,
@@ -336,6 +339,16 @@ export default function BookkeepingDashboard() {
               >
                 Reconnect
               </button>
+            </div>
+          )}
+
+          {/* Data Source Indicator */}
+          {hasActiveToken && (
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 mb-4 flex items-center gap-2">
+              <Cloud className="h-4 w-4 text-emerald-400" />
+              <p className="text-sm text-emerald-400">
+                Financial data is live from Xero
+              </p>
             </div>
           )}
 

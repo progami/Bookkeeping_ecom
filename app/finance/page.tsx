@@ -15,6 +15,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { BackButton } from '@/components/ui/back-button'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface FinanceMetrics {
   totalRevenue: number
@@ -58,6 +59,14 @@ interface XeroStatus {
 
 export default function FinanceDashboard() {
   const router = useRouter()
+  const { 
+    hasData, 
+    hasActiveToken, 
+    organization, 
+    lastSync,
+    isSyncing,
+    syncData 
+  } = useAuth()
   const [metrics, setMetrics] = useState<FinanceMetrics | null>(null)
   const [moduleStatus, setModuleStatus] = useState<ModuleStatus | null>(null)
   const [loading, setLoading] = useState(true)
@@ -135,8 +144,8 @@ export default function FinanceDashboard() {
           healthScore: totalCash > expenses * 3 ? 100 : Math.round((totalCash / (expenses * 3)) * 100)
         },
         analytics: {
-          vendorCount: vendorsData?.vendors?.length || 0,
-          topVendor: vendorsData?.vendors?.[0]?.name || null
+          vendorCount: vendorsData?.vendorCount || 0,
+          topVendor: vendorsData?.topVendors?.[0]?.name || null
         }
       })
     } catch (error) {
@@ -194,7 +203,9 @@ export default function FinanceDashboard() {
                 {xeroStatus?.connected ? (
                   <>
                     <div className="w-2 h-2 bg-green-400 rounded-full" />
-                    <span className="text-sm text-gray-400">Connected to Xero</span>
+                    <span className="text-sm text-gray-400">
+                      {organization?.name || 'Connected to Xero'}
+                    </span>
                   </>
                 ) : (
                   <button
@@ -205,6 +216,18 @@ export default function FinanceDashboard() {
                   </button>
                 )}
               </div>
+              
+              {/* Sync button */}
+              {hasActiveToken && (
+                <button 
+                  onClick={syncData}
+                  disabled={isSyncing}
+                  className="px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-lg hover:bg-emerald-600/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                  {isSyncing ? 'Syncing...' : 'Sync'}
+                </button>
+              )}
               
               <button
                 onClick={() => router.push('/database-schema')}

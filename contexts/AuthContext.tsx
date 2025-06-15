@@ -90,11 +90,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthState(prev => ({ ...prev, isSyncing: true }))
     
     try {
-      const response = await fetch('/api/v1/xero/sync', { method: 'POST' })
+      const response = await fetch('/api/v1/xero/sync-simple', { method: 'POST' })
       
       if (response.ok) {
         const result = await response.json()
-        toast.success(`Sync complete! ${result.summary.totalSynced} records synced.`)
+        const totalSynced = result.bankAccountsSynced || 
+                           ((result.summary?.transactions || 0) + 
+                            (result.summary?.invoices || 0) + 
+                            (result.summary?.bills || 0))
+        toast.success(`Sync complete! ${totalSynced} records synced.`)
         
         // Refresh auth status to update hasData and lastSync
         await checkAuthStatus()
@@ -103,7 +107,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         toast.error('Xero session expired. Please reconnect.')
         setAuthState(prev => ({ ...prev, hasActiveToken: false }))
       } else {
-        toast.error('Sync failed. Please try again.')
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Sync failed:', errorData)
+        toast.error(errorData.message || 'Sync failed. Please try again.')
       }
     } catch (error) {
       console.error('Sync error:', error)

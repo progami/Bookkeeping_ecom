@@ -78,7 +78,11 @@ export class CashFlowEngine {
         // Check if cache is less than 5 minutes old
         if (parsedCache.timestamp && Date.now() - parsedCache.timestamp < 5 * 60 * 1000) {
           console.log('[CashFlow] Returning cached forecast');
-          return parsedCache.data;
+          // Convert string dates back to Date objects
+          return parsedCache.data.map((day: any) => ({
+            ...day,
+            date: new Date(day.date)
+          }));
         }
       } catch (e) {
         console.error('[CashFlow] Cache parse error:', e);

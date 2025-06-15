@@ -13,6 +13,12 @@ const nextConfig = {
   // Enable static optimization for better performance
   reactStrictMode: true,
   
+  // Ensure proper hydration in development
+  devIndicators: {
+    buildActivity: true,
+    buildActivityPosition: 'bottom-right',
+  },
+  
   // Configure headers for caching
   async headers() {
     return [

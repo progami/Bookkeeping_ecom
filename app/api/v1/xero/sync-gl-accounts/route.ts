@@ -70,42 +70,60 @@ export async function POST(request: NextRequest) {
           where: { code: accountCode }
         });
 
-        // Upsert the account
-        await prisma.gLAccount.upsert({
-          where: { code: accountCode },
-          update: {
-            name: account.name || '',
-            type: account.type?.toString() || 'OTHER',
-            status: account.status?.toString() || 'ACTIVE',
-            description: account.description || null,
-            systemAccount: !!account.systemAccount,
-            showInExpenseClaims: account.showInExpenseClaims || false,
-            enablePaymentsToAccount: account.enablePaymentsToAccount || false,
-            class: account._class?.toString() || null,
-            reportingCode: account.reportingCode || null,
-            reportingCodeName: account.reportingCodeName || null,
-            updatedAt: new Date()
-          },
-          create: {
-            code: accountCode,
-            name: account.name || '',
-            type: account.type?.toString() || 'OTHER',
-            status: account.status?.toString() || 'ACTIVE',
-            description: account.description || null,
-            systemAccount: !!account.systemAccount,
-            showInExpenseClaims: account.showInExpenseClaims || false,
-            enablePaymentsToAccount: account.enablePaymentsToAccount || false,
-            class: account._class?.toString() || null,
-            reportingCode: account.reportingCode || null,
-            reportingCodeName: account.reportingCodeName || null
-          }
-        });
+        // Prepare the account data
+        const newAccountData = {
+          name: account.name || '',
+          type: account.type?.toString() || 'OTHER',
+          status: account.status?.toString() || 'ACTIVE',
+          description: account.description || null,
+          systemAccount: !!account.systemAccount,
+          showInExpenseClaims: account.showInExpenseClaims || false,
+          enablePaymentsToAccount: account.enablePaymentsToAccount || false,
+          class: account._class?.toString() || null,
+          reportingCode: account.reportingCode || null,
+          reportingCodeName: account.reportingCodeName || null
+        };
 
-        // Count as created or updated based on whether it existed before
+        // Check if account exists and if it has changed
         if (existingAccount) {
-          updated++;
+          // Compare each field to see if update is needed
+          const hasChanged = 
+            existingAccount.name !== newAccountData.name ||
+            existingAccount.type !== newAccountData.type ||
+            existingAccount.status !== newAccountData.status ||
+            existingAccount.description !== newAccountData.description ||
+            existingAccount.systemAccount !== newAccountData.systemAccount ||
+            existingAccount.showInExpenseClaims !== newAccountData.showInExpenseClaims ||
+            existingAccount.enablePaymentsToAccount !== newAccountData.enablePaymentsToAccount ||
+            existingAccount.class !== newAccountData.class ||
+            existingAccount.reportingCode !== newAccountData.reportingCode ||
+            existingAccount.reportingCodeName !== newAccountData.reportingCodeName;
+
+          if (hasChanged) {
+            // Update only if there are changes
+            await prisma.gLAccount.update({
+              where: { code: accountCode },
+              data: {
+                ...newAccountData,
+                updatedAt: new Date()
+              }
+            });
+            updated++;
+            console.log(`Updated account ${accountCode}: ${account.name} (changes detected)`);
+          } else {
+            // No changes, skip update
+            console.log(`Skipped account ${accountCode}: ${account.name} (no changes)`);
+          }
         } else {
+          // Create new account
+          await prisma.gLAccount.create({
+            data: {
+              code: accountCode,
+              ...newAccountData
+            }
+          });
           created++;
+          console.log(`Created new account ${accountCode}: ${account.name}`);
         }
       } catch (error) {
         console.error(`Error processing account ${account.code}:`, error);
