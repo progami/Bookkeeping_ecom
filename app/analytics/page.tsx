@@ -10,6 +10,8 @@ import { measurePageLoad } from '@/lib/performance-utils'
 import { StandardPageHeader } from '@/components/ui/standard-page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useAuth } from '@/contexts/AuthContext'
+import { formatNumber } from '@/lib/design-tokens'
+import { SkeletonCard, SkeletonChart, SkeletonTable } from '@/components/ui/skeleton'
 import {
   LineChart, Line, BarChart, Bar, PieChart as RePieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -166,12 +168,7 @@ export default function BusinessAnalytics() {
   }
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
+    return formatNumber(amount, { currency: true, decimals: 0, abbreviate: true })
   }
 
   const exportData = () => {
@@ -215,45 +212,69 @@ export default function BusinessAnalytics() {
   const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444']
 
   return (
-    <div className="min-h-screen bg-slate-950 text-gray-100">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <StandardPageHeader 
-          title="Business Analytics"
-          subtitle="Comprehensive insights into your business performance"
-          showBackButton={true}
-          backTo="/finance"
-          backLabel="Back to Finance"
-          showTimeRangeSelector={true}
-          timeRange={timeRange}
-          onTimeRangeChange={setTimeRange}
-          additionalActions={
+    <div className="container mx-auto px-4 py-8">
+      {/* Header */}
+      <StandardPageHeader 
+        title="Business Analytics"
+        subtitle="Comprehensive insights into your business performance"
+        showBackButton={true}
+        backTo="/finance"
+        backLabel="Back to Finance"
+        showTimeRangeSelector={true}
+        timeRange={timeRange}
+        onTimeRangeChange={setTimeRange}
+        additionalActions={
+          vendors.length > 0 && (
             <button
               onClick={exportData}
-              className="px-4 py-2 bg-indigo-600/20 text-indigo-400 rounded-lg hover:bg-indigo-600/30 transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-indigo-600/20 text-indigo-400 rounded-lg hover:bg-indigo-600/30 transition-colors flex items-center gap-2 border border-indigo-500/30"
             >
               <Download className="h-4 w-4" />
               Export
             </button>
-          }
-        />
+          )
+        }
+      />
 
         {loading ? (
-          <div className="flex items-center justify-center h-64" role="status" aria-label="Loading">
-            <div className="relative">
-              <div className="w-16 h-16 border-4 border-indigo-500/20 rounded-full animate-pulse" />
-              <div className="absolute inset-0 w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <>
+            {/* Loading Skeletons */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+              {[...Array(5)].map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
             </div>
-          </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <SkeletonChart />
+              <SkeletonChart />
+            </div>
+            <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6">
+              <SkeletonTable />
+            </div>
+          </>
         ) : !hasActiveToken || vendors.length === 0 ? (
           <EmptyState 
-            title="Business Analytics"
-            description="Connect your Xero account to analyze vendor spending patterns, track expenses, and gain valuable business insights."
-            icon={
-              <div className="w-20 h-20 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto">
-                <BarChart3 className="h-10 w-10 text-indigo-400" />
-              </div>
-            }
+            title="Unlock Business Intelligence"
+            description="Connect your Xero account to analyze vendor spending patterns, identify cost-saving opportunities, and make data-driven decisions."
+            actionLabel="Connect to Xero"
+            illustration="analytics"
+            steps={[
+              {
+                icon: <Building2 className="h-5 w-5 text-indigo-400" />,
+                title: "Vendor Analysis",
+                description: "Track spending patterns across all suppliers"
+              },
+              {
+                icon: <TrendingUp className="h-5 w-5 text-emerald-400" />,
+                title: "Growth Metrics",
+                description: "Monitor expense trends and growth rates"
+              },
+              {
+                icon: <PieChart className="h-5 w-5 text-purple-400" />,
+                title: "Category Insights",
+                description: "Understand spending distribution by category"
+              }
+            ]}
           />
         ) : (
           <>
@@ -518,7 +539,6 @@ export default function BusinessAnalytics() {
             </div>
           </>
         )}
-      </div>
     </div>
   )
 }

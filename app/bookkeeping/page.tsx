@@ -261,34 +261,7 @@ export default function BookkeepingDashboard() {
         </div>
       ) : (
         <>
-          {/* Token expired warning */}
-          {!hasActiveToken && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 mb-6 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="h-5 w-5 text-amber-400" />
-                <div>
-                  <p className="text-white font-medium">Xero connection expired</p>
-                  <p className="text-sm text-gray-400">Reconnect to sync new data</p>
-                </div>
-              </div>
-              <button 
-                onClick={connectToXero}
-                className="px-4 py-2 bg-amber-600/20 text-amber-400 rounded-lg hover:bg-amber-600/30 transition-colors"
-              >
-                Reconnect
-              </button>
-            </div>
-          )}
 
-          {/* Data Source Indicator */}
-          {hasActiveToken && (
-            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 mb-4 flex items-center gap-2">
-              <Cloud className="h-4 w-4 text-emerald-400" />
-              <p className="text-sm text-emerald-400">
-                Financial data is live from Xero
-              </p>
-            </div>
-          )}
 
           {/* Financial Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -379,7 +352,7 @@ export default function BookkeepingDashboard() {
           {/* Main Bookkeeping Apps */}
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-white mb-6">Bookkeeping Tools</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* SOP Generator */}
               <button
                 onClick={() => router.push('/bookkeeping/sop-generator')}

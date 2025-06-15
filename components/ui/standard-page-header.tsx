@@ -3,8 +3,7 @@
 import { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
-  ArrowLeft, RefreshCw, Cloud, LogOut, 
-  Database, Clock
+  ArrowLeft, RefreshCw, Cloud, LogOut, Clock
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -141,16 +140,6 @@ export function StandardPageHeader({
           
           {/* Additional custom actions */}
           {additionalActions}
-          
-          {/* DB Schema button */}
-          <button
-            onClick={() => router.push('/database-schema')}
-            className="px-3 py-2 bg-slate-800/50 text-gray-400 rounded-lg border border-slate-700 hover:border-slate-600 hover:text-white transition-all flex items-center gap-2"
-            title="View Database Schema"
-          >
-            <Database className="h-4 w-4" />
-            <span className="text-sm">DB Schema</span>
-          </button>
           
           {/* Time Range Selector */}
           {showTimeRangeSelector && onTimeRangeChange && (

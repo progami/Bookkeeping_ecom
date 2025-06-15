@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { 
-  Home, BookOpen, LineChart, BarChart3, Database,
+  Home, BookOpen, LineChart, BarChart3,
   ChevronLeft, ChevronRight, Menu, X
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -41,12 +41,6 @@ const navigation: NavItem[] = [
     href: '/analytics',
     icon: BarChart3,
     description: 'Business intelligence'
-  },
-  {
-    title: 'Database',
-    href: '/database-schema',
-    icon: Database,
-    description: 'Schema viewer'
   }
 ]
 
@@ -77,7 +71,7 @@ export function SidebarNavigation() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-slate-800 border border-slate-700 rounded-lg"
+        className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-slate-800 border border-slate-700 rounded-xl shadow-lg"
         aria-label="Toggle navigation menu"
       >
         {isMobileOpen ? (
