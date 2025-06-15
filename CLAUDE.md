@@ -36,17 +36,23 @@ npm run prisma:migrate    # Run migrations
 
 ## 📋 DEVELOPMENT WORKFLOW
 
-1. **Code Changes**
+1. **Multi-Agent Collaboration**
+   - Multiple agents may work simultaneously on different modules
+   - Stay within your assigned module to avoid conflicts
+   - Possible overlap areas: shared components, API routes
+   - Always pull latest changes before starting work
+
+2. **Code Changes**
    - Make targeted modifications
    - Test only affected components
    - Check browser console on modified pages
 
-2. **Git Commits**
+3. **Git Commits**
    - Commit every 30-60 minutes
    - Use descriptive messages
    - Only commit working code
 
-3. **Architecture Rules**
+4. **Architecture Rules**
    - NO direct API calls - use local SQLite database
    - Data syncs from Xero on connect
    - All queries from local database
