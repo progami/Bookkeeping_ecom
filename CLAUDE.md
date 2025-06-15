@@ -2,22 +2,22 @@
 
 ## MANDATORY TESTING REQUIREMENTS 🚨
 
-### TESTS MUST BE PASSED AFTER EVERY CODE CHANGE
+### TARGETED TESTING AFTER CODE CHANGES
 **This is non-negotiable. Before responding to the user, you MUST:**
-1. Run all UI tests with Playwright
-2. Verify ALL pages load without errors
-3. Test ALL interactive elements
+1. Identify which components/pages were modified
+2. Run tests ONLY for the affected code
+3. Test the specific functionality that was changed
 4. Fix any errors before proceeding
 
-### Comprehensive Testing Checklist
+### Targeted Testing Guidelines
 - [ ] Start dev server: `npm run dev`
-- [ ] Test all pages load without errors
-- [ ] Test all buttons are clickable
-- [ ] Test navigation between pages
-- [ ] Check browser console for errors
-- [ ] Verify TypeScript compilation
-- [ ] Test Xero authentication flow
-- [ ] Confirm data loads from database
+- [ ] Test ONLY the modified pages/components
+- [ ] Test ONLY the changed functionality
+- [ ] Check browser console for errors on affected pages
+- [ ] Run TypeScript check: `npm run type-check`
+- [ ] Run specific test files related to changes
+- [ ] If authentication was modified, test auth flow
+- [ ] If database queries changed, verify data loads
 
 ## Overview
 This is a Next.js bookkeeping application integrated with Xero API using a database-first architecture.
@@ -95,33 +95,38 @@ npm run prisma:generate
 
 ## UI Testing with Playwright
 
-### Test All Pages
+### Targeted Testing Approach
 ```typescript
-const pagesToTest = [
-  'https://localhost:3003/',
-  'https://localhost:3003/finance',
-  'https://localhost:3003/bookkeeping',
-  'https://localhost:3003/bookkeeping/transactions',
-  'https://localhost:3003/bookkeeping/chart-of-accounts',
-  'https://localhost:3003/cashflow',
-  'https://localhost:3003/analytics'
-]
+// Only test the pages/components you modified
+// Example: If you modified the finance page:
+await page.goto('https://localhost:3003/finance')
+await page.waitForLoadState('networkidle')
+// Test only the specific changes made
+```
 
-for (const url of pagesToTest) {
-  await page.goto(url)
-  await page.waitForLoadState('networkidle')
-  // Check for console errors
-  // Test all buttons
-  // Verify data loads
-}
+### Testing Examples by Component
+
+#### Finance Page Changes
+```bash
+npm test -- tests/e2e/comprehensive-bookkeeping-test.spec.ts -g "Finance Dashboard"
+```
+
+#### Bookkeeping Page Changes
+```bash
+npm test -- tests/e2e/comprehensive-bookkeeping-test.spec.ts -g "Bookkeeping Dashboard"
+```
+
+#### Analytics Page Changes
+```bash
+npm test -- tests/e2e/comprehensive-bookkeeping-test.spec.ts -g "Analytics Dashboard"
 ```
 
 ### Authentication Testing
 - Email: ajarrar@trademanenterprise.com
 - Password: gW2r4*8&wFM.#fZ
 
-### REMEMBER: TEST ALL UI ELEMENTS
-1. Every button must be clicked
-2. Every page must load
-3. No console errors allowed
-4. Data must display from database
+### TARGETED TESTING PRINCIPLES
+1. Test ONLY what you changed
+2. Run ONLY relevant test files
+3. Check console errors ONLY on modified pages
+4. Verify ONLY affected data displays
