@@ -14,6 +14,13 @@
 4. Test actual functionality (click buttons, verify data)
 5. Confirm visual elements render correctly
 
+**Playwright Testing:**
+1. Use Playwright for automated browser testing
+2. Take screenshots during tests: `await page.screenshot({ path: 'screenshots/test-name.png' })`
+3. ALWAYS save screenshots to the `screenshots/` folder
+4. Use descriptive names for screenshots (e.g., 'finance-dashboard-loaded.png')
+5. Include full page screenshots for important views: `fullPage: true`
+
 ## 🔧 QUICK COMMANDS
 
 ### Development
@@ -33,6 +40,26 @@ npm test -- tests/e2e/comprehensive-bookkeeping-test.spec.ts -g "Bookkeeping Das
 
 # Analytics page
 npm test -- tests/e2e/comprehensive-bookkeeping-test.spec.ts -g "Analytics Dashboard"
+```
+
+### Playwright Browser Testing
+When testing with Playwright tools:
+```typescript
+// Navigate to page
+await playwright_navigate({ url: 'https://localhost:3003/finance' })
+
+// Take screenshot - MUST save to screenshots folder
+await playwright_screenshot({ 
+  name: 'finance-dashboard',
+  fullPage: true,
+  savePng: true  // Saves to screenshots/ folder
+})
+
+// Check console for errors
+await playwright_console_logs({ type: 'error' })
+
+// Test interactions
+await playwright_click({ selector: 'button.sync-button' })
 ```
 
 ### Database
