@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
       }
       
       const currentAmount = trendMap.get(dateKey) || 0;
-      trendMap.set(dateKey, currentAmount + Math.abs(tx.amount));
+      trendMap.set(dateKey, currentAmount + Math.abs(tx.amount.toNumber()));
     });
 
     // Fill in missing dates

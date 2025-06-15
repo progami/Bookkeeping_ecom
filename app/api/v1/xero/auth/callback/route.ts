@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createXeroClient, storeTokenSet, xeroConfig } from '@/lib/xero-client';
 import { stateStore } from '@/lib/oauth-state';
 import { XeroSession } from '@/lib/xero-session';
+import { logger } from '@/lib/log-sanitizer';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -60,10 +61,10 @@ export async function GET(request: NextRequest) {
     // Pass the state to the XeroClient constructor
     const xero = createXeroClient(storedState || state || undefined);
     
-    console.log('Exchanging code for token...');
-    console.log('Code:', code);
-    console.log('Redirect URI:', xeroConfig.redirectUris[0]);
-    console.log('State configured in client:', storedState || state);
+    logger.log('Exchanging code for token...');
+    logger.log('Code: [REDACTED]');
+    logger.log('Redirect URI:', xeroConfig.redirectUris[0]);
+    logger.log('State configured in client: [REDACTED]');
     
     // The Xero SDK requires openid-client to be initialized first
     await xero.initialize();
@@ -78,10 +79,10 @@ export async function GET(request: NextRequest) {
       console.log('Calling apiCallback...');
       const tokenSet = await xero.apiCallback(fullCallbackUrl);
       
-      console.log('Token exchange successful!');
-      console.log('Access token:', tokenSet.access_token ? 'present' : 'missing');
-      console.log('Refresh token:', tokenSet.refresh_token ? 'present' : 'missing');
-      console.log('Expires at:', tokenSet.expires_at);
+      logger.log('Token exchange successful!');
+      logger.log('Access token:', tokenSet.access_token ? 'present' : 'missing');
+      logger.log('Refresh token:', tokenSet.refresh_token ? 'present' : 'missing');
+      logger.log('Expires at:', tokenSet.expires_at);
       
       // Create response with redirect
       console.log('[Callback] Creating redirect response to:', `${baseUrl}/finance?connected=true`);
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
         scope: tokenSet.scope || ''
       };
       
-      console.log('[Callback] Token data prepared for storage:', {
+      logger.log('[Callback] Token data prepared for storage:', {
         hasAccessToken: !!tokenData.access_token,
         accessTokenLength: tokenData.access_token.length,
         hasRefreshToken: !!tokenData.refresh_token,
@@ -171,7 +172,7 @@ export async function GET(request: NextRequest) {
           expires_at: Math.floor(Date.now() / 1000) + tokenData.expires_in
         };
         
-        console.log('[Callback-Manual] Token data prepared for storage:', {
+        logger.log('[Callback-Manual] Token data prepared for storage:', {
           hasAccessToken: !!tokenSet.access_token,
           accessTokenLength: tokenSet.access_token.length,
           hasRefreshToken: !!tokenSet.refresh_token,

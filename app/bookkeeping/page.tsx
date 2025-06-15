@@ -78,7 +78,8 @@ export default function BookkeepingDashboard() {
     isLoading: authLoading,
     isSyncing,
     connectToXero,
-    syncData 
+    syncData,
+    checkAuthStatus 
   } = useAuth()
   
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -92,6 +93,8 @@ export default function BookkeepingDashboard() {
     
     if (connected === 'true') {
       toast.success('Successfully connected to Xero!')
+      // Re-check auth status to update the UI
+      checkAuthStatus()
     } else if (error) {
       toast.error(`Failed to connect to Xero: ${error}`)
     }

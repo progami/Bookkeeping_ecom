@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { sopData } from '@/lib/sop-data'
-
-const prisma = new PrismaClient()
 
 // POST - Import initial SOPs from static data
 export async function POST(request: NextRequest) {

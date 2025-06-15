@@ -68,7 +68,7 @@ export default function ChartOfAccountsPage() {
       const hasArchivedInDb = accounts.some(a => a.status !== 'ACTIVE')
       if (showArchived && !hasArchivedInDb) {
         // User wants to see archived but we don't have any - sync them
-        syncAccounts()
+        fetchAccounts(showYTD)
       }
     }
   }, [showArchived, loading])

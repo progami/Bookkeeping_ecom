@@ -9,6 +9,7 @@ import {
 import { measurePageLoad } from '@/lib/performance-utils'
 import { ModuleHeader } from '@/components/ui/module-header'
 import { EmptyState } from '@/components/ui/empty-state'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   LineChart, Line, BarChart, Bar, PieChart as RePieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -39,6 +40,7 @@ export default function BusinessAnalytics() {
     measurePageLoad('Business Analytics');
   }
   const router = useRouter()
+  const { hasActiveToken } = useAuth()
   const [vendors, setVendors] = useState<VendorData[]>([])
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('30d')
@@ -252,7 +254,7 @@ export default function BusinessAnalytics() {
               <div className="absolute inset-0 w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
             </div>
           </div>
-        ) : vendors.length === 0 ? (
+        ) : !hasActiveToken || vendors.length === 0 ? (
           <EmptyState 
             title="Business Analytics"
             description="Connect your Xero account to analyze vendor spending patterns, track expenses, and gain valuable business insights."

@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from './log-sanitizer';
 
 const COOKIE_NAME = 'xero_token';
 
@@ -63,10 +64,9 @@ export class XeroSession {
         return null;
       }
       
-      console.log('[XeroSession.getToken] Token cookie details:', {
+      logger.log('[XeroSession.getToken] Token cookie details:', {
         name: tokenCookie.name,
         valueLength: tokenCookie.value.length,
-        valuePreview: tokenCookie.value.substring(0, 50) + '...',
         sameSite: tokenCookie.sameSite,
         secure: tokenCookie.secure,
         httpOnly: tokenCookie.httpOnly,
@@ -75,7 +75,7 @@ export class XeroSession {
       
       try {
         const token = JSON.parse(tokenCookie.value) as XeroTokenSet;
-        console.log('[XeroSession.getToken] Token parsed successfully:', {
+        logger.log('[XeroSession.getToken] Token parsed successfully:', {
           hasAccessToken: !!token.access_token,
           hasRefreshToken: !!token.refresh_token,
           expiresAt: token.expires_at,
@@ -98,7 +98,7 @@ export class XeroSession {
   static async setToken(token: XeroTokenSet): Promise<void> {
     try {
       console.log('[XeroSession.setToken] Starting token storage...');
-      console.log('[XeroSession.setToken] Token to store:', {
+      logger.log('[XeroSession.setToken] Token to store:', {
         hasAccessToken: !!token.access_token,
         hasRefreshToken: !!token.refresh_token,
         expiresAt: token.expires_at,
@@ -145,13 +145,22 @@ export class XeroSession {
   static async clearToken(): Promise<void> {
     try {
       const cookieStore = await cookies();
-      cookieStore.delete({
-        name: COOKIE_NAME,
-        path: '/'
-      });
-      console.log('XeroSession: Token cleared');
+      // Use the newer delete method signature
+      cookieStore.delete(COOKIE_NAME);
+      console.log('[XeroSession.clearToken] Token cookie deleted');
     } catch (error) {
-      console.error('XeroSession: Error clearing token:', error);
+      console.error('[XeroSession.clearToken] Error clearing token:', error);
+      // Fallback: try setting empty cookie with expired date
+      try {
+        cookieStore.set(COOKIE_NAME, '', {
+          maxAge: -1,
+          path: '/',
+          expires: new Date(0)
+        });
+        console.log('[XeroSession.clearToken] Token cleared using fallback method');
+      } catch (fallbackError) {
+        console.error('[XeroSession.clearToken] Fallback also failed:', fallbackError);
+      }
     }
   }
   
@@ -164,7 +173,7 @@ export class XeroSession {
   // Helper method to set token in response headers (for auth callback)
   static setTokenInResponse(response: NextResponse, token: XeroTokenSet): NextResponse {
     console.log('[XeroSession.setTokenInResponse] Starting token storage in response...');
-    console.log('[XeroSession.setTokenInResponse] Token to store:', {
+    logger.log('[XeroSession.setTokenInResponse] Token to store:', {
       hasAccessToken: !!token.access_token,
       hasRefreshToken: !!token.refresh_token,
       expiresAt: token.expires_at,

@@ -44,17 +44,15 @@ export async function GET(request: NextRequest) {
         break
       
       case 'Contact':
-        [data, total] = await Promise.all([
-          prisma.contact.findMany({ skip: offset, take: limit, orderBy: { name: 'asc' } }),
-          prisma.contact.count()
-        ])
+        // Contact model not in schema, return empty
+        data = []
+        total = 0
         break
       
       case 'TaxRate':
-        [data, total] = await Promise.all([
-          prisma.taxRate.findMany({ skip: offset, take: limit, orderBy: { name: 'asc' } }),
-          prisma.taxRate.count()
-        ])
+        // TaxRate model not in schema, return empty
+        data = []
+        total = 0
         break
       
       case 'CashFlowForecast':
@@ -69,14 +67,9 @@ export async function GET(request: NextRequest) {
         break
       
       case 'SyncHistory':
-        [data, total] = await Promise.all([
-          prisma.syncHistory.findMany({ 
-            skip: offset, 
-            take: limit, 
-            orderBy: { syncedAt: 'desc' }
-          }),
-          prisma.syncHistory.count()
-        ])
+        // SyncHistory doesn't exist in schema, return empty for now
+        data = []
+        total = 0
         break
       
       default:

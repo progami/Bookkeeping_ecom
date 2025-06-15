@@ -27,6 +27,7 @@ interface AuthState {
 interface AuthContextType extends AuthState {
   // Actions
   connectToXero: () => void
+  disconnectFromXero: () => Promise<void>
   syncData: () => Promise<void>
   checkAuthStatus: () => Promise<void>
 }
@@ -84,6 +85,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = '/api/v1/xero/auth'
   }
 
+  const disconnectFromXero = async () => {
+    console.log('[AuthContext] Starting disconnect...');
+    try {
+      const response = await fetch('/api/v1/xero/disconnect', { 
+        method: 'POST',
+        credentials: 'include'
+      })
+      
+      console.log('[AuthContext] Disconnect response:', response.status);
+      
+      if (response.ok) {
+        console.log('[AuthContext] Disconnect successful, updating state...');
+        // Immediately update local state to show disconnected
+        setAuthState(prev => {
+          console.log('[AuthContext] Previous state:', prev);
+          const newState = {
+            ...prev,
+            hasActiveToken: false,
+            organization: null,
+            // Keep hasData true as we still have data in the database
+            hasData: prev.hasData
+          };
+          console.log('[AuthContext] New state:', newState);
+          return newState;
+        })
+        
+        toast.success('Disconnected from Xero')
+        
+        // Don't re-check auth status immediately as it might override our state update
+        // The state update above should be sufficient
+      } else {
+        toast.error('Failed to disconnect from Xero')
+      }
+    } catch (error) {
+      console.error('[AuthContext] Error disconnecting from Xero:', error)
+      toast.error('Error disconnecting from Xero')
+    }
+  }
+
   const syncData = async () => {
     if (authState.isSyncing) return
     
@@ -122,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const contextValue: AuthContextType = {
     ...authState,
     connectToXero,
+    disconnectFromXero,
     syncData,
     checkAuthStatus
   }

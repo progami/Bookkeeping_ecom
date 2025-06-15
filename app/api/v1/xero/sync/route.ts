@@ -2,16 +2,53 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClient } from '@/lib/xero-client';
 import { prisma } from '@/lib/prisma';
 import { BankTransaction } from 'xero-node';
+import { executeXeroAPICall, paginatedXeroAPICall } from '@/lib/xero-client-with-rate-limit';
 
 export async function POST(request: NextRequest) {
-  const syncLog = await prisma.syncLog.create({
-    data: {
-      syncType: 'full_sync',
-      status: 'in_progress',
-      startedAt: new Date()
-    }
-  });
+  let syncLog: any;
 
+  try {
+    // Use transaction for entire sync operation
+    const result = await prisma.$transaction(async (tx) => {
+      // Create sync log within transaction
+      syncLog = await tx.syncLog.create({
+        data: {
+          syncType: 'full_sync',
+          status: 'in_progress',
+          startedAt: new Date()
+        }
+      });
+
+      return await performSync(tx, syncLog);
+    }, {
+      maxWait: 5000, // 5 seconds max wait
+      timeout: 600000, // 10 minutes timeout for long sync operations
+    });
+
+    return NextResponse.json(result);
+  } catch (error: any) {
+    console.error('Sync error:', error);
+    
+    // Update sync log if it was created
+    if (syncLog?.id) {
+      await tx.syncLog.update({
+        where: { id: syncLog.id },
+        data: {
+          status: 'failed',
+          completedAt: new Date(),
+          errorMessage: error.message
+        }
+      });
+    }
+    
+    return NextResponse.json({
+      error: 'Sync failed',
+      message: error.message
+    }, { status: 500 });
+  }
+}
+
+async function performSync(tx: any, syncLog: any) {
   try {
     const xero = await getXeroClient();
     
@@ -51,14 +88,14 @@ export async function POST(request: NextRequest) {
     for (const account of glAccounts) {
       if (!account.accountID || !account.code) continue;
       
-      await prisma.gLAccount.upsert({
+      await tx.gLAccount.upsert({
         where: { code: account.code },
         update: {
           name: account.name || '',
           type: account.type?.toString() || '',
           status: account.status?.toString() || 'ACTIVE',
           description: account.description || null,
-          systemAccount: account.systemAccount === true,
+          systemAccount: !!account.systemAccount,
           showInExpenseClaims: account.showInExpenseClaims === true,
           enablePaymentsToAccount: account.enablePaymentsToAccount === true,
           class: account._class?.toString() || null,
@@ -72,7 +109,7 @@ export async function POST(request: NextRequest) {
           type: account.type?.toString() || '',
           status: account.status?.toString() || 'ACTIVE',
           description: account.description || null,
-          systemAccount: account.systemAccount === true,
+          systemAccount: !!account.systemAccount,
           showInExpenseClaims: account.showInExpenseClaims === true,
           enablePaymentsToAccount: account.enablePaymentsToAccount === true,
           class: account._class?.toString() || null,
@@ -103,7 +140,7 @@ export async function POST(request: NextRequest) {
     for (const account of bankAccounts) {
       if (!account.accountID) continue;
       
-      await prisma.bankAccount.upsert({
+      await tx.bankAccount.upsert({
         where: { xeroAccountId: account.accountID },
         update: {
           name: account.name || '',
@@ -135,7 +172,7 @@ export async function POST(request: NextRequest) {
       
       console.log(`\nFetching transactions for ${account.name} (${account.currencyCode})...`);
       
-      const dbAccount = await prisma.bankAccount.findUnique({
+      const dbAccount = await tx.bankAccount.findUnique({
         where: { xeroAccountId: account.accountID }
       });
       
@@ -179,11 +216,11 @@ export async function POST(request: NextRequest) {
             const lineItemsJson = tx.lineItems ? JSON.stringify(tx.lineItems) : null;
             
             // Upsert transaction
-            const existing = await prisma.bankTransaction.findUnique({
+            const existing = await tx.bankTransaction.findUnique({
               where: { xeroTransactionId: tx.bankTransactionID }
             });
             
-            await prisma.bankTransaction.upsert({
+            await tx.bankTransaction.upsert({
               where: { xeroTransactionId: tx.bankTransactionID },
               update: {
                 bankAccountId: dbAccount.id,
@@ -232,7 +269,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Update sync log
-    await prisma.syncLog.update({
+    await tx.syncLog.update({
       where: { id: syncLog.id },
       data: {
         status: 'success',
@@ -243,7 +280,7 @@ export async function POST(request: NextRequest) {
           glAccounts: totalGLAccounts,
           bankAccounts: totalAccounts,
           transactions: totalTransactions,
-          bankAccountBreakdown: await prisma.bankTransaction.groupBy({
+          bankAccountBreakdown: await tx.bankTransaction.groupBy({
             by: ['bankAccountId'],
             _count: true
           })
@@ -280,14 +317,14 @@ export async function POST(request: NextRequest) {
       for (const invoice of customerInvoices) {
         if (!invoice.invoiceID || invoice.amountDue === 0) continue;
         
-        await prisma.syncedInvoice.upsert({
+        await tx.syncedInvoice.upsert({
           where: { id: invoice.invoiceID },
           update: {
             contactId: invoice.contact?.contactID || '',
             contactName: invoice.contact?.name || null,
             invoiceNumber: invoice.invoiceNumber || null,
             reference: invoice.reference || null,
-            dueDate: new Date(invoice.dueDate || invoice.dueDateString || new Date()),
+            dueDate: new Date(invoice.dueDate || new Date()),
             date: new Date(invoice.date || invoice.dateString || new Date()),
             amountDue: invoice.amountDue || 0,
             total: invoice.total || 0,
@@ -304,7 +341,7 @@ export async function POST(request: NextRequest) {
             contactName: invoice.contact?.name || null,
             invoiceNumber: invoice.invoiceNumber || null,
             reference: invoice.reference || null,
-            dueDate: new Date(invoice.dueDate || invoice.dueDateString || new Date()),
+            dueDate: new Date(invoice.dueDate || new Date()),
             date: new Date(invoice.date || invoice.dateString || new Date()),
             amountDue: invoice.amountDue || 0,
             total: invoice.total || 0,
@@ -341,14 +378,14 @@ export async function POST(request: NextRequest) {
       for (const bill of supplierBills) {
         if (!bill.invoiceID || bill.amountDue === 0) continue;
         
-        await prisma.syncedInvoice.upsert({
+        await tx.syncedInvoice.upsert({
           where: { id: bill.invoiceID },
           update: {
             contactId: bill.contact?.contactID || '',
             contactName: bill.contact?.name || null,
             invoiceNumber: bill.invoiceNumber || null,
             reference: bill.reference || null,
-            dueDate: new Date(bill.dueDate || bill.dueDateString || new Date()),
+            dueDate: new Date(bill.dueDate || new Date()),
             date: new Date(bill.date || bill.dateString || new Date()),
             amountDue: bill.amountDue || 0,
             total: bill.total || 0,
@@ -365,7 +402,7 @@ export async function POST(request: NextRequest) {
             contactName: bill.contact?.name || null,
             invoiceNumber: bill.invoiceNumber || null,
             reference: bill.reference || null,
-            dueDate: new Date(bill.dueDate || bill.dueDateString || new Date()),
+            dueDate: new Date(bill.dueDate || new Date()),
             date: new Date(bill.date || bill.dateString || new Date()),
             amountDue: bill.amountDue || 0,
             total: bill.total || 0,
@@ -390,7 +427,7 @@ export async function POST(request: NextRequest) {
     console.log(`Supplier bills: ${totalBills}`);
     console.log(`Created: ${createdTransactions}, Updated: ${updatedTransactions}`);
     
-    return NextResponse.json({
+    return {
       success: true,
       summary: {
         glAccounts: totalGLAccounts,
@@ -401,12 +438,12 @@ export async function POST(request: NextRequest) {
         created: createdTransactions,
         updated: updatedTransactions
       }
-    });
+    };
     
   } catch (error: any) {
     console.error('Sync error:', error);
     
-    await prisma.syncLog.update({
+    await tx.syncLog.update({
       where: { id: syncLog.id },
       data: {
         status: 'failed',
@@ -415,10 +452,7 @@ export async function POST(request: NextRequest) {
       }
     });
     
-    return NextResponse.json({
-      error: 'Sync failed',
-      message: error.message
-    }, { status: 500 });
+    throw error; // Re-throw to trigger transaction rollback
   }
 }
 

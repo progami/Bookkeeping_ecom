@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
     
     transactions.forEach(tx => {
       const category = tx.accountCode ? (categoryMap.get(tx.accountCode) || 'Other') : 'Other';
-      const amount = Math.abs(tx.amount);
+      const amount = Math.abs(tx.amount.toNumber());
       
       categoryTotals.set(category, (categoryTotals.get(category) || 0) + amount);
       totalSpend += amount;

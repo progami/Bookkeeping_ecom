@@ -43,10 +43,10 @@ export async function GET(request: NextRequest) {
       totalTransactions: transactions.length,
       totalIncome: transactions
         .filter(tx => tx.type === 'RECEIVE')
-        .reduce((sum, tx) => sum + tx.amount, 0),
+        .reduce((sum, tx) => sum + tx.amount.toNumber(), 0),
       totalExpenses: Math.abs(transactions
         .filter(tx => tx.type === 'SPEND')
-        .reduce((sum, tx) => sum + tx.amount, 0)),
+        .reduce((sum, tx) => sum + tx.amount.toNumber(), 0)),
       netAmount: 0,
       periodStart: startDate.toISOString(),
       periodEnd: now.toISOString()

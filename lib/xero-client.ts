@@ -3,6 +3,8 @@ import { TokenSet } from 'xero-node';
 import { cookies } from 'next/headers';
 import { serialize, parse } from 'cookie';
 import { XeroSession, XeroTokenSet } from './xero-session';
+import { tokenRefreshLock } from './token-refresh-lock';
+import { logger } from './log-sanitizer';
 
 export const xeroConfig = {
   clientId: process.env.XERO_CLIENT_ID || '',
@@ -61,11 +63,9 @@ export async function getXeroClient(): Promise<XeroClient | null> {
       return null;
     }
     
-    console.log('[getXeroClient] Token set retrieved:', {
+    logger.log('[getXeroClient] Token set retrieved:', {
       hasAccessToken: !!tokenSet.access_token,
-      accessTokenLength: tokenSet.access_token?.length || 0,
       hasRefreshToken: !!tokenSet.refresh_token,
-      refreshTokenLength: tokenSet.refresh_token?.length || 0,
       expiresAt: tokenSet.expires_at,
       tokenType: tokenSet.token_type,
       scope: tokenSet.scope
@@ -105,17 +105,32 @@ export async function getXeroClient(): Promise<XeroClient | null> {
     
     if (expiresAt < (now + bufferTime)) {
       try {
-        console.log('Refreshing token (expires in', expiresAt - now, 'seconds)...');
-        const newTokenSet = await xero.refreshWithRefreshToken(
-          xeroConfig.clientId, 
-          xeroConfig.clientSecret, 
-          tokenSet.refresh_token
+        console.log('Token needs refresh (expires in', expiresAt - now, 'seconds)...');
+        
+        // Use lock to prevent concurrent refreshes
+        const refreshKey = `xero-refresh-${tokenSet.refresh_token?.substring(0, 8) || 'default'}`;
+        
+        const newTokenSet = await tokenRefreshLock.acquireRefreshLock(
+          refreshKey,
+          async () => {
+            console.log('Executing token refresh...');
+            const refreshedToken = await xero.refreshWithRefreshToken(
+              xeroConfig.clientId, 
+              xeroConfig.clientSecret, 
+              tokenSet.refresh_token
+            );
+            
+            // Store the new token set
+            await storeTokenSet(refreshedToken);
+            console.log('Token stored successfully, new expiry:', refreshedToken.expires_at);
+            
+            return refreshedToken;
+          }
         );
         
-        // Store the new token set
-        await storeTokenSet(newTokenSet);
+        // Set the new token on the client
         xero.setTokenSet(newTokenSet);
-        console.log('Token refreshed successfully, new expiry:', newTokenSet.expires_at);
+        console.log('Token refresh completed successfully');
       } catch (error: any) {
         console.error('Failed to refresh token:', error.message || error);
         await clearTokenSet();
@@ -149,12 +164,18 @@ export async function getXeroClientWithTenant(): Promise<{ client: XeroClient; t
 export async function getAuthUrl(state?: string): Promise<string> {
   // Pass the state to createXeroClient so it's included in the config
   const xero = createXeroClient(state);
-  await xero.initialize();
+  
+  try {
+    await xero.initialize();
+  } catch (error) {
+    console.error('[getAuthUrl] Failed to initialize Xero client:', error);
+    throw error;
+  }
   
   // Get the consent URL - the state will be included automatically
   const authUrl = await xero.buildConsentUrl();
   
-  console.log('Built auth URL:', authUrl);
+  console.log('[getAuthUrl] Built auth URL:', authUrl);
   
   return authUrl;
 }

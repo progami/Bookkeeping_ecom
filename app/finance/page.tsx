@@ -52,12 +52,6 @@ interface ModuleStatus {
   }
 }
 
-interface XeroStatus {
-  connected: boolean
-  organization: {
-    name: string
-  } | null
-}
 
 export default function FinanceDashboard() {
   const router = useRouter()
@@ -68,42 +62,52 @@ export default function FinanceDashboard() {
     organization, 
     lastSync,
     isSyncing,
-    syncData 
+    syncData,
+    disconnectFromXero,
+    checkAuthStatus 
   } = useAuth()
   const [metrics, setMetrics] = useState<FinanceMetrics | null>(null)
   const [moduleStatus, setModuleStatus] = useState<ModuleStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [timeRange, setTimeRange] = useState('30d')
-  const [xeroStatus, setXeroStatus] = useState<XeroStatus | null>(null)
 
   useEffect(() => {
     // Check for OAuth callback params
-    const connected = searchParams.get('connected')
-    const error = searchParams.get('error')
-    
-    if (connected === 'true') {
-      toast.success('Successfully connected to Xero!')
-      // Remove query params from URL
-      window.history.replaceState({}, document.title, '/finance')
-    } else if (error) {
-      toast.error(`Failed to connect to Xero: ${error}`)
-      window.history.replaceState({}, document.title, '/finance')
+    const handleOAuthCallback = async () => {
+      const connected = searchParams.get('connected')
+      const error = searchParams.get('error')
+      
+      if (connected === 'true') {
+        toast.success('Successfully connected to Xero!')
+        // Re-check auth status to update the UI
+        await checkAuthStatus()
+        // Fetch finance data after successful connection
+        fetchFinanceData()
+        // Remove query params from URL
+        window.history.replaceState({}, document.title, '/finance')
+      } else if (error) {
+        toast.error(`Failed to connect to Xero: ${error}`)
+        window.history.replaceState({}, document.title, '/finance')
+      }
     }
-  }, [searchParams])
+    
+    handleOAuthCallback()
+  }, [searchParams, checkAuthStatus])
 
   useEffect(() => {
-    fetchFinanceData()
-  }, [timeRange])
+    // Only fetch data if we're connected
+    if (hasActiveToken) {
+      fetchFinanceData()
+    } else {
+      // Clear loading state if not connected
+      setLoading(false)
+    }
+  }, [timeRange, hasActiveToken])
 
   const fetchFinanceData = async () => {
     try {
       setLoading(true)
-      
-      // First check Xero connection status
-      const statusRes = await fetch('/api/v1/xero/status')
-      const statusData = await statusRes.json()
-      setXeroStatus(statusData)
       
       // Fetch real data from Xero APIs with caching headers
       const [balanceSheetRes, plRes, cashBalanceRes, vendorsRes] = await Promise.all([
@@ -154,7 +158,7 @@ export default function FinanceDashboard() {
         bookkeeping: {
           unreconciledCount: 0, // Will fetch from transactions
           lastSync: new Date().toISOString(),
-          syncStatus: statusData?.connected ? 'connected' : 'disconnected'
+          syncStatus: hasActiveToken ? 'connected' : 'disconnected'
         },
         cashFlow: {
           forecast30Day: totalCash + (netIncome * 30 / 365), // Simple projection
@@ -206,7 +210,7 @@ export default function FinanceDashboard() {
           actions={
             <>
               <div className="flex items-center gap-2">
-                {xeroStatus?.connected ? (
+                {hasActiveToken ? (
                   <>
                     <div className="w-2 h-2 bg-green-400 rounded-full" />
                     <span className="text-sm text-gray-400">
@@ -237,24 +241,12 @@ export default function FinanceDashboard() {
               
               {/* Connect/Disconnect toggle button */}
               <button 
+                key={`auth-toggle-${hasActiveToken}`}
                 onClick={async () => {
                   if (hasActiveToken) {
                     // Disconnect flow
                     if (confirm('This will disconnect your Xero account. You\'ll need to reconnect to sync data. Continue?')) {
-                      try {
-                        const response = await fetch('/api/v1/xero/disconnect', { 
-                          method: 'POST',
-                          credentials: 'include'
-                        });
-                        if (response.ok) {
-                          toast.success('Disconnected from Xero');
-                          window.location.reload();
-                        } else {
-                          toast.error('Failed to disconnect');
-                        }
-                      } catch (error) {
-                        toast.error('Error disconnecting from Xero');
-                      }
+                      await disconnectFromXero();
                     }
                   } else {
                     // Connect flow
@@ -303,9 +295,7 @@ export default function FinanceDashboard() {
           }
         />
 
-        {loading ? (
-          <LoadingSpinner size="lg" variant="success" />
-        ) : !hasActiveToken ? (
+        {!hasActiveToken ? (
           <EmptyState 
             title="Welcome to Your Financial Hub"
             description="Connect your Xero account to unlock real-time financial insights, automated bookkeeping, and powerful analytics."

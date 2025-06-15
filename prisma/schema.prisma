@@ -19,7 +19,7 @@ model BankAccount {
   status             String?
   bankName           String?
   accountNumber      String?
-  balance            Float     @default(0)
+  balance            Decimal @default(0)
   balanceLastUpdated DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -34,7 +34,7 @@ model BankTransaction {
   xeroTransactionId String   @unique
   bankAccountId     String
   date              DateTime
-  amount            Float
+  amount            Decimal
   currencyCode      String?
   type              String   // 'SPEND' or 'RECEIVE'
   status            String   // 'AUTHORISED', 'DELETED', etc
@@ -125,8 +125,8 @@ model SyncedInvoice {
   reference       String?
   dueDate         DateTime
   date            DateTime // Invoice date
-  amountDue       Float
-  total           Float
+  amountDue       Decimal
+  total           Decimal
   type            String   // ACCREC or ACCPAY
   status          String   @default("OPEN") // OPEN, PAID, VOIDED
   lineAmountTypes String?
@@ -149,8 +149,8 @@ model RepeatingTransaction {
   scheduleInterval   Int
   nextScheduledDate  DateTime?
   endDate            DateTime?
-  amount             Float
-  total              Float
+  amount             Decimal
+  total              Decimal
   status             String
   reference          String?
   lastModifiedUtc    DateTime
@@ -168,9 +168,9 @@ model CashFlowBudget {
   accountName      String
   category         String   // REVENUE, EXPENSE, TAX, etc
   monthYear        String   // Format: "2024-01"
-  budgetedAmount   Float
-  actualAmount     Float    @default(0)
-  variance         Float    @default(0)
+  budgetedAmount   Decimal
+  actualAmount     Decimal @default(0)
+  variance         Decimal @default(0)
   notes            String?
   importedFrom     String?  // "xero_export" or "manual"
   createdAt        DateTime @default(now())
@@ -184,30 +184,25 @@ model CashFlowBudget {
 model CashFlowForecast {
   id                String   @id @default(cuid())
   date              DateTime
-  openingBalance    Float
-  
+  openingBalance    Decimal  
   // Inflows
-  fromInvoices      Float    @default(0)
-  fromRepeating     Float    @default(0)
-  fromOther         Float    @default(0)
-  totalInflows      Float    @default(0)
-  
+  fromInvoices      Decimal @default(0)
+  fromRepeating     Decimal @default(0)
+  fromOther         Decimal @default(0)
+  totalInflows      Decimal @default(0)
   // Outflows
-  toBills           Float    @default(0)
-  toRepeating       Float    @default(0)
-  toTaxes           Float    @default(0)
-  toPatterns        Float    @default(0)
-  toBudgets         Float    @default(0)
-  totalOutflows     Float    @default(0)
-  
-  closingBalance    Float
-  
+  toBills           Decimal @default(0)
+  toRepeating       Decimal @default(0)
+  toTaxes           Decimal @default(0)
+  toPatterns        Decimal @default(0)
+  toBudgets         Decimal @default(0)
+  totalOutflows     Decimal @default(0)
+  closingBalance    Decimal
   // Scenarios
-  bestCase          Float?
-  worstCase         Float?
-  
+  bestCase          Decimal?
+  worstCase         Decimal?
   // Metadata
-  confidenceLevel   Float    @default(0.8)
+  confidenceLevel   Decimal @default(0.8)
   alerts            String?  // JSON array of alerts
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -221,10 +216,10 @@ model PaymentPattern {
   contactId         String
   contactName       String
   type              String   // CUSTOMER or SUPPLIER
-  averageDaysToPay  Float
-  onTimeRate        Float    // Percentage paid on time
-  earlyRate         Float    // Percentage paid early
-  lateRate          Float    // Percentage paid late
+  averageDaysToPay  Decimal
+  onTimeRate        Decimal // Percentage paid on time
+  earlyRate         Decimal // Percentage paid early
+  lateRate          Decimal // Percentage paid late
   sampleSize        Int      // Number of invoices analyzed
   lastCalculated    DateTime
   createdAt         DateTime @default(now())
