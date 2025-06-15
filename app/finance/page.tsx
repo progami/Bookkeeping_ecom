@@ -209,23 +209,14 @@ export default function FinanceDashboard() {
           subtitle="Real-time financial intelligence powered by Xero"
           actions={
             <>
-              <div className="flex items-center gap-2">
-                {hasActiveToken ? (
-                  <>
-                    <div className="w-2 h-2 bg-green-400 rounded-full" />
-                    <span className="text-sm text-gray-400">
-                      {organization?.tenantName || 'Connected to Xero'}
-                    </span>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => router.push('/bookkeeping')}
-                    className="text-sm text-red-400 hover:text-red-300 transition-colors flex items-center gap-2"
-                  >
-                    Connect to Xero
-                  </button>
-                )}
-              </div>
+              {hasActiveToken && (
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-400 rounded-full" />
+                  <span className="text-sm text-gray-400">
+                    {organization?.tenantName || 'Connected to Xero'}
+                  </span>
+                </div>
+              )}
               
               {/* Refresh button - always visible when connected */}
               {hasActiveToken && (
@@ -299,7 +290,7 @@ export default function FinanceDashboard() {
           <EmptyState 
             title="Welcome to Your Financial Hub"
             description="Connect your Xero account to unlock real-time financial insights, automated bookkeeping, and powerful analytics."
-            actionLabel="Connect to Xero"
+            actionLabel="Get Started"
           />
         ) : (
           <>
