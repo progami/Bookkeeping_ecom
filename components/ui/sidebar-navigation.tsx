@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { 
-  Home, BookOpen, LineChart, BarChart3,
+  Home, BookOpen, LineChart, BarChart3, Database,
   ChevronLeft, ChevronRight, Menu, X
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -41,6 +41,12 @@ const navigation: NavItem[] = [
     href: '/analytics',
     icon: BarChart3,
     description: 'Business intelligence'
+  },
+  {
+    title: 'Database',
+    href: '/database-schema',
+    icon: Database,
+    description: 'Schema viewer'
   }
 ]
 
