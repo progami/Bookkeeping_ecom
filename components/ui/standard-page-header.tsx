@@ -56,7 +56,8 @@ export function StandardPageHeader({
       {showBackButton && (
         <button
           onClick={() => router.push(backTo)}
-          className="text-gray-400 hover:text-white transition-colors mb-4 inline-flex items-center group"
+          className="text-slate-300 hover:text-white transition-colors mb-4 inline-flex items-center group"
+          aria-label={backLabel}
         >
           <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
           {backLabel}
@@ -69,7 +70,7 @@ export function StandardPageHeader({
             {title}
           </h1>
           {subtitle && (
-            <p className="text-gray-400">{subtitle}</p>
+            <p className="text-slate-300">{subtitle}</p>
           )}
         </div>
         
@@ -77,8 +78,8 @@ export function StandardPageHeader({
           {/* Connection Status */}
           {hasActiveToken && (
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full" />
-              <span className="text-sm text-gray-400">
+              <div className="w-2 h-2 bg-green-400 rounded-full" aria-hidden="true" />
+              <span className="text-sm text-slate-300">
                 {organization?.tenantName || 'Connected to Xero'}
               </span>
             </div>
@@ -86,8 +87,9 @@ export function StandardPageHeader({
           
           {/* Last Sync Time */}
           {lastSync && (
-            <div className="text-sm text-gray-400 flex items-center gap-2">
-              <Clock className="h-4 w-4" />
+            <div className="text-sm text-slate-300 flex items-center gap-2">
+              <Clock className="h-4 w-4" aria-hidden="true" />
+              <span className="sr-only">Last sync:</span>
               Last sync: {formatDate(lastSync)}
             </div>
           )}

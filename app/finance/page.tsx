@@ -19,6 +19,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
 import { StandardPageHeader } from '@/components/ui/standard-page-header'
+import { formatNumber } from '@/lib/design-tokens'
 
 interface FinanceMetrics {
   totalRevenue: number
@@ -181,12 +182,7 @@ export default function FinanceDashboard() {
 
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
+    return formatNumber(amount, { currency: true, decimals: 0, abbreviate: true })
   }
 
   const formatPercentage = (value: number) => {
@@ -218,7 +214,24 @@ export default function FinanceDashboard() {
           <EmptyState 
             title="Welcome to Your Financial Hub"
             description="Connect your Xero account to unlock real-time financial insights, automated bookkeeping, and powerful analytics."
-            actionLabel="Get Started"
+            actionLabel="Get Started with Xero"
+            steps={[
+              {
+                icon: <Shield className="h-5 w-5 text-emerald-400" />,
+                title: "Secure Connection",
+                description: "OAuth 2.0 authentication with bank-level security"
+              },
+              {
+                icon: <Activity className="h-5 w-5 text-blue-400" />,
+                title: "Real-time Sync",
+                description: "Automatic data synchronization every 30 minutes"
+              },
+              {
+                icon: <BarChart3 className="h-5 w-5 text-purple-400" />,
+                title: "Instant Insights",
+                description: "Financial analytics and reporting at your fingertips"
+              }
+            ]}
           />
         ) : (
           <>
@@ -355,9 +368,9 @@ export default function FinanceDashboard() {
             </h2>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-              {/* Bookkeeping - Core Module */}
+              {/* Bookkeeping - PRIMARY MODULE (Larger) */}
               <div 
-                className="group relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
+                className="group relative bg-gradient-to-br from-emerald-900/20 to-emerald-800/20 backdrop-blur-sm border-2 border-emerald-600/50 rounded-2xl p-8 hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-500/20 transition-all cursor-pointer transform hover:-translate-y-1 lg:col-span-2 xl:col-span-1"
                 onClick={() => router.push('/bookkeeping')}
                 onMouseEnter={() => {
                   // Prefetch data for bookkeeping module on hover
@@ -369,17 +382,17 @@ export default function FinanceDashboard() {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all" />
                 
                 <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 bg-emerald-500/20 rounded-xl">
-                        <BookOpen className="h-6 w-6 text-emerald-400" />
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-4 bg-emerald-500/20 rounded-xl">
+                        <BookOpen className="h-8 w-8 text-emerald-400" />
                       </div>
                       <div>
-                        <h3 className="text-xl font-semibold text-white">Bookkeeping</h3>
-                        <p className="text-sm text-gray-400">Core accounting & reconciliation</p>
+                        <h3 className="text-2xl font-semibold text-white">Bookkeeping</h3>
+                        <p className="text-base text-slate-300">Core accounting & reconciliation</p>
                       </div>
                     </div>
-                    <ArrowUpRight className="h-5 w-5 text-gray-400 group-hover:text-emerald-400 transition-colors" />
+                    <ArrowUpRight className="h-6 w-6 text-emerald-400 transition-all group-hover:translate-x-1 group-hover:-translate-y-1" />
                   </div>
                   
                   <div className="grid grid-cols-3 gap-3 mb-4">
