@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     
     // Update sync log if it was created
     if (syncLog?.id) {
-      await prisma.syncLog.update({
+      await tx.syncLog.update({
         where: { id: syncLog.id },
         data: {
           status: 'failed',
@@ -209,48 +209,48 @@ async function performSync(tx: any, syncLog: any) {
       // Process transactions as they come in
       for await (const transactions of transactionPages) {
           // Process each transaction
-          for (const transaction of transactions) {
-            if (!transaction.bankTransactionID) continue;
+          for (const tx of transactions) {
+            if (!tx.bankTransactionID) continue;
             
             // Prepare line items as JSON string
-            const lineItemsJson = transaction.lineItems ? JSON.stringify(transaction.lineItems) : null;
+            const lineItemsJson = tx.lineItems ? JSON.stringify(tx.lineItems) : null;
             
             // Upsert transaction
             const existing = await tx.bankTransaction.findUnique({
-              where: { xeroTransactionId: transaction.bankTransactionID }
+              where: { xeroTransactionId: tx.bankTransactionID }
             });
             
             await tx.bankTransaction.upsert({
-              where: { xeroTransactionId: transaction.bankTransactionID },
+              where: { xeroTransactionId: tx.bankTransactionID },
               update: {
                 bankAccountId: dbAccount.id,
-                date: new Date(transaction.date || new Date()),
-                amount: transaction.total || 0,
-                currencyCode: transaction.currencyCode?.toString() || account.currencyCode?.toString() || null,
-                type: transaction.type === BankTransaction.TypeEnum.RECEIVE ? 'RECEIVE' : 'SPEND',
-                status: transaction.status?.toString() || 'AUTHORISED',
-                isReconciled: transaction.isReconciled || false,
-                reference: transaction.reference || null,
-                description: transaction.reference || transaction.lineItems?.[0]?.description || transaction.contact?.name || null,
-                contactName: transaction.contact?.name || null,
+                date: new Date(tx.date || new Date()),
+                amount: tx.total || 0,
+                currencyCode: tx.currencyCode?.toString() || account.currencyCode?.toString() || null,
+                type: tx.type === BankTransaction.TypeEnum.RECEIVE ? 'RECEIVE' : 'SPEND',
+                status: tx.status?.toString() || 'AUTHORISED',
+                isReconciled: tx.isReconciled || false,
+                reference: tx.reference || null,
+                description: tx.reference || tx.lineItems?.[0]?.description || tx.contact?.name || null,
+                contactName: tx.contact?.name || null,
                 lineItems: lineItemsJson,
-                hasAttachments: transaction.hasAttachments || false,
+                hasAttachments: tx.hasAttachments || false,
                 lastSyncedAt: new Date()
               },
               create: {
-                xeroTransactionId: transaction.bankTransactionID,
+                xeroTransactionId: tx.bankTransactionID,
                 bankAccountId: dbAccount.id,
-                date: new Date(transaction.date || new Date()),
-                amount: transaction.total || 0,
-                currencyCode: transaction.currencyCode?.toString() || account.currencyCode?.toString() || null,
-                type: transaction.type === BankTransaction.TypeEnum.RECEIVE ? 'RECEIVE' : 'SPEND',
-                status: transaction.status?.toString() || 'AUTHORISED',
-                isReconciled: transaction.isReconciled || false,
-                reference: transaction.reference || null,
-                description: transaction.reference || transaction.lineItems?.[0]?.description || transaction.contact?.name || null,
-                contactName: transaction.contact?.name || null,
+                date: new Date(tx.date || new Date()),
+                amount: tx.total || 0,
+                currencyCode: tx.currencyCode?.toString() || account.currencyCode?.toString() || null,
+                type: tx.type === BankTransaction.TypeEnum.RECEIVE ? 'RECEIVE' : 'SPEND',
+                status: tx.status?.toString() || 'AUTHORISED',
+                isReconciled: tx.isReconciled || false,
+                reference: tx.reference || null,
+                description: tx.reference || tx.lineItems?.[0]?.description || tx.contact?.name || null,
+                contactName: tx.contact?.name || null,
                 lineItems: lineItemsJson,
-                hasAttachments: transaction.hasAttachments || false
+                hasAttachments: tx.hasAttachments || false
               }
             });
             
@@ -325,11 +325,11 @@ async function performSync(tx: any, syncLog: any) {
             invoiceNumber: invoice.invoiceNumber || null,
             reference: invoice.reference || null,
             dueDate: new Date(invoice.dueDate || new Date()),
-            date: new Date(invoice.date || new Date()),
+            date: new Date(invoice.date || invoice.dateString || new Date()),
             amountDue: invoice.amountDue || 0,
             total: invoice.total || 0,
             type: 'ACCREC',
-            status: (invoice.amountDue || 0) > 0 ? 'OPEN' : 'PAID',
+            status: invoice.amountDue > 0 ? 'OPEN' : 'PAID',
             lineAmountTypes: invoice.lineAmountTypes?.toString() || null,
             currencyCode: invoice.currencyCode?.toString() || null,
             lastModifiedUtc: new Date(),
@@ -342,11 +342,11 @@ async function performSync(tx: any, syncLog: any) {
             invoiceNumber: invoice.invoiceNumber || null,
             reference: invoice.reference || null,
             dueDate: new Date(invoice.dueDate || new Date()),
-            date: new Date(invoice.date || new Date()),
+            date: new Date(invoice.date || invoice.dateString || new Date()),
             amountDue: invoice.amountDue || 0,
             total: invoice.total || 0,
             type: 'ACCREC',
-            status: (invoice.amountDue || 0) > 0 ? 'OPEN' : 'PAID',
+            status: invoice.amountDue > 0 ? 'OPEN' : 'PAID',
             lineAmountTypes: invoice.lineAmountTypes?.toString() || null,
             currencyCode: invoice.currencyCode?.toString() || null,
             lastModifiedUtc: new Date()
@@ -386,11 +386,11 @@ async function performSync(tx: any, syncLog: any) {
             invoiceNumber: bill.invoiceNumber || null,
             reference: bill.reference || null,
             dueDate: new Date(bill.dueDate || new Date()),
-            date: new Date(bill.date || new Date()),
+            date: new Date(bill.date || bill.dateString || new Date()),
             amountDue: bill.amountDue || 0,
             total: bill.total || 0,
             type: 'ACCPAY',
-            status: (bill.amountDue || 0) > 0 ? 'OPEN' : 'PAID',
+            status: bill.amountDue > 0 ? 'OPEN' : 'PAID',
             lineAmountTypes: bill.lineAmountTypes?.toString() || null,
             currencyCode: bill.currencyCode?.toString() || null,
             lastModifiedUtc: new Date(),
@@ -403,11 +403,11 @@ async function performSync(tx: any, syncLog: any) {
             invoiceNumber: bill.invoiceNumber || null,
             reference: bill.reference || null,
             dueDate: new Date(bill.dueDate || new Date()),
-            date: new Date(bill.date || new Date()),
+            date: new Date(bill.date || bill.dateString || new Date()),
             amountDue: bill.amountDue || 0,
             total: bill.total || 0,
             type: 'ACCPAY',
-            status: (bill.amountDue || 0) > 0 ? 'OPEN' : 'PAID',
+            status: bill.amountDue > 0 ? 'OPEN' : 'PAID',
             lineAmountTypes: bill.lineAmountTypes?.toString() || null,
             currencyCode: bill.currencyCode?.toString() || null,
             lastModifiedUtc: new Date()

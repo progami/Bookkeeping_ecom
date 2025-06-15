@@ -130,16 +130,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthState(prev => ({ ...prev, isSyncing: true }))
     
     try {
-      const response = await fetch('/api/v1/xero/sync', { method: 'POST' })
+      const response = await fetch('/api/v1/xero/sync-simple', { method: 'POST' })
       
       if (response.ok) {
         const result = await response.json()
-        const summary = result.summary
-        const totalSynced = (summary?.transactions || 0) + 
-                           (summary?.invoices || 0) + 
-                           (summary?.bills || 0) +
-                           (summary?.glAccounts || 0) +
-                           (summary?.bankAccounts || 0)
+        const totalSynced = result.bankAccountsSynced || 
+                           ((result.summary?.transactions || 0) + 
+                            (result.summary?.invoices || 0) + 
+                            (result.summary?.bills || 0))
         toast.success(`Sync complete! ${totalSynced} records synced.`)
         
         // Refresh auth status to update hasData and lastSync
