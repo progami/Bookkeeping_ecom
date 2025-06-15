@@ -20,29 +20,66 @@ export async function GET(request: NextRequest) {
     // Note: getReportGSTList is not available in the current Xero API version
     // We'll go directly to the balance sheet approach
 
-    // Fallback: Get VAT liability from balance sheet accounts
-    const vatAccountsResponse = await xero.accountingApi.getAccounts(
+    // First, get ALL accounts from Xero
+    const allAccountsResponse = await xero.accountingApi.getAccounts(
       tenantId,
       undefined,
-      '(Code=="820"||Code=="825"||Name=*"VAT"*||Name=*"GST"*)&&Status=="ACTIVE"'
+      'Status=="ACTIVE"'
     );
 
-    const vatAccounts = vatAccountsResponse.body.accounts || [];
+    const allAccounts = allAccountsResponse.body.accounts || [];
+    
+    // Filter for tax/VAT related accounts based on account type
+    // Tax accounts typically have Type "CURRLIAB" (Current Liability) and are tax-related
+    const vatAccounts = allAccounts.filter(account => {
+      // Check if it's a tax account by type and name
+      const isTaxType = account.type === 'CURRLIAB' || account.type === 'LIABILITY';
+      const isTaxName = account.name?.toLowerCase().includes('vat') || 
+                        account.name?.toLowerCase().includes('gst') ||
+                        account.name?.toLowerCase().includes('tax') ||
+                        account.taxType === 'OUTPUT' ||
+                        account.taxType === 'INPUT' ||
+                        account.taxType === 'GSTONIMPORTS';
+      
+      return isTaxType && isTaxName;
+    });
+
     let totalVatLiability = 0;
 
     // Get current balance for each VAT account
     for (const account of vatAccounts) {
       if (account.accountID) {
         try {
-          // For VAT accounts, we can use the account's balance if available
-          // Otherwise, we'll estimate from transactions
-          let balance = 0;
-
-          totalVatLiability += Math.abs(balance);
-
-          console.log(`VAT Account ${account.name} (${account.code}): ${balance}`);
+          // Get the account balance from a trial balance or transactions
+          const trialBalanceResponse = await xero.accountingApi.getReportTrialBalance(
+            tenantId,
+            new Date().toISOString().split('T')[0] // Today's date
+          );
+          
+          const report = trialBalanceResponse.body.reports?.[0];
+          if (report && report.rows) {
+            // Find this account in the trial balance
+            for (const section of report.rows) {
+              if (section.rows) {
+                const accountRow = section.rows.find(row => 
+                  row.cells?.[0]?.value === account.code || 
+                  row.cells?.[1]?.value === account.name
+                );
+                
+                if (accountRow && accountRow.cells) {
+                  // Trial balance shows debits and credits
+                  const debit = parseFloat(accountRow.cells[3]?.value?.toString() || '0');
+                  const credit = parseFloat(accountRow.cells[4]?.value?.toString() || '0');
+                  const balance = credit - debit; // For liability accounts, credit - debit
+                  
+                  totalVatLiability += balance;
+                  console.log(`VAT Account ${account.name} (${account.code}): ${balance}`);
+                }
+              }
+            }
+          }
         } catch (error) {
-          console.error(`Error getting transactions for VAT account ${account.name}:`, error);
+          console.error(`Error getting balance for VAT account ${account.name}:`, error);
         }
       }
     }

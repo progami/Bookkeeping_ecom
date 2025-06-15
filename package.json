@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node server.js",
+    "dev": "echo '' > dev-server.log && node server.js 2>&1 | tee -a dev-server.log",
     "dev:log": "node server-with-logging.js",
     "dev:http": "next dev -p 3003",
     "dev:https": "node server-https.js",
