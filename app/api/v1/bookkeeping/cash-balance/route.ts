@@ -1,59 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getXeroClientWithTenant } from '@/lib/xero-client';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    const xeroData = await getXeroClientWithTenant()
+    console.log('Fetching bank account balances from database...');
     
-    if (!xeroData || !xeroData.client || !xeroData.tenantId) {
-      return NextResponse.json(
-        { error: 'Xero not connected' },
-        { status: 401 }
-      )
-    }
-
-    const { client, tenantId } = xeroData
-
-    console.log('Fetching bank account balances from Xero...');
-    
-    // Fetch bank accounts directly for more accurate data
-    const accountsResponse = await client.accountingApi.getAccounts(
-      tenantId,
-      undefined,
-      'Type=="BANK"',
-      undefined
-    );
-    
-    // Extract bank balances from accounts
-    let totalBalance = 0;
-    const bankAccounts: any[] = [];
-    
-    if (accountsResponse.body?.accounts) {
-      accountsResponse.body.accounts.forEach((account: any) => {
-        if (account.type === 'BANK' && account.status === 'ACTIVE') {
-          const balance = account.balance || 0;
-          totalBalance += balance;
-          
-          bankAccounts.push({
-            id: account.accountID,
-            name: account.name,
-            code: account.code,
-            balance: balance,
-            currency: account.currencyCode || 'GBP',
-            type: account.bankAccountType || 'BANK'
-          });
+    // Fetch all bank accounts from database
+    const bankAccounts = await prisma.bankAccount.findMany({
+      where: {
+        currencyCode: {
+          not: null
         }
-      });
-    }
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
     
-    console.log('Successfully fetched balance from Xero:', totalBalance);
+    // Calculate total balance in GBP
+    let totalBalance = 0;
+    const accountsWithBalance: any[] = [];
+    
+    // Currency conversion rates (simplified - in real app, these would be fetched)
+    const conversionRates: Record<string, number> = {
+      'GBP': 1,
+      'USD': 0.79, // Example rate
+      'EUR': 0.86, // Example rate
+      'PKR': 0.0028, // Example rate
+      'SEK': 0.074 // Example rate
+    };
+    
+    bankAccounts.forEach((account) => {
+      const rate = conversionRates[account.currencyCode || 'GBP'] || 1;
+      const balanceInGBP = account.balance * rate;
+      totalBalance += balanceInGBP;
+      
+      accountsWithBalance.push({
+        id: account.id,
+        name: account.name,
+        code: account.code || '',
+        balance: account.balance,
+        balanceInGBP: balanceInGBP,
+        currency: account.currencyCode || 'GBP',
+        type: 'BANK',
+        lastUpdated: account.balanceLastUpdated || account.updatedAt
+      });
+    });
+    
+    console.log('Successfully fetched balance from database:', totalBalance);
     
     return NextResponse.json({
       totalBalance: totalBalance,
       currency: 'GBP',
-      accounts: bankAccounts,
-      count: bankAccounts.length,
-      lastUpdated: new Date().toISOString()
+      accounts: accountsWithBalance,
+      count: accountsWithBalance.length,
+      lastUpdated: bankAccounts.length > 0 
+        ? bankAccounts.reduce((latest, account) => {
+            const accountDate = account.balanceLastUpdated || account.updatedAt;
+            return accountDate > latest ? accountDate : latest;
+          }, new Date(0)).toISOString()
+        : new Date().toISOString()
     });
     
   } catch (error: any) {
