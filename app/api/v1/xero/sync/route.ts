@@ -230,11 +230,11 @@ async function performSync(tx: any, syncLog: any) {
             const lineItemsJson = tx.lineItems ? JSON.stringify(tx.lineItems) : null;
             
             // Upsert transaction
-            const existing = await tx.bankTransaction.findUnique({
+            const existing = await prisma.bankTransaction.findUnique({
               where: { xeroTransactionId: tx.bankTransactionID }
             });
             
-            await tx.bankTransaction.upsert({
+            await prisma.bankTransaction.upsert({
               where: { xeroTransactionId: tx.bankTransactionID },
               update: {
                 bankAccountId: dbAccount.id,
@@ -346,11 +346,11 @@ async function performSync(tx: any, syncLog: any) {
             invoiceNumber: invoice.invoiceNumber || null,
             reference: invoice.reference || null,
             dueDate: new Date(invoice.dueDate || new Date()),
-            date: new Date(invoice.date || invoice.dateString || new Date()),
+            date: new Date(invoice.date || new Date()),
             amountDue: invoice.amountDue || 0,
             total: invoice.total || 0,
             type: 'ACCREC',
-            status: invoice.amountDue > 0 ? 'OPEN' : 'PAID',
+            status: (invoice.amountDue || 0) > 0 ? 'OPEN' : 'PAID',
             lineAmountTypes: invoice.lineAmountTypes?.toString() || null,
             currencyCode: invoice.currencyCode?.toString() || null,
             lastModifiedUtc: new Date(),
@@ -363,11 +363,11 @@ async function performSync(tx: any, syncLog: any) {
             invoiceNumber: invoice.invoiceNumber || null,
             reference: invoice.reference || null,
             dueDate: new Date(invoice.dueDate || new Date()),
-            date: new Date(invoice.date || invoice.dateString || new Date()),
+            date: new Date(invoice.date || new Date()),
             amountDue: invoice.amountDue || 0,
             total: invoice.total || 0,
             type: 'ACCREC',
-            status: invoice.amountDue > 0 ? 'OPEN' : 'PAID',
+            status: (invoice.amountDue || 0) > 0 ? 'OPEN' : 'PAID',
             lineAmountTypes: invoice.lineAmountTypes?.toString() || null,
             currencyCode: invoice.currencyCode?.toString() || null,
             lastModifiedUtc: new Date()
@@ -410,11 +410,11 @@ async function performSync(tx: any, syncLog: any) {
             invoiceNumber: bill.invoiceNumber || null,
             reference: bill.reference || null,
             dueDate: new Date(bill.dueDate || new Date()),
-            date: new Date(bill.date || bill.dateString || new Date()),
+            date: new Date(bill.date || new Date()),
             amountDue: bill.amountDue || 0,
             total: bill.total || 0,
             type: 'ACCPAY',
-            status: bill.amountDue > 0 ? 'OPEN' : 'PAID',
+            status: (bill.amountDue || 0) > 0 ? 'OPEN' : 'PAID',
             lineAmountTypes: bill.lineAmountTypes?.toString() || null,
             currencyCode: bill.currencyCode?.toString() || null,
             lastModifiedUtc: new Date(),
@@ -427,11 +427,11 @@ async function performSync(tx: any, syncLog: any) {
             invoiceNumber: bill.invoiceNumber || null,
             reference: bill.reference || null,
             dueDate: new Date(bill.dueDate || new Date()),
-            date: new Date(bill.date || bill.dateString || new Date()),
+            date: new Date(bill.date || new Date()),
             amountDue: bill.amountDue || 0,
             total: bill.total || 0,
             type: 'ACCPAY',
-            status: bill.amountDue > 0 ? 'OPEN' : 'PAID',
+            status: (bill.amountDue || 0) > 0 ? 'OPEN' : 'PAID',
             lineAmountTypes: bill.lineAmountTypes?.toString() || null,
             currencyCode: bill.currencyCode?.toString() || null,
             lastModifiedUtc: new Date()

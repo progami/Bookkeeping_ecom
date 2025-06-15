@@ -27,7 +27,8 @@ export async function GET() {
     for (const account of bankAccounts) {
       const balance = account.transactions.reduce((sum, tx) => {
         // RECEIVE is positive, SPEND is negative
-        return sum + (tx.type === 'RECEIVE' ? tx.amount : -Math.abs(tx.amount))
+        const amount = typeof tx.amount === 'number' ? tx.amount : tx.amount.toNumber()
+        return sum + (tx.type === 'RECEIVE' ? amount : -Math.abs(amount))
       }, 0)
       totalCash += balance
     }

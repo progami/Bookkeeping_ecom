@@ -63,8 +63,8 @@ async function fixGLAccounts() {
         lineItemID: `test-${tx.id}`,
         description: tx.description,
         quantity: 1,
-        unitAmount: Math.abs(tx.amount),
-        lineAmount: Math.abs(tx.amount),
+        unitAmount: Math.abs(tx.amount.toNumber()),
+        lineAmount: Math.abs(tx.amount.toNumber()),
         accountCode: testAccount.code,
         taxType: 'NONE'
       };

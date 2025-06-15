@@ -10,7 +10,7 @@ const isSecureContext = process.env.NODE_ENV === 'production' ||
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: isSecureContext,
+  secure: !!isSecureContext, // Ensure it's a boolean
   sameSite: 'lax' as const,
   maxAge: 60 * 60 * 24 * 30, // 30 days
   path: '/',
@@ -48,11 +48,7 @@ export class XeroSession {
       const allCookies = cookieStore.getAll();
       console.log('[XeroSession.getToken] All cookies available:', allCookies.map(c => ({
         name: c.name,
-        valueLength: c.value?.length || 0,
-        sameSite: c.sameSite,
-        secure: c.secure,
-        httpOnly: c.httpOnly,
-        path: c.path
+        valueLength: c.value?.length || 0
       })));
       
       const tokenCookie = cookieStore.get(COOKIE_NAME);
@@ -66,11 +62,7 @@ export class XeroSession {
       
       logger.log('[XeroSession.getToken] Token cookie details:', {
         name: tokenCookie.name,
-        valueLength: tokenCookie.value.length,
-        sameSite: tokenCookie.sameSite,
-        secure: tokenCookie.secure,
-        httpOnly: tokenCookie.httpOnly,
-        path: tokenCookie.path
+        valueLength: tokenCookie.value.length
       });
       
       try {
@@ -129,11 +121,7 @@ export class XeroSession {
       if (verifyToken) {
         console.log('[XeroSession.setToken] Verification - cookie details:', {
           name: verifyToken.name,
-          valueLength: verifyToken.value?.length || 0,
-          sameSite: verifyToken.sameSite,
-          secure: verifyToken.secure,
-          httpOnly: verifyToken.httpOnly,
-          path: verifyToken.path
+          valueLength: verifyToken.value?.length || 0
         });
       }
     } catch (error) {
@@ -152,6 +140,7 @@ export class XeroSession {
       console.error('[XeroSession.clearToken] Error clearing token:', error);
       // Fallback: try setting empty cookie with expired date
       try {
+        const cookieStore = await cookies();
         cookieStore.set(COOKIE_NAME, '', {
           maxAge: -1,
           path: '/',

@@ -98,34 +98,8 @@ export async function GET(request: NextRequest) {
     let detailedCashInBank = 0;
     const bankAccounts = bankAccountsResponse.body.accounts || [];
     
-    for (const account of bankAccounts) {
-      if (account.accountID) {
-        try {
-          // Get bank summary for each account
-          const bankSummaryResponse = await xero.accountingApi.getReportBankSummary(
-            tenantId,
-            account.accountID,
-            undefined, // from date
-            undefined  // to date
-          );
-
-          const bankReport = bankSummaryResponse.body.reports?.[0];
-          if (bankReport && bankReport.rows) {
-            // Find closing balance
-            const closingBalanceRow = bankReport.rows.find(row => 
-              row.cells?.[0]?.value?.toString().toLowerCase().includes('closing')
-            );
-            
-            if (closingBalanceRow) {
-              const balance = parseFloat(closingBalanceRow.cells?.[1]?.value?.toString() || '0');
-              detailedCashInBank += balance;
-            }
-          }
-        } catch (error) {
-          console.error(`Error getting bank summary for account ${account.name}:`, error);
-        }
-      }
-    }
+    // Note: getReportBankSummary in this version doesn't support account-specific queries
+    // We'll rely on the balance sheet calculation instead
 
     // Use the more accurate value
     if (detailedCashInBank > 0) {

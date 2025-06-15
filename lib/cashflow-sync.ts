@@ -351,7 +351,7 @@ export class CashFlowDataSync {
             await prisma.syncedInvoice.update({
               where: { id: allocation.invoice.invoiceID },
               data: {
-                amountDue: Math.max(0, invoice.amountDue - (allocation.amount || 0)),
+                amountDue: Math.max(0, invoice.amountDue.toNumber() - (allocation.amount || 0)),
               },
             });
             itemsUpdated++;
@@ -374,7 +374,8 @@ export class CashFlowDataSync {
       return this.xero.accountingApi.getReportBalanceSheet(this.tenantId);
     });
 
-    // Get Bank Summary for detailed bank balances
+    // Get Bank Summary for overall bank position
+    // Note: This version of getReportBankSummary doesn't support date parameters
     const bankSummary = await this.rateLimiter.executeAPICall(async () => {
       return this.xero.accountingApi.getReportBankSummary(this.tenantId);
     });

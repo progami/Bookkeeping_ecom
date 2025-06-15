@@ -81,8 +81,8 @@ export async function GET() {
 
     // Calculate revenue
     revenueTransactions.forEach(tx => {
-      profitLoss.totalRevenue += tx.amount
-      profitLoss.revenue += tx.amount
+      profitLoss.totalRevenue += tx.amount.toNumber()
+      profitLoss.revenue += tx.amount.toNumber()
     })
 
     // Calculate expenses and categorize them
@@ -94,13 +94,13 @@ export async function GET() {
         accountType.type === 'DIRECTCOSTS' || 
         accountType.class === 'EXPENSE' && tx.accountCode?.startsWith('5') // Common COGS account codes
       )) {
-        profitLoss.costOfGoodsSold += tx.amount
+        profitLoss.costOfGoodsSold += tx.amount.toNumber()
       } else {
-        profitLoss.operatingExpenses += tx.amount
+        profitLoss.operatingExpenses += tx.amount.toNumber()
       }
       
-      profitLoss.totalExpenses += tx.amount
-      profitLoss.expenses += tx.amount
+      profitLoss.totalExpenses += tx.amount.toNumber()
+      profitLoss.expenses += tx.amount.toNumber()
     })
 
     // Calculate gross and net profit
@@ -137,8 +137,8 @@ export async function GET() {
       })
     ])
 
-    const previousRevenueTotal = prevRevenue._sum.amount || 0
-    const previousExpenseTotal = prevExpenses._sum.amount || 0
+    const previousRevenueTotal = prevRevenue._sum.amount?.toNumber() || 0
+    const previousExpenseTotal = prevExpenses._sum.amount?.toNumber() || 0
     const previousProfit = previousRevenueTotal - previousExpenseTotal
 
     // Calculate percentage changes

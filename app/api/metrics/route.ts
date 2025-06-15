@@ -50,7 +50,8 @@ const requestMetrics = {
   responseTimes: [] as number[],
 };
 
-export function recordRequest(responseTime: number, isError: boolean = false) {
+// Helper function for recording requests (not exported as route handler)
+function recordRequest(responseTime: number, isError: boolean = false) {
   requestMetrics.total++;
   if (isError) requestMetrics.errors++;
   

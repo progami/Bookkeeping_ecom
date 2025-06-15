@@ -79,8 +79,8 @@ async function updateToXeroAccounts() {
           lineItemID: `xero-${tx.id}`,
           description: tx.description || 'Transaction',
           quantity: 1,
-          unitAmount: Math.abs(tx.amount),
-          lineAmount: Math.abs(tx.amount),
+          unitAmount: Math.abs(tx.amount.toNumber()),
+          lineAmount: Math.abs(tx.amount.toNumber()),
           accountCode: account.code,
           taxType: 'NONE'
         };

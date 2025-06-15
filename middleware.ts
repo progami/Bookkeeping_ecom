@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { structuredLogger } from './lib/logger';
 
 // Content Security Policy
 const CSP_DIRECTIVES = [
@@ -82,13 +81,11 @@ export function middleware(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/api/v1/xero/')) {
     // Log cookie debugging info for Xero routes
     const cookies = request.cookies.getAll();
-    structuredLogger.http('Xero route request', {
-      component: 'middleware',
-      method: request.method,
-      path: request.nextUrl.pathname,
-      requestId,
-      cookies: cookies.map(c => c.name)
-    });
+    // Log in development mode only (edge runtime compatible)
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Middleware] ${request.method} ${request.nextUrl.pathname} [${requestId}]`);
+      console.log('[Middleware] Cookies:', cookies.map(c => c.name));
+    }
   }
   
   return response;

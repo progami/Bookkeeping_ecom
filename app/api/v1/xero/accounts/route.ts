@@ -156,9 +156,9 @@ export async function GET(request: NextRequest) {
             let calculatedBalance = 0;
             for (const tx of transactions) {
               if (tx.type === 'RECEIVE') {
-                calculatedBalance += tx.amount;
+                calculatedBalance += tx.amount.toNumber();
               } else {
-                calculatedBalance -= tx.amount;
+                calculatedBalance -= tx.amount.toNumber();
               }
             }
             

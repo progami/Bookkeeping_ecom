@@ -292,7 +292,7 @@ export class CashFlowEngine {
         where: { status: 'ACTIVE' },
       });
       
-      const cash = bankAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+      const cash = bankAccounts.reduce((sum, acc) => sum + acc.balance.toNumber(), 0);
 
       // Get accounts receivable (open invoices)
       const receivables = await prisma.syncedInvoice.aggregate({
@@ -318,8 +318,8 @@ export class CashFlowEngine {
 
       return {
         cash,
-        accountsReceivable: receivables._sum.amountDue || 0,
-        accountsPayable: payables._sum.amountDue || 0,
+        accountsReceivable: receivables._sum.amountDue?.toNumber() || 0,
+        accountsPayable: payables._sum.amountDue?.toNumber() || 0,
       };
     }
   }

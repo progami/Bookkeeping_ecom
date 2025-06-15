@@ -1,7 +1,16 @@
 import winston from 'winston';
-import DailyRotateFile from 'winston-daily-rotate-file';
 import crypto from 'crypto';
 import { sanitizeObject, sanitizeString } from './log-sanitizer';
+
+// Conditionally import DailyRotateFile only in Node.js runtime
+let DailyRotateFile: any;
+if (typeof window === 'undefined') {
+  try {
+    DailyRotateFile = require('winston-daily-rotate-file');
+  } catch (e) {
+    // Silently ignore in edge runtime
+  }
+}
 
 // Custom format that sanitizes sensitive data
 const sanitizeFormat = winston.format((info) => {
@@ -71,45 +80,64 @@ if (process.env.NODE_ENV !== 'production') {
   );
 }
 
-// File transports (production)
-if (process.env.NODE_ENV === 'production') {
-  // Error log file
-  transports.push(
-    new DailyRotateFile({
-      filename: 'logs/error-%DATE%.log',
-      datePattern: 'YYYY-MM-DD',
-      level: 'error',
-      maxSize: '20m',
-      maxFiles: '30d',
-      format,
-    })
-  );
+// File transports (production) - only if DailyRotateFile is available
+if (process.env.NODE_ENV === 'production' && DailyRotateFile) {
+  try {
+    // Error log file
+    transports.push(
+      new DailyRotateFile({
+        filename: 'logs/error-%DATE%.log',
+        datePattern: 'YYYY-MM-DD',
+        level: 'error',
+        maxSize: '20m',
+        maxFiles: '30d',
+        format,
+      })
+    );
 
-  // Combined log file
-  transports.push(
-    new DailyRotateFile({
-      filename: 'logs/combined-%DATE%.log',
-      datePattern: 'YYYY-MM-DD',
-      maxSize: '20m',
-      maxFiles: '7d',
-      format,
-    })
-  );
+    // Combined log file
+    transports.push(
+      new DailyRotateFile({
+        filename: 'logs/combined-%DATE%.log',
+        datePattern: 'YYYY-MM-DD',
+        maxSize: '20m',
+        maxFiles: '7d',
+        format,
+      })
+    );
+  } catch (e) {
+    // Silently ignore if file transport fails
+  }
 }
 
 // Create logger instance
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  levels,
-  format,
-  transports,
-  exceptionHandlers: [
-    new winston.transports.File({ filename: 'logs/exceptions.log' }),
-  ],
-  rejectionHandlers: [
-    new winston.transports.File({ filename: 'logs/rejections.log' }),
-  ],
-});
+// Only add file handlers in Node.js runtime, not edge runtime
+const createLogger = () => {
+  const config: winston.LoggerOptions = {
+    level: process.env.LOG_LEVEL || 'info',
+    levels,
+    format,
+    transports,
+  };
+
+  // Only add file handlers if we're in Node.js runtime
+  if (typeof window === 'undefined' && process.env.NODE_ENV === 'production') {
+    try {
+      config.exceptionHandlers = [
+        new winston.transports.File({ filename: 'logs/exceptions.log' }),
+      ];
+      config.rejectionHandlers = [
+        new winston.transports.File({ filename: 'logs/rejections.log' }),
+      ];
+    } catch (e) {
+      // Silently ignore if file transport fails (edge runtime)
+    }
+  }
+
+  return winston.createLogger(config);
+};
+
+const logger = createLogger();
 
 // Create request logger middleware
 export function requestLogger(req: any, res: any, next: any) {
@@ -182,5 +210,5 @@ export class Logger {
 // Create default logger instance
 export const structuredLogger = new Logger();
 
-// Export winston instance for advanced usage
-export { winston as winstonLogger };
+// Export winston logger instance for advanced usage
+export const winstonLogger = logger;

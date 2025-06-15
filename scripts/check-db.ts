@@ -47,7 +47,7 @@ async function checkDatabase() {
       console.log(`   - Transaction Count: ${account._count.transactions}`);
       console.log(`   - Status: ${account.status || 'N/A'}`);
       
-      totalBalance += account.balance;
+      totalBalance += account.balance.toNumber();
     });
 
     console.log(`\nTotal Balance Across All Accounts: $${totalBalance.toFixed(2)}`);
@@ -114,9 +114,9 @@ async function checkDatabase() {
         // Calculate revenue and expenses (only for authorized transactions)
         if (transaction.status === 'AUTHORISED') {
           if (transaction.type === 'RECEIVE') {
-            summary.totalRevenue += Math.abs(transaction.amount);
+            summary.totalRevenue += Math.abs(transaction.amount.toNumber());
           } else if (transaction.type === 'SPEND') {
-            summary.totalExpenses += Math.abs(transaction.amount);
+            summary.totalExpenses += Math.abs(transaction.amount.toNumber());
           }
         }
       });
@@ -207,9 +207,9 @@ async function checkDatabase() {
 
           accountTransactions.forEach(transaction => {
             if (transaction.type === 'RECEIVE') {
-              accountRevenue += Math.abs(transaction.amount);
+              accountRevenue += Math.abs(transaction.amount.toNumber());
             } else if (transaction.type === 'SPEND') {
-              accountExpenses += Math.abs(transaction.amount);
+              accountExpenses += Math.abs(transaction.amount.toNumber());
             }
           });
 

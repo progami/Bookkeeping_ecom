@@ -55,12 +55,12 @@ export async function GET(request: NextRequest) {
           // If line items parsing fails, estimate from transaction amount
           if (tx.taxType && tx.taxType !== 'NONE') {
             // Estimate 20% VAT on the transaction amount
-            taxAmount = tx.amount * (0.2 / 1.2); // Extract VAT from VAT-inclusive amount
+            taxAmount = tx.amount.toNumber() * (0.2 / 1.2); // Extract VAT from VAT-inclusive amount
           }
         }
       } else if (tx.taxType && tx.taxType !== 'NONE') {
         // No line items, estimate from transaction
-        taxAmount = tx.amount * (0.2 / 1.2);
+        taxAmount = tx.amount.toNumber() * (0.2 / 1.2);
       }
 
       // Accumulate VAT based on transaction type
