@@ -19,6 +19,12 @@
 - [ ] If authentication was modified, test auth flow
 - [ ] If database queries changed, verify data loads
 
+### Git Commit Best Practices
+- [ ] Commit your work regularly (every 30-60 minutes or after completing a feature)
+- [ ] Use descriptive commit messages that explain what changed
+- [ ] Commit before switching to a different task
+- [ ] Always commit working code - don't commit broken functionality
+
 ## Overview
 This is a Next.js bookkeeping application integrated with Xero API using a database-first architecture.
 
