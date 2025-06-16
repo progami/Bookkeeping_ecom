@@ -247,6 +247,23 @@ model TaxObligation {
   @@index([status])
 }
 
+model ErrorLog {
+  id               String   @id @default(cuid())
+  fingerprint      String
+  errorName        String
+  errorMessage     String   @db.Text
+  errorStack       String?  @db.Text
+  errorCode        String?
+  severity         String   // low, medium, high, critical
+  context          Json     // Additional context data
+  occurredAt       DateTime
+  createdAt        DateTime @default(now())
+  
+  @@index([fingerprint])
+  @@index([severity])
+  @@index([occurredAt])
+}
+
 model CashFlowSyncLog {
   id             String   @id @default(cuid())
   syncType       String   // DELTA or FULL_RECONCILIATION

@@ -7,10 +7,12 @@ import { structuredLogger } from '@/lib/logger';
 import { withIdempotency } from '@/lib/idempotency';
 import { withValidation } from '@/lib/validation/middleware';
 import { xeroSyncSchema } from '@/lib/validation/schemas';
+import { withRateLimit } from '@/lib/rate-limiter';
 
-export const POST = withValidation(
-  { bodySchema: xeroSyncSchema },
-  async (request, { body }) => {
+export const POST = withRateLimit(
+  withValidation(
+    { bodySchema: xeroSyncSchema },
+    async (request, { body }) => {
     let syncLog: any;
 
     try {
@@ -73,6 +75,7 @@ export const POST = withValidation(
     }, { status: 500 });
   }
   }
+  )
 )
 
 async function performSync(tx: any, syncLog: any, modifiedSince?: Date) {

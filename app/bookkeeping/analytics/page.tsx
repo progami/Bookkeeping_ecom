@@ -92,14 +92,6 @@ export default function AnalyticsPage() {
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
-        <button
-          onClick={() => router.push('/bookkeeping')}
-          className="text-gray-400 hover:text-white transition-colors mb-4 inline-flex items-center"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Dashboard
-        </button>
-        
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-bold text-white mb-2 flex items-center">

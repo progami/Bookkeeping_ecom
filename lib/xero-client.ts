@@ -14,14 +14,21 @@ export const xeroConfig = {
   scopes: 'accounting.transactions.read accounting.reports.read accounting.settings.read offline_access'
 };
 
-export function createXeroClient(state?: string) {
-  const xero = new XeroClient({
+export function createXeroClient(state?: string, codeVerifier?: string) {
+  const config: any = {
     clientId: xeroConfig.clientId,
     clientSecret: xeroConfig.clientSecret,
     redirectUris: xeroConfig.redirectUris,
     scopes: xeroConfig.scopes.split(' '),
     state: state
-  });
+  };
+  
+  // If we have a code verifier, we need to set it
+  if (codeVerifier) {
+    config.codeVerifier = codeVerifier;
+  }
+  
+  const xero = new XeroClient(config);
   
   return xero;
 }
@@ -173,7 +180,7 @@ export async function getXeroClientWithTenant(): Promise<{ client: XeroClient; t
 
 export async function getAuthUrl(state?: string, codeChallenge?: string): Promise<string> {
   // Pass the state to createXeroClient so it's included in the config
-  const xero = createXeroClient(state);
+  const xero = createXeroClient(state, undefined);
   
   try {
     await xero.initialize();
@@ -185,15 +192,16 @@ export async function getAuthUrl(state?: string, codeChallenge?: string): Promis
   // Get the consent URL - the state will be included automatically
   let authUrl = await xero.buildConsentUrl();
   
+  // REMOVED PKCE for now - Xero might not support it with confidential clients
   // Add PKCE challenge if provided
-  if (codeChallenge) {
-    const url = new URL(authUrl);
-    url.searchParams.set('code_challenge', codeChallenge);
-    url.searchParams.set('code_challenge_method', 'S256');
-    authUrl = url.toString();
-  }
+  // if (codeChallenge) {
+  //   const url = new URL(authUrl);
+  //   url.searchParams.set('code_challenge', codeChallenge);
+  //   url.searchParams.set('code_challenge_method', 'S256');
+  //   authUrl = url.toString();
+  // }
   
-  console.log('[getAuthUrl] Built auth URL with PKCE:', authUrl);
+  console.log('[getAuthUrl] Built auth URL (no PKCE):', authUrl);
   
   return authUrl;
 }

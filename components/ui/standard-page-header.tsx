@@ -121,8 +121,8 @@ export function StandardPageHeader({
             }}
             className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${
               hasActiveToken 
-                ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30' 
-                : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                ? 'bg-slate-800/50 text-gray-300 hover:bg-slate-800/70 border border-slate-700' 
+                : 'bg-blue-600 text-white hover:bg-blue-700 animate-pulse'
             }`}
           >
             {hasActiveToken ? (

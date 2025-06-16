@@ -14,6 +14,9 @@ if (typeof window === 'undefined') {
 
 // Custom format that sanitizes sensitive data
 const sanitizeFormat = winston.format((info) => {
+  // Create a new WeakSet for each log entry to track visited objects
+  const visited = new WeakSet();
+  
   // Sanitize the message
   if (typeof info.message === 'string') {
     info.message = sanitizeString(info.message);
@@ -21,14 +24,14 @@ const sanitizeFormat = winston.format((info) => {
   
   // Sanitize metadata
   if (info.metadata) {
-    info.metadata = sanitizeObject(info.metadata);
+    info.metadata = sanitizeObject(info.metadata, visited);
   }
   
   // Sanitize any additional properties
   const sanitized = { ...info };
   Object.keys(sanitized).forEach(key => {
     if (typeof sanitized[key] === 'object' && key !== 'level' && key !== 'timestamp') {
-      sanitized[key] = sanitizeObject(sanitized[key]);
+      sanitized[key] = sanitizeObject(sanitized[key], visited);
     }
   });
   

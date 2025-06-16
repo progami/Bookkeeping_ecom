@@ -211,9 +211,6 @@ export default function CashFlowPage() {
       <StandardPageHeader 
         title="Cash Flow Forecast"
         subtitle={`${forecastDays}-day projection with ${Math.round((summary?.averageConfidence || 0) * 100)}% average confidence`}
-        showBackButton={true}
-        backTo="/finance"
-        backLabel="Back to Finance"
         showTimeRangeSelector={false}
         additionalActions={
           <select

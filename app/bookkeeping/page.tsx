@@ -223,9 +223,6 @@ export default function BookkeepingDashboard() {
       <StandardPageHeader 
         title="Bookkeeping Dashboard"
         subtitle="Manage your financial records and transactions"
-        showBackButton={true}
-        backTo="/finance"
-        backLabel="Back to Finance"
         showTimeRangeSelector={true}
         timeRange={timeRange}
         onTimeRangeChange={setTimeRange}

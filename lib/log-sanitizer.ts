@@ -60,30 +60,41 @@ export function sanitizeString(str: string): string {
 /**
  * Deep sanitize an object by removing sensitive fields
  */
-export function sanitizeObject(obj: any): any {
+export function sanitizeObject(obj: any, visited = new WeakSet()): any {
   if (!obj || typeof obj !== 'object') {
     return obj;
   }
   
+  // Handle circular references
+  if (visited.has(obj)) {
+    return '[Circular Reference]';
+  }
+  visited.add(obj);
+  
   if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeObject(item));
+    return obj.map(item => sanitizeObject(item, visited));
   }
   
   const sanitized: any = {};
   
-  for (const [key, value] of Object.entries(obj)) {
-    // Check if this is a sensitive field
-    if (SENSITIVE_FIELDS.some(field => key.toLowerCase().includes(field.toLowerCase()))) {
-      sanitized[key] = '[REDACTED]';
-    } else if (typeof value === 'string') {
-      // Sanitize string values
-      sanitized[key] = sanitizeString(value);
-    } else if (typeof value === 'object') {
-      // Recursively sanitize nested objects
-      sanitized[key] = sanitizeObject(value);
-    } else {
-      sanitized[key] = value;
+  try {
+    for (const [key, value] of Object.entries(obj)) {
+      // Check if this is a sensitive field
+      if (SENSITIVE_FIELDS.some(field => key.toLowerCase().includes(field.toLowerCase()))) {
+        sanitized[key] = '[REDACTED]';
+      } else if (typeof value === 'string') {
+        // Sanitize string values
+        sanitized[key] = sanitizeString(value);
+      } else if (typeof value === 'object' && value !== null) {
+        // Recursively sanitize nested objects
+        sanitized[key] = sanitizeObject(value, visited);
+      } else {
+        sanitized[key] = value;
+      }
     }
+  } catch (error) {
+    // If Object.entries fails (e.g., on certain native objects), return a safe representation
+    return '[Complex Object]';
   }
   
   return sanitized;
@@ -98,7 +109,7 @@ export const logger = {
       if (typeof arg === 'string') {
         return sanitizeString(arg);
       } else if (typeof arg === 'object') {
-        return sanitizeObject(arg);
+        return sanitizeObject(arg, new WeakSet());
       }
       return arg;
     });
@@ -110,7 +121,7 @@ export const logger = {
       if (typeof arg === 'string') {
         return sanitizeString(arg);
       } else if (typeof arg === 'object') {
-        return sanitizeObject(arg);
+        return sanitizeObject(arg, new WeakSet());
       }
       return arg;
     });
@@ -122,7 +133,7 @@ export const logger = {
       if (typeof arg === 'string') {
         return sanitizeString(arg);
       } else if (typeof arg === 'object') {
-        return sanitizeObject(arg);
+        return sanitizeObject(arg, new WeakSet());
       }
       return arg;
     });
@@ -134,7 +145,7 @@ export const logger = {
       if (typeof arg === 'string') {
         return sanitizeString(arg);
       } else if (typeof arg === 'object') {
-        return sanitizeObject(arg);
+        return sanitizeObject(arg, new WeakSet());
       }
       return arg;
     });

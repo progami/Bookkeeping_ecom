@@ -65,6 +65,12 @@ export default function BusinessAnalytics() {
       fetchVendorData()
       fetchSpendTrend()
       fetchCategoryBreakdown()
+    } else if (!authLoading && !hasActiveToken) {
+      // Clear data when not connected
+      setVendors([])
+      setSpendTrend([])
+      setCategoryBreakdown([])
+      setLoading(false)
     }
   }, [timeRange, hasActiveToken, authLoading])
 
@@ -226,9 +232,6 @@ export default function BusinessAnalytics() {
       <StandardPageHeader 
         title="Business Analytics"
         subtitle="Comprehensive insights into your business performance"
-        showBackButton={true}
-        backTo="/finance"
-        backLabel="Back to Finance"
         showTimeRangeSelector={true}
         timeRange={timeRange}
         onTimeRangeChange={setTimeRange}
@@ -261,7 +264,7 @@ export default function BusinessAnalytics() {
               <SkeletonTable />
             </div>
           </>
-        ) : !hasActiveToken || vendors.length === 0 ? (
+        ) : !hasActiveToken ? (
           <EmptyState 
             title="Unlock Business Intelligence"
             description="Connect your Xero account to analyze vendor spending patterns, identify cost-saving opportunities, and make data-driven decisions."

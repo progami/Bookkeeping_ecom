@@ -95,6 +95,8 @@ export const config = {
   matcher: [
     // Match all API routes
     '/api/:path*',
+    // Match test routes
+    '/test/:path*',
     // Match Xero-specific routes that might need cookie handling
     '/bookkeeping/:path*',
   ],

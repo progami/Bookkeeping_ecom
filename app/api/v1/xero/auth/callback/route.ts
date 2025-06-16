@@ -5,11 +5,15 @@ import { XeroSession } from '@/lib/xero-session';
 import { structuredLogger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const code = searchParams.get('code');
-  const state = searchParams.get('state');
-  const error = searchParams.get('error');
-  const errorDescription = searchParams.get('error_description');
+  console.log('[AUTH_CALLBACK] Starting callback handler');
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    const error = searchParams.get('error');
+    const errorDescription = searchParams.get('error_description');
+    
+    console.log('[AUTH_CALLBACK] Params:', { code: !!code, state: !!state, error, errorDescription });
   
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3003';
   
@@ -31,6 +35,14 @@ export async function GET(request: NextRequest) {
   const storedState = request.cookies.get('xero_state')?.value;
   const stateData = state ? stateStore.get(state) : null;
   const stateInMemory = !!stateData;
+  
+  console.log('[AUTH_CALLBACK] State check:', {
+    receivedState: state,
+    cookieState: storedState,
+    stateMatch: state === storedState,
+    stateInMemory,
+    stateStoreSize: stateStore.size
+  });
   
   structuredLogger.debug('OAuth callback received', {
     component: 'xero-auth-callback',
@@ -63,23 +75,38 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${baseUrl}/finance?error=invalid_state`);
   }
   
+  // Retrieve state data including code verifier
+  let codeVerifier: string | undefined;
+  if (stateData) {
+    codeVerifier = stateData.codeVerifier;
+    console.log('[AUTH_CALLBACK] Retrieved code verifier from state');
+  }
+  
   // Clean up the state from memory
   if (state) {
     stateStore.delete(state);
   }
   
   try {
+    console.log('[AUTH_CALLBACK] Starting token exchange with:', {
+      hasCodeVerifier: !!codeVerifier,
+      codeVerifierLength: codeVerifier?.length,
+      state: storedState || state || 'no-state'
+    });
     // Exchange code for token
-    // Pass the state to the XeroClient constructor
+    // REMOVED code verifier - testing without PKCE
     const xero = createXeroClient(storedState || state || undefined);
     
+    console.log('[AUTH_CALLBACK] Created Xero client');
     structuredLogger.debug('Exchanging code for token', {
       component: 'xero-auth-callback',
       redirectUri: xeroConfig.redirectUris[0]
     });
     
     // The Xero SDK requires openid-client to be initialized first
+    console.log('[AUTH_CALLBACK] Initializing Xero SDK');
     await xero.initialize();
+    console.log('[AUTH_CALLBACK] Xero SDK initialized');
     
     // Get the full callback URL (including code and state)
     const fullCallbackUrl = request.url;
@@ -143,6 +170,8 @@ export async function GET(request: NextRequest) {
       structuredLogger.debug('State cookie deleted', { component: 'xero-auth-callback' });
       return response;
     } catch (tokenError: any) {
+      console.log('[AUTH_CALLBACK] Token exchange failed:', tokenError.message);
+      console.log('[AUTH_CALLBACK] Error stack:', tokenError.stack);
       structuredLogger.error('Token exchange error', tokenError, {
         component: 'xero-auth-callback'
       });
@@ -248,5 +277,11 @@ export async function GET(request: NextRequest) {
     }
     
     return NextResponse.redirect(`${baseUrl}/finance?error=${errorMessage}`);
+  }
+  } catch (fatalError: any) {
+    // Catch any errors that might occur before we can even log
+    console.error('[FATAL] Xero callback error:', fatalError.message || fatalError);
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3003';
+    return NextResponse.redirect(`${baseUrl}/finance?error=callback_fatal_error`);
   }
 }

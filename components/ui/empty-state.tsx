@@ -143,28 +143,12 @@ export function EmptyState({
         {/* Action Button */}
         <button 
           onClick={handleAction}
-          className="group px-8 py-4 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all inline-flex items-center gap-3 text-lg font-medium shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30"
+          className="group px-8 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all inline-flex items-center gap-3 text-lg font-medium shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 animate-pulse"
         >
           <Cloud className="h-6 w-6" />
           {actionLabel}
           <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
         </button>
-        
-        {/* Trust indicators */}
-        <div className="mt-8 flex items-center justify-center gap-6 text-sm text-slate-400">
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-emerald-400" />
-            <span>Bank-level security</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-emerald-400" />
-            <span>Read-only access</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-emerald-400" />
-            <span>Cancel anytime</span>
-          </div>
-        </div>
       </div>
     </div>
   )
