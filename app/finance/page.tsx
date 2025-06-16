@@ -194,7 +194,7 @@ export default function FinanceDashboard() {
 
   const getHealthColor = (score: number) => {
     if (score >= 80) return 'text-green-400'
-    if (score >= 50) return 'text-amber-400'
+    if (score >= 50) return 'text-brand-amber'
     return 'text-red-400'
   }
 
@@ -223,12 +223,12 @@ export default function FinanceDashboard() {
             actionLabel="Get Started with Xero"
             steps={[
               {
-                icon: <Shield className="h-5 w-5 text-emerald-400" />,
+                icon: <Shield className="h-5 w-5 text-brand-emerald" />,
                 title: "Secure Connection",
                 description: "OAuth 2.0 authentication with bank-level security"
               },
               {
-                icon: <Activity className="h-5 w-5 text-blue-400" />,
+                icon: <Activity className="h-5 w-5 text-brand-blue" />,
                 title: "Real-time Sync",
                 description: "Automatic data synchronization every 30 minutes"
               },
@@ -268,9 +268,9 @@ export default function FinanceDashboard() {
                     )}>
                       {moduleStatus?.cashFlow.healthScore || 0}
                     </span>
-                    <span className={cn(responsiveText.heading[3], "text-gray-400")}>/100</span>
+                    <span className={cn(responsiveText.heading[3], "text-tertiary")}>/100</span>
                   </div>
-                  <p className="text-gray-400 mt-2">
+                  <p className="text-tertiary mt-2">
                     Based on cash reserves, profit margins, and liquidity ratios
                   </p>
                 </div>
@@ -280,7 +280,7 @@ export default function FinanceDashboard() {
                     <div className="text-3xl font-bold text-white">
                       {metrics?.quickRatio.toFixed(2)}
                     </div>
-                    <div className="text-sm text-gray-400 flex items-center justify-center gap-1">
+                    <div className="text-sm text-tertiary flex items-center justify-center gap-1">
                       Quick Ratio
                       <HelpTooltip 
                         content="Measures ability to pay short-term obligations with liquid assets. A ratio > 1.0 is generally good."
@@ -292,7 +292,7 @@ export default function FinanceDashboard() {
                     <div className="text-3xl font-bold text-white">
                       {metrics?.profitMargin.toFixed(1)}%
                     </div>
-                    <div className="text-sm text-gray-400 flex items-center justify-center gap-1">
+                    <div className="text-sm text-tertiary flex items-center justify-center gap-1">
                       Profit Margin
                       <HelpTooltip 
                         content="Percentage of revenue that becomes profit. Higher margins indicate better cost control."
@@ -306,7 +306,7 @@ export default function FinanceDashboard() {
                     }`}>
                       {metrics?.cashFlowTrend}
                     </div>
-                    <div className="text-sm text-gray-400 flex items-center justify-center gap-1">
+                    <div className="text-sm text-tertiary flex items-center justify-center gap-1">
                       Cash Flow
                       <HelpTooltip 
                         content="Direction of cash movement. Positive means more cash coming in than going out."
@@ -321,27 +321,27 @@ export default function FinanceDashboard() {
             {/* Key Financial Metrics - Non-clickable info cards */}
             <div className={cn(gridLayouts.cards.metrics, "mb-8")}>
               {/* Cash Balance - Most Important */}
-              <div className="relative bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6">
+              <div className="relative bg-slate-800/30 border border-default rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-blue-500/20 rounded-xl">
-                    <Wallet className="h-6 w-6 text-blue-400" />
+                  <div className="p-3 bg-brand-blue rounded-xl">
+                    <Wallet className="h-6 w-6 text-brand-blue" />
                   </div>
                   <span className="text-xs text-gray-500 uppercase tracking-wider">Total</span>
                 </div>
                 <div className={cn(responsiveText.metric.medium, "font-bold text-white")}>
                   {formatCurrency(metrics?.cashBalance || 0)}
                 </div>
-                <div className="text-sm text-gray-400 mt-1">Cash Balance</div>
+                <div className="text-sm text-tertiary mt-1">Cash Balance</div>
                 <div className="text-xs text-gray-500 mt-2">
                   Forecast: {formatCurrency(moduleStatus?.cashFlow.forecast30Day || 0)}
                 </div>
               </div>
 
               {/* Revenue */}
-              <div className="relative bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6">
+              <div className="relative bg-slate-800/30 border border-default rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-emerald-500/20 rounded-xl">
-                    <TrendingUp className="h-6 w-6 text-emerald-400" />
+                  <div className="p-3 bg-brand-emerald/20 rounded-xl">
+                    <TrendingUp className="h-6 w-6 text-brand-emerald" />
                   </div>
                   <span className={`text-xs font-medium ${
                     (metrics?.revenueGrowth ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'
@@ -352,14 +352,14 @@ export default function FinanceDashboard() {
                 <div className="text-3xl font-bold text-white">
                   {formatCurrency(metrics?.totalRevenue || 0)}
                 </div>
-                <div className="text-sm text-gray-400 mt-1">Total Revenue</div>
+                <div className="text-sm text-tertiary mt-1">Total Revenue</div>
                 <div className="text-xs text-gray-500 mt-2">
                   Receivables: {formatCurrency(metrics?.accountsReceivable || 0)}
                 </div>
               </div>
 
               {/* Expenses */}
-              <div className="relative bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6">
+              <div className="relative bg-slate-800/30 border border-default rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-red-500/20 rounded-xl">
                     <TrendingDown className="h-6 w-6 text-red-400" />
@@ -373,14 +373,14 @@ export default function FinanceDashboard() {
                 <div className="text-3xl font-bold text-white">
                   {formatCurrency(metrics?.totalExpenses || 0)}
                 </div>
-                <div className="text-sm text-gray-400 mt-1">Total Expenses</div>
+                <div className="text-sm text-tertiary mt-1">Total Expenses</div>
                 <div className="text-xs text-gray-500 mt-2">
                   Payables: {formatCurrency(metrics?.accountsPayable || 0)}
                 </div>
               </div>
 
               {/* Net Income */}
-              <div className="relative bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6">
+              <div className="relative bg-slate-800/30 border border-default rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-cyan-500/20 rounded-xl">
                     <Activity className="h-6 w-6 text-cyan-400" />
@@ -394,7 +394,7 @@ export default function FinanceDashboard() {
                 }`}>
                   {formatCurrency(metrics?.netIncome || 0)}
                 </div>
-                <div className="text-sm text-gray-400 mt-1">Net Profit</div>
+                <div className="text-sm text-tertiary mt-1">Net Profit</div>
                 <div className="text-xs text-gray-500 mt-2">
                   Daily avg: {formatCurrency((metrics?.netIncome || 0) / 30)}
                 </div>
@@ -403,14 +403,14 @@ export default function FinanceDashboard() {
 
             {/* Active Modules Section - Better Organization */}
             <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-              <Shield className="h-6 w-6 mr-3 text-emerald-400" />
+              <Shield className="h-6 w-6 mr-3 text-brand-emerald" />
               Financial Modules
             </h2>
             
             <div className={cn(gridLayouts.cards.modules, "mb-8")}>
               {/* Bookkeeping - PRIMARY MODULE */}
               <div 
-                className="group relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
+                className="group relative bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6 hover:border-brand-emerald hover:shadow-lg hover:shadow-brand-emerald/10 transition-all cursor-pointer transform hover:-translate-y-1"
                 onClick={() => router.push('/bookkeeping')}
                 onMouseEnter={() => {
                   // Prefetch data for bookkeeping module on hover
@@ -419,53 +419,53 @@ export default function FinanceDashboard() {
                   });
                 }}
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-emerald/10 rounded-full blur-3xl group-hover:bg-brand-emerald/20 transition-all" />
                 
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="p-3 bg-emerald-500/20 rounded-xl">
-                        <BookOpen className="h-6 w-6 text-emerald-400" />
+                      <div className="p-3 bg-brand-emerald/20 rounded-xl">
+                        <BookOpen className="h-6 w-6 text-brand-emerald" />
                       </div>
                       <div>
                         <h3 className="text-xl font-semibold text-white">Bookkeeping</h3>
-                        <p className="text-sm text-gray-400">Core accounting & reconciliation</p>
+                        <p className="text-sm text-tertiary">Core accounting & reconciliation</p>
                       </div>
                     </div>
-                    <ArrowUpRight className="h-5 w-5 text-gray-400 group-hover:text-emerald-400 transition-colors" />
+                    <ArrowUpRight className="h-5 w-5 text-tertiary group-hover:text-brand-emerald transition-colors" />
                   </div>
                   
                   <div className="grid grid-cols-3 gap-3 mb-4">
-                    <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="bg-primary rounded-lg p-3">
                       <div className="text-2xl font-bold text-white">{moduleStatus?.bookkeeping.unreconciledCount || 0}</div>
-                      <div className="text-xs text-gray-400">Unreconciled</div>
+                      <div className="text-xs text-tertiary">Unreconciled</div>
                     </div>
-                    <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="bg-primary rounded-lg p-3">
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${
-                          hasActiveToken ? 'bg-green-400' : 'bg-gray-400'
+                          hasActiveToken ? 'bg-brand-emerald' : 'bg-gray-400'
                         }`} />
                         <span className="text-sm text-white">Xero</span>
                       </div>
-                      <div className="text-xs text-gray-400">{hasActiveToken ? 'Connected' : 'Not Connected'}</div>
+                      <div className="text-xs text-tertiary">{hasActiveToken ? 'Connected' : 'Not Connected'}</div>
                     </div>
-                    <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="bg-primary rounded-lg p-3">
                       <div className="text-sm font-medium text-white">3</div>
-                      <div className="text-xs text-gray-400">Reports</div>
+                      <div className="text-xs text-tertiary">Reports</div>
                     </div>
                   </div>
                   
                   <div className="flex flex-wrap gap-2">
-                    <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-xs">Balance Sheet</span>
-                    <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-xs">P&L Statement</span>
-                    <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded text-xs">VAT Reports</span>
+                    <span className="px-2 py-1 bg-brand-emerald/20 text-brand-emerald rounded text-xs">Balance Sheet</span>
+                    <span className="px-2 py-1 bg-brand-emerald/20 text-brand-emerald rounded text-xs">P&L Statement</span>
+                    <span className="px-2 py-1 bg-brand-emerald/20 text-brand-emerald rounded text-xs">VAT Reports</span>
                   </div>
                 </div>
               </div>
 
               {/* Cash Flow - Active */}
               <div 
-                className="group relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
+                className="group relative bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
                 onClick={() => router.push('/cashflow')}
                 onMouseEnter={() => {
                   // Prefetch data for cashflow module on hover
@@ -484,26 +484,26 @@ export default function FinanceDashboard() {
                       </div>
                       <div>
                         <h3 className="text-xl font-semibold text-white">Cash Flow</h3>
-                        <p className="text-sm text-gray-400">90-day forecasting & planning</p>
+                        <p className="text-sm text-tertiary">90-day forecasting & planning</p>
                       </div>
                     </div>
-                    <ArrowUpRight className="h-5 w-5 text-gray-400 group-hover:text-cyan-400 transition-colors" />
+                    <ArrowUpRight className="h-5 w-5 text-tertiary group-hover:text-cyan-400 transition-colors" />
                   </div>
                   
                   <div className="grid grid-cols-3 gap-3 mb-4">
-                    <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="bg-primary rounded-lg p-3">
                       <div className={`text-2xl font-bold ${getHealthColor(moduleStatus?.cashFlow.healthScore || 0)}`}>
                         {moduleStatus?.cashFlow.healthScore || 0}%
                       </div>
-                      <div className="text-xs text-gray-400">Health</div>
+                      <div className="text-xs text-tertiary">Health</div>
                     </div>
-                    <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="bg-primary rounded-lg p-3">
                       <div className="text-sm font-medium text-white">90d</div>
-                      <div className="text-xs text-gray-400">Forecast</div>
+                      <div className="text-xs text-tertiary">Forecast</div>
                     </div>
-                    <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="bg-primary rounded-lg p-3">
                       <div className="text-sm font-medium text-white">Active</div>
-                      <div className="text-xs text-gray-400">Status</div>
+                      <div className="text-xs text-tertiary">Status</div>
                     </div>
                   </div>
                   
@@ -517,7 +517,7 @@ export default function FinanceDashboard() {
 
               {/* Business Analytics */}
               <div 
-                className="group relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
+                className="group relative bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
                 onClick={() => router.push('/analytics')}
                 onMouseEnter={() => {
                   // Prefetch data for analytics module on hover
@@ -536,26 +536,26 @@ export default function FinanceDashboard() {
                       </div>
                       <div>
                         <h3 className="text-xl font-semibold text-white">Analytics</h3>
-                        <p className="text-sm text-gray-400">Business intelligence & insights</p>
+                        <p className="text-sm text-tertiary">Business intelligence & insights</p>
                       </div>
                     </div>
-                    <ArrowUpRight className="h-5 w-5 text-gray-400 group-hover:text-indigo-400 transition-colors" />
+                    <ArrowUpRight className="h-5 w-5 text-tertiary group-hover:text-indigo-400 transition-colors" />
                   </div>
                   
                   <div className="grid grid-cols-3 gap-3 mb-4">
-                    <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="bg-primary rounded-lg p-3">
                       <div className="text-2xl font-bold text-white">{moduleStatus?.analytics.vendorCount || 0}</div>
-                      <div className="text-xs text-gray-400">Vendors</div>
+                      <div className="text-xs text-tertiary">Vendors</div>
                     </div>
-                    <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="bg-primary rounded-lg p-3">
                       <div className="text-sm font-medium text-white truncate">
                         {moduleStatus?.analytics.topVendor || 'N/A'}
                       </div>
-                      <div className="text-xs text-gray-400">Top Vendor</div>
+                      <div className="text-xs text-tertiary">Top Vendor</div>
                     </div>
-                    <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="bg-primary rounded-lg p-3">
                       <div className="text-sm font-medium text-white">Live</div>
-                      <div className="text-xs text-gray-400">Data</div>
+                      <div className="text-xs text-tertiary">Data</div>
                     </div>
                   </div>
                   

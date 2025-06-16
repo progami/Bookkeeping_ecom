@@ -25,52 +25,52 @@ export default function LoginPage() {
   }
   
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-purple-500/5" />
-      <Card className="relative w-full max-w-md bg-slate-800/30 backdrop-blur-sm border-slate-700/50">
+    <div className="min-h-screen bg-primary flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-gradient-to-br from-brand-emerald/5 via-transparent to-brand-purple/5" />
+      <Card className="relative w-full max-w-md bg-secondary backdrop-blur-sm border-default">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl sm:text-3xl font-bold text-white">Welcome to Bookkeeping</CardTitle>
-          <CardDescription className="text-gray-400">
+          <CardDescription className="text-tertiary">
             Sign in with your Xero account to access your financial data
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4">
             <div className="flex items-start space-x-3">
-              <Shield className="w-5 h-5 text-emerald-400 mt-0.5" />
+              <Shield className="w-5 h-5 text-brand-emerald mt-0.5" />
               <div>
                 <h3 className="font-medium text-white">Secure Authentication</h3>
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-tertiary">
                   OAuth 2.0 with PKCE for enhanced security
                 </p>
               </div>
             </div>
             
             <div className="flex items-start space-x-3">
-              <Lock className="w-5 h-5 text-emerald-400 mt-0.5" />
+              <Lock className="w-5 h-5 text-brand-emerald mt-0.5" />
               <div>
                 <h3 className="font-medium text-white">Bank-level Security</h3>
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-tertiary">
                   Your credentials are never stored on our servers
                 </p>
               </div>
             </div>
             
             <div className="flex items-start space-x-3">
-              <BarChart className="w-5 h-5 text-emerald-400 mt-0.5" />
+              <BarChart className="w-5 h-5 text-brand-emerald mt-0.5" />
               <div>
                 <h3 className="font-medium text-white">Real-time Analytics</h3>
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-tertiary">
                   Access your financial insights instantly
                 </p>
               </div>
             </div>
             
             <div className="flex items-start space-x-3">
-              <FileText className="w-5 h-5 text-emerald-400 mt-0.5" />
+              <FileText className="w-5 h-5 text-brand-emerald mt-0.5" />
               <div>
                 <h3 className="font-medium text-white">Automated Bookkeeping</h3>
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-tertiary">
                   Sync transactions and invoices automatically
                 </p>
               </div>
@@ -79,13 +79,13 @@ export default function LoginPage() {
           
           <Button 
             onClick={handleLogin}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="w-full bg-brand-emerald hover:bg-brand-emerald-dark text-white"
             size="lg"
           >
             Sign in with Xero
           </Button>
           
-          <p className="text-xs text-center text-gray-500">
+          <p className="text-xs text-center text-muted">
             By signing in, you agree to our terms of service and privacy policy.
             Your Xero data will be synced securely to provide financial insights.
           </p>
