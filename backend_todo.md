@@ -15,17 +15,69 @@ Only optimization and nice-to-have features remain!
   - [ ] Add error classification (user vs system)
   - [ ] Remove sensitive info from error messages
 
-- [ ] **Initial Setup API** (Requested by Frontend - see frontend_todo.md)
-  - [ ] Create `/api/v1/setup/status` endpoint to check setup completion
-  - [ ] Create `/api/v1/setup/configure` endpoint for import settings
-  - [ ] Add configurable import options:
-    - [ ] Date range selection (last 3/6/12 months)
-    - [ ] Entity selection (accounts, transactions, invoices, contacts)
-    - [ ] Category mapping preferences
-  - [ ] Create `/api/v1/setup/import` endpoint with progress tracking
-  - [ ] Implement WebSocket or SSE for real-time import progress
-  - [ ] Add setup completion flag in User model
-  - [ ] Redirect logic: If no data && connected → /setup page
+- [ ] **User Authentication & Setup Flow** (Frontend Implementation Complete - 2025-01-16)
+  
+  **Frontend has created:**
+  - Login page (`/login`) with email/password authentication
+  - Register page (`/register`) for new user signup
+  - Connect to Xero page (`/connect`) for OAuth flow
+  - Setup wizard (`/setup`) with 5-step onboarding
+  - All authentication API endpoints (login, register, session)
+  - All setup API endpoints (status, configure, import, complete)
+  
+  **Backend needs to complete:**
+  
+  - [ ] **Database Migration** (CRITICAL - Do First!)
+    ```bash
+    npx prisma db push
+    # or create a proper migration:
+    # npx prisma migrate dev --name add-user-authentication
+    ```
+    - User model has been updated with new fields:
+      - `password` (String) - for hashed passwords
+      - `name` (String?) - optional display name
+      - `hasCompletedSetup` (Boolean) - tracks setup completion
+      - `setupCompletedAt` (DateTime?) - when setup was completed
+      - `importPreferences` (String?) - JSON string of import settings
+      - `lastLoginAt` (DateTime?) - last login timestamp
+      - Made Xero fields optional (xeroUserId, tenantId, etc.)
+  
+  - [ ] **Environment Variables**
+    - Add `JWT_SECRET` to `.env` file:
+      ```
+      JWT_SECRET=your-secure-random-string-here
+      ```
+    - This is used in `/api/v1/auth/login/route.ts` for token signing
+  
+  - [ ] **Real-time Import Progress**
+    - Current implementation uses simulated progress in frontend
+    - Implement WebSocket or Server-Sent Events (SSE) for real progress
+    - Update `/api/v1/setup/import` to emit progress events
+    - Consider using existing BullMQ job queue for tracking
+  
+  - [ ] **Xero Sync Enhancements**
+    - Update `syncXeroData` function to support:
+      - Date range filtering (last 3/6/12 months or all)
+      - Selective entity import (only sync selected types)
+      - Progress callbacks for real-time updates
+    - Current implementation in `/app/api/v1/setup/import/route.ts` passes options but sync may not use them
+  
+  - [ ] **Authentication Middleware Activation**
+    - Currently disabled in `middleware.ts` (lines 73-81)
+    - Uncomment auth check once user migration is complete
+    - Handle transition from Xero-only to user+Xero auth
+  
+  - [ ] **Session Migration Strategy**
+    - Existing users have `user_session` cookie (Xero auth)
+    - New auth uses `auth-token` cookie (JWT)
+    - Need migration path for existing users
+    - Consider auto-creating user accounts from Xero data
+  
+  - [ ] **API Security Updates**
+    - All new endpoints use standard auth patterns
+    - Ensure consistent error responses
+    - Add rate limiting to auth endpoints
+    - Validate JWT tokens in protected routes
 
 ### ⚡ MEDIUM PRIORITY (P2) - Scalability & Monitoring
 *Already completed!*
