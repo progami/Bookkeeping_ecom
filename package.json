@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node server.js",
+    "dev": "node server-simple.js",
+    "dev:enhanced": "node server.js",
     "dev:log": "node server-with-logging.js",
     "dev:http": "next dev -p 3003",
     "dev:https": "node server-https.js",

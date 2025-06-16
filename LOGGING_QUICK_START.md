@@ -1,96 +1,43 @@
-# 🚀 Quick Start: Enhanced Logging System
+# 🚀 Simple Logging System
 
-## Starting the Server with Logging
+## How It Works
+
+When you run `npm run dev`, it automatically:
+- Shows all logs in the console (just like before)
+- ALSO saves everything to a log file in `logs/` directory
+- Creates a new log file each time you start the server
+
+## Starting the Server
 
 ```bash
-# Use the new startup script
-./start-dev.sh
-
-# Or manually
+# Just use normal npm run dev
 npm run dev
+
+# That's it! Logs appear in console AND are saved to files
 ```
 
 ## Viewing Logs
 
-### Real-time Monitoring
 ```bash
-# Tail the latest log (updates live)
-npm run logs:tail
+# Show the latest log file
+./show-logs.sh
 
-# View only errors as they happen
-npm run logs:errors -- --tail
+# Follow logs in real-time (like tail -f)
+./show-logs.sh -f
 ```
 
-### Searching Logs
-```bash
-# View latest log
-npm run logs
+## Log Files
 
-# Search for specific terms
-npm run logs -- --search "cashflow"
-npm run logs -- --search "error" --level error
+- Location: `logs/` directory
+- Format: `app-2025-06-16-11-45-00.log`
+- New file each time you start the server
 
-# View last 100 entries
-npm run logs -- --last 100
-```
+## That's It!
 
-### List All Logs
-```bash
-# See all available log files
-npm run logs:list
-```
+No complex setup. Just:
+1. Run `npm run dev` 
+2. Use the app
+3. Tell me "check the logs"
+4. I run `./show-logs.sh` to see what happened
 
-## Log Files Location
-
-All logs are stored in the `logs/` directory:
-
-- **Session Logs**: `app-YYYY-MM-DD-HH-MM-SS.log` - Complete logs for each server session
-- **Combined Logs**: `combined-YYYY-MM-DD.log` - All logs for a specific day
-- **Error Logs**: `error-YYYY-MM-DD.log` - Only errors and warnings
-- **HTTP Logs**: `http-YYYY-MM-DD.log` - Request/response logs
-
-## What Gets Logged
-
-1. **Every API Request**: URL, method, headers, body, response, timing
-2. **All Console Output**: console.log, console.error, console.warn
-3. **Errors**: Full stack traces with context
-4. **Database Queries**: When using structured logger
-5. **Authentication**: Login attempts, token refreshes
-6. **Xero API Calls**: All interactions with Xero
-
-## Debugging Workflow
-
-1. **Start the server**: `./start-dev.sh`
-2. **Reproduce the issue** in the app
-3. **Check logs**: `npm run logs -- --search "error"`
-4. **Get full context**: Each log entry has a request ID for tracing
-
-## Example: Debugging Cashflow Issue
-
-```bash
-# Start server
-./start-dev.sh
-
-# In another terminal, watch for cashflow errors
-npm run logs -- --search "cashflow" --tail
-
-# Click on cashflow in the app
-# Logs will show exactly what's happening
-```
-
-## Tips
-
-- 🔍 Each request has a unique ID (e.g., `[req-abc123]`) for tracing
-- 📝 Logs are JSON formatted for easy parsing
-- 🚨 Errors include full stack traces
-- 🔐 Sensitive data (tokens, passwords) are automatically sanitized
-- 📊 Request timing helps identify performance issues
-
-## Current Issues Being Logged
-
-Based on your logs, these issues are being tracked:
-1. **Cashflow validation errors** - Missing or invalid query parameters
-2. **Xero client initialization failures** - Token or connection issues
-3. **Live report endpoints returning 401** - Authentication problems
-
-The enhanced logging will capture complete details for debugging these issues!
+Everything you see in the console is also saved to the log file!
