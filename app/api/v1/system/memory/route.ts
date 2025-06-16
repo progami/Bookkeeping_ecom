@@ -4,7 +4,7 @@ import { withAuthValidation } from '@/lib/auth/auth-wrapper';
 import { ValidationLevel } from '@/lib/auth/session-validation';
 
 export const GET = withAuthValidation(
-  { authLevel: ValidationLevel.BASIC },
+  { authLevel: ValidationLevel.USER },
   async (request, { session }) => {
     try {
       const stats = memoryMonitor.getMemoryStats();

@@ -76,6 +76,7 @@ export const POST = withRateLimit(
             maxWait: 5000, // 5 seconds max wait
             timeout: 600000, // 10 minutes timeout for long sync operations
           });
+          });
         });
       },
       {
@@ -622,7 +623,6 @@ async function performSync(tx: any, syncLog: any, modifiedSince?: Date) {
     
     throw error; // Re-throw to trigger transaction rollback
   }
-});
 }
 
 // GET endpoint to check sync status

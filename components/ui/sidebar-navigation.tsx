@@ -5,6 +5,7 @@ import {
   Home, BookOpen, LineChart, BarChart3, Database,
   ChevronLeft, ChevronRight, Menu, X, LogOut, User
 } from 'lucide-react'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/components/layouts/app-layout'
@@ -57,6 +58,7 @@ export function SidebarNavigation() {
   const { isCollapsed, setIsCollapsed } = useSidebar()
   const { user, signOut } = useAuth()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1)
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -73,6 +75,39 @@ export function SidebarNavigation() {
     if (href === '/finance' && pathname === '/') return true
     return pathname.startsWith(href)
   }
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isMobileOpen && window.innerWidth < 1024) return // Only on desktop or when mobile menu is open
+      
+      switch (e.key) {
+        case 'ArrowUp':
+          e.preventDefault()
+          setFocusedIndex(prev => prev > 0 ? prev - 1 : navigation.length - 1)
+          break
+        case 'ArrowDown':
+          e.preventDefault()
+          setFocusedIndex(prev => prev < navigation.length - 1 ? prev + 1 : 0)
+          break
+        case 'Enter':
+          if (focusedIndex >= 0 && focusedIndex < navigation.length) {
+            e.preventDefault()
+            router.push(navigation[focusedIndex].href)
+          }
+          break
+        case 'Escape':
+          if (isMobileOpen) {
+            e.preventDefault()
+            setIsMobileOpen(false)
+          }
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [focusedIndex, navigation, router, isMobileOpen])
 
   return (
     <>
@@ -125,23 +160,30 @@ export function SidebarNavigation() {
           </div>
 
           {/* Navigation Items */}
-          <nav className="flex-1 overflow-y-auto p-4">
-            <ul className="space-y-2">
-              {navigation.map((item) => {
+          <nav className="flex-1 overflow-y-auto p-4" role="navigation" aria-label="Main navigation">
+            <ul className="space-y-2" role="menu">
+              {navigation.map((item, index) => {
                 const active = isActive(item.href)
                 const Icon = item.icon
+                const isFocused = index === focusedIndex
                 
                 return (
                   <li key={item.href}>
                     <button
                       onClick={() => router.push(item.href)}
+                      onFocus={() => setFocusedIndex(index)}
+                      onMouseEnter={() => setFocusedIndex(index)}
                       className={cn(
                         "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group",
                         active
                           ? "bg-emerald-600 text-white"
-                          : "hover:bg-slate-800 text-gray-400 hover:text-white"
+                          : "hover:bg-slate-800 text-gray-400 hover:text-white",
+                        isFocused && !active && "bg-slate-800 outline-none ring-2 ring-emerald-500"
                       )}
                       title={isCollapsed ? item.title : undefined}
+                      tabIndex={0}
+                      role="menuitem"
+                      aria-current={active ? 'page' : undefined}
                     >
                       <Icon className={cn(
                         "h-5 w-5 flex-shrink-0",
@@ -203,9 +245,16 @@ export function SidebarNavigation() {
               </div>
             )}
             
+            {/* Theme Toggle */}
+            {!isCollapsed && (
+              <div className="flex justify-center">
+                <ThemeToggle />
+              </div>
+            )}
+            
             {/* Version Info */}
             {!isCollapsed ? (
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-gray-500 text-center">
                 <div>© 2025 Bookkeeping</div>
                 <div>Version 1.0.0</div>
               </div>

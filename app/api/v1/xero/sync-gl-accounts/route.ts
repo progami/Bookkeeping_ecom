@@ -2,15 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getXeroClientWithTenant } from '@/lib/xero-client';
 import { AccountType } from 'xero-node';
+import { memoryMonitor } from '@/lib/memory-monitor';
 
 // Force dynamic rendering to ensure cookies work properly
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
-  const syncStartTime = new Date();
-  
-  try {
+  return memoryMonitor.monitorOperation('gl-accounts-sync', async () => {
+    const syncStartTime = new Date();
+    
+    try {
     console.log('=== GL Sync Endpoint Called ===');
     console.log('Request headers:', {
       cookie: request.headers.get('cookie'),
@@ -157,8 +159,7 @@ export async function POST(request: NextRequest) {
         // Batch create
         if (accountsToCreate.length > 0) {
           await tx.gLAccount.createMany({
-            data: accountsToCreate,
-            skipDuplicates: true
+            data: accountsToCreate
           });
           created = accountsToCreate.length;
         }
@@ -236,7 +237,7 @@ export async function POST(request: NextRequest) {
       error: 'Failed to sync GL accounts',
       message: error.message
     }, { status: 500 });
-    }
+  }
   });
 }
 

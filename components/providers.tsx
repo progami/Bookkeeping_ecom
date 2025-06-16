@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -24,18 +25,20 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthProvider>
-      {children}
-      <Toaster 
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: '#1e293b',
-            color: '#fff',
-            border: '1px solid #334155'
-          }
-        }}
-      />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        {children}
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            style: {
+              background: '#1e293b',
+              color: '#fff',
+              border: '1px solid #334155'
+            }
+          }}
+        />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

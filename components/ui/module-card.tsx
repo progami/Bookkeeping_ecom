@@ -72,7 +72,7 @@ export function ModuleCard({
             </div>
             <div>
               <h3 className="text-xl font-semibold text-white">{title}</h3>
-              <p className="text-sm text-tertiary">{subtitle}</p>
+              <p className="text-sm text-tertiary line-clamp-2">{subtitle}</p>
             </div>
           </div>
           <ArrowUpRight className="h-5 w-5 text-tertiary group-hover:text-primary transition-colors" />
