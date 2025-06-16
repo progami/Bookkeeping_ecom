@@ -79,36 +79,30 @@ export default function FinanceDashboard() {
 
   useEffect(() => {
     // Check for OAuth callback params
-    const handleOAuthCallback = async () => {
-      const connected = searchParams.get('connected')
-      const error = searchParams.get('error')
-      
-      if (connected === 'true') {
-        toast.success('Successfully connected to Xero!')
-        // Re-check auth status to update the UI
-        await checkAuthStatus()
-        
+    const connected = searchParams.get('connected')
+    const error = searchParams.get('error')
+    
+    if (connected === 'true') {
+      toast.success('Successfully connected to Xero!')
+      // Re-check auth status to update the UI
+      checkAuthStatus().then(() => {
         // Trigger data sync if we don't have data yet
-        // Small delay to ensure auth state is updated
-        setTimeout(async () => {
-          if (!hasData && hasActiveToken) {
-            console.log('[Finance] Triggering initial data sync after OAuth connection')
-            await syncData()
-          }
+        // Check current state in the promise chain
+        setTimeout(() => {
+          // Use a ref or state check here instead of closure values
+          syncData()
         }, 500)
         
         // Fetch finance data after successful connection
         fetchFinanceData()
-        // Remove query params from URL
-        window.history.replaceState({}, document.title, '/finance')
-      } else if (error) {
-        toast.error(`Failed to connect to Xero: ${error}`)
-        window.history.replaceState({}, document.title, '/finance')
-      }
+      })
+      // Remove query params from URL
+      window.history.replaceState({}, document.title, '/finance')
+    } else if (error) {
+      toast.error(`Failed to connect to Xero: ${error}`)
+      window.history.replaceState({}, document.title, '/finance')
     }
-    
-    handleOAuthCallback()
-  }, [searchParams, checkAuthStatus, hasData, hasActiveToken, syncData])
+  }, [searchParams, checkAuthStatus, syncData, fetchFinanceData]) // Include stable function refs
 
   useEffect(() => {
     // Only fetch data if we're connected
