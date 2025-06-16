@@ -93,9 +93,8 @@ export async function GET(request: NextRequest) {
       codeVerifierLength: codeVerifier?.length,
       state: storedState || state || 'no-state'
     });
-    // Exchange code for token
-    // REMOVED code verifier - testing without PKCE
-    const xero = createXeroClient(storedState || state || undefined);
+    // Exchange code for token with PKCE verifier
+    const xero = createXeroClient(storedState || state || undefined, codeVerifier);
     
     console.log('[AUTH_CALLBACK] Created Xero client');
     structuredLogger.debug('Exchanging code for token', {

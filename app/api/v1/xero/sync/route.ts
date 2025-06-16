@@ -8,6 +8,8 @@ import { withIdempotency } from '@/lib/idempotency';
 import { withValidation } from '@/lib/validation/middleware';
 import { xeroSyncSchema } from '@/lib/validation/schemas';
 import { withRateLimit } from '@/lib/rate-limiter';
+import { withLock, LOCK_RESOURCES } from '@/lib/sync-lock';
+import { auditLogger, AuditAction, AuditResource } from '@/lib/audit-logger';
 
 export const POST = withRateLimit(
   withValidation(
@@ -34,24 +36,49 @@ export const POST = withRateLimit(
       modifiedSince: modifiedSince?.toISOString()
     };
     
-    const result = await withIdempotency(idempotencyKey, async () => {
-      // Use transaction for entire sync operation
-      return await prisma.$transaction(async (tx) => {
-        // Create sync log within transaction
-        syncLog = await tx.syncLog.create({
-          data: {
-            syncType,
-            status: 'in_progress',
-            startedAt: new Date()
-          }
-        });
+    // Wrap the entire sync operation in a lock
+    const result = await withLock(
+      LOCK_RESOURCES.XERO_SYNC,
+      `sync-${Date.now()}`,
+      async () => {
+        return await withIdempotency(idempotencyKey, async () => {
+          // Use transaction for entire sync operation
+          return await prisma.$transaction(async (tx) => {
+            // Create sync log within transaction
+            syncLog = await tx.syncLog.create({
+              data: {
+                syncType,
+                status: 'in_progress',
+                startedAt: new Date()
+              }
+            });
+            
+            // Log sync start
+            await auditLogger.logSuccess(
+              AuditAction.SYNC_START,
+              AuditResource.SYNC_OPERATION,
+              {
+                resourceId: syncLog.id,
+                metadata: {
+                  syncType,
+                  modifiedSince: modifiedSince?.toISOString()
+                }
+              }
+            );
 
-        return await performSync(tx, syncLog, modifiedSince);
-      }, {
-        maxWait: 5000, // 5 seconds max wait
-        timeout: 600000, // 10 minutes timeout for long sync operations
-      });
-    });
+            return await performSync(tx, syncLog, modifiedSince);
+          }, {
+            maxWait: 5000, // 5 seconds max wait
+            timeout: 600000, // 10 minutes timeout for long sync operations
+          });
+        });
+      },
+      {
+        timeout: 10 * 60 * 1000, // 10 minutes lock timeout
+        retries: 2, // Retry twice if lock is held
+        retryDelay: 5000 // Wait 5 seconds between retries
+      }
+    );
 
     return NextResponse.json(result);
   } catch (error: any) {
@@ -79,6 +106,10 @@ export const POST = withRateLimit(
 )
 
 async function performSync(tx: any, syncLog: any, modifiedSince?: Date) {
+  let totalGLAccounts = 0;
+  let totalAccounts = 0;
+  let totalTransactions = 0;
+  
   try {
     const xero = await getXeroClient();
     
@@ -101,11 +132,8 @@ async function performSync(tx: any, syncLog: any, modifiedSince?: Date) {
       modifiedSince: modifiedSince?.toISOString()
     });
     
-    let totalAccounts = 0;
-    let totalTransactions = 0;
     let createdTransactions = 0;
     let updatedTransactions = 0;
-    let totalGLAccounts = 0;
     
     // Step 1: Sync all GL accounts (Chart of Accounts) first
     structuredLogger.debug('Fetching GL accounts', { component: 'xero-sync' });
@@ -316,6 +344,25 @@ async function performSync(tx: any, syncLog: any, modifiedSince?: Date) {
       });
     }
     
+    // Log successful sync to audit log
+    await auditLogger.logSuccess(
+      AuditAction.SYNC_COMPLETE,
+      AuditResource.SYNC_OPERATION,
+      {
+        resourceId: syncLog.id,
+        metadata: {
+          syncType: syncLog.syncType,
+          glAccounts: totalGLAccounts,
+          bankAccounts: totalAccounts,
+          transactions: totalTransactions,
+          created: createdTransactions,
+          updated: updatedTransactions,
+          tenantName: tenant.tenantName
+        },
+        duration: Date.now() - syncLog.startedAt.getTime()
+      }
+    );
+    
     // Update sync log
     await tx.syncLog.update({
       where: { id: syncLog.id },
@@ -499,6 +546,25 @@ async function performSync(tx: any, syncLog: any, modifiedSince?: Date) {
     
   } catch (error: any) {
     structuredLogger.error('Sync error', error, { component: 'xero-sync' });
+    
+    // Log sync failure
+    await auditLogger.logFailure(
+      AuditAction.SYNC_FAILED,
+      AuditResource.SYNC_OPERATION,
+      error,
+      {
+        resourceId: syncLog.id,
+        metadata: {
+          syncType: syncLog.syncType,
+          partialData: {
+            glAccounts: totalGLAccounts,
+            bankAccounts: totalAccounts,
+            transactions: totalTransactions
+          }
+        },
+        duration: Date.now() - syncLog.startedAt.getTime()
+      }
+    );
     
     await tx.syncLog.update({
       where: { id: syncLog.id },

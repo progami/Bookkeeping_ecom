@@ -5,6 +5,7 @@ import { serialize, parse } from 'cookie';
 import { XeroSession, XeroTokenSet } from './xero-session';
 import { tokenRefreshLock } from './token-refresh-lock';
 import { structuredLogger } from './logger';
+import { withLock, LOCK_RESOURCES } from './sync-lock';
 
 // Minimized scopes - only request what we need
 export const xeroConfig = {
@@ -121,12 +122,20 @@ export async function getXeroClient(): Promise<XeroClient | null> {
           expiresIn: expiresAt - now 
         });
         
-        // Use lock to prevent concurrent refreshes
-        const refreshKey = `xero-refresh-${tokenSet.refresh_token?.substring(0, 8) || 'default'}`;
+        // Use our sync-lock to prevent concurrent refreshes
+        const refreshKey = `token-${tokenSet.refresh_token?.substring(0, 8) || 'default'}`;
         
-        const newTokenSet = await tokenRefreshLock.acquireRefreshLock(
+        const newTokenSet = await withLock(
+          LOCK_RESOURCES.XERO_TOKEN_REFRESH,
           refreshKey,
           async () => {
+            // Double-check if token still needs refresh (another process might have refreshed it)
+            const currentToken = await getStoredTokenSet();
+            if (currentToken && currentToken.expires_at && currentToken.expires_at >= (now + bufferTime)) {
+              structuredLogger.info('Token already refreshed by another process', { component: 'xero-client' });
+              return currentToken;
+            }
+            
             structuredLogger.debug('Executing token refresh', { component: 'xero-client' });
             const refreshedToken = await xero.refreshWithRefreshToken(
               xeroConfig.clientId, 
@@ -142,6 +151,11 @@ export async function getXeroClient(): Promise<XeroClient | null> {
             });
             
             return refreshedToken;
+          },
+          {
+            timeout: 30 * 1000, // 30 seconds timeout for token refresh
+            retries: 1, // One retry if lock is held
+            retryDelay: 2000 // 2 seconds delay
           }
         );
         
@@ -192,16 +206,16 @@ export async function getAuthUrl(state?: string, codeChallenge?: string): Promis
   // Get the consent URL - the state will be included automatically
   let authUrl = await xero.buildConsentUrl();
   
-  // REMOVED PKCE for now - Xero might not support it with confidential clients
-  // Add PKCE challenge if provided
-  // if (codeChallenge) {
-  //   const url = new URL(authUrl);
-  //   url.searchParams.set('code_challenge', codeChallenge);
-  //   url.searchParams.set('code_challenge_method', 'S256');
-  //   authUrl = url.toString();
-  // }
-  
-  console.log('[getAuthUrl] Built auth URL (no PKCE):', authUrl);
+  // Enable PKCE for enhanced security
+  if (codeChallenge) {
+    const url = new URL(authUrl);
+    url.searchParams.set('code_challenge', codeChallenge);
+    url.searchParams.set('code_challenge_method', 'S256');
+    authUrl = url.toString();
+    console.log('[getAuthUrl] Built auth URL with PKCE:', authUrl);
+  } else {
+    console.log('[getAuthUrl] Built auth URL without PKCE:', authUrl);
+  }
   
   return authUrl;
 }

@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClient } from '@/lib/xero-client';
+import { FinancialCalc } from '@/lib/financial-calculations';
+import { auditLogger, AuditAction, AuditResource } from '@/lib/audit-logger';
+import { withValidation } from '@/lib/validation/middleware';
+import { z } from 'zod';
 
-export async function GET(request: NextRequest) {
-  try {
+// Validation schema for financial summary query
+const financialSummaryQuerySchema = z.object({
+  period: z.enum(['7d', '30d', '90d', 'year']).optional().default('30d')
+});
+
+export const GET = withValidation(
+  { querySchema: financialSummaryQuerySchema },
+  async (request, { query }) => {
+    const startTime = Date.now();
+    try {
     // Get Xero client via OAuth
     const xeroClient = await getXeroClient();
     
@@ -25,9 +37,8 @@ export async function GET(request: NextRequest) {
 
     const tenantId = tenants[0].tenantId;
     
-    // Get query parameters for date range
-    const searchParams = request.nextUrl.searchParams;
-    const period = searchParams.get('period') || '30d';
+    // Use validated query parameter
+    const period = query?.period || '30d';
     
     // Calculate date range based on period
     const today = new Date();
@@ -71,7 +82,7 @@ export async function GET(request: NextRequest) {
     ]);
     
     // Helper function to recursively find values in report rows
-    const findValueInRows = (rows: any[], searchTerms: string[]): number => {
+    const findValueInRows = (rows: any[], searchTerms: string[]): string => {
       for (const row of rows) {
         if (row.cells && row.cells.length > 0) {
           const label = (row.cells[0]?.value || '').toLowerCase();
@@ -80,8 +91,9 @@ export async function GET(request: NextRequest) {
           if (isMatch) {
             // Try to find value in cells (usually in cell[1] for reports)
             for (let i = 1; i < row.cells.length; i++) {
-              const value = parseFloat(row.cells[i]?.value || '0');
-              if (!isNaN(value) && value !== 0) {
+              const value = row.cells[i]?.value || '0';
+              const decimal = FinancialCalc.decimal(value);
+              if (!decimal.isZero()) {
                 return value;
               }
             }
@@ -91,20 +103,20 @@ export async function GET(request: NextRequest) {
         // Recursively search in nested rows
         if (row.rows && row.rows.length > 0) {
           const nestedValue = findValueInRows(row.rows, searchTerms);
-          if (nestedValue !== 0) {
+          if (nestedValue !== '0') {
             return nestedValue;
           }
         }
       }
-      return 0;
+      return '0';
     };
     
     // Helper function to extract balance sheet values
     const extractBalanceSheetValues = (balanceSheet: any) => {
-      let totalAssets = 0;
-      let totalLiabilities = 0;
-      let netAssets = 0;
-      let cashInBank = 0;
+      let totalAssets = FinancialCalc.decimal(0);
+      let totalLiabilities = FinancialCalc.decimal(0);
+      let netAssets = FinancialCalc.decimal(0);
+      let cashInBank = FinancialCalc.decimal(0);
       
       if (balanceSheet.body?.reports?.[0]?.rows) {
         const rows = balanceSheet.body.reports[0].rows;
@@ -114,7 +126,7 @@ export async function GET(request: NextRequest) {
           if (row.rowType === 'Section' && row.title === 'Bank' && row.rows) {
             row.rows.forEach((bankRow: any) => {
               if (bankRow.rowType === 'SummaryRow' && bankRow.cells?.[0]?.value === 'Total Bank') {
-                cashInBank = parseFloat(bankRow.cells[1]?.value || '0');
+                cashInBank = FinancialCalc.decimal(bankRow.cells[1]?.value || '0');
               }
             });
           }
@@ -122,23 +134,28 @@ export async function GET(request: NextRequest) {
           else if (row.rowType === 'Section' && row.title === '' && row.rows) {
             row.rows.forEach((summaryRow: any) => {
               if (summaryRow.rowType === 'SummaryRow' && summaryRow.cells?.[0]?.value === 'Total Assets') {
-                totalAssets = parseFloat(summaryRow.cells[1]?.value || '0');
+                totalAssets = FinancialCalc.decimal(summaryRow.cells[1]?.value || '0');
               } else if (summaryRow.rowType === 'SummaryRow' && summaryRow.cells?.[0]?.value === 'Total Liabilities') {
-                totalLiabilities = parseFloat(summaryRow.cells[1]?.value || '0');
+                totalLiabilities = FinancialCalc.decimal(summaryRow.cells[1]?.value || '0');
               } else if (summaryRow.rowType === 'Row' && summaryRow.cells?.[0]?.value === 'Net Assets') {
-                netAssets = parseFloat(summaryRow.cells[1]?.value || '0');
+                netAssets = FinancialCalc.decimal(summaryRow.cells[1]?.value || '0');
               }
             });
           }
         });
         
         // Calculate net assets if not found
-        if (netAssets === 0 && (totalAssets > 0 || totalLiabilities > 0)) {
-          netAssets = totalAssets - totalLiabilities;
+        if (netAssets.isZero() && (!totalAssets.isZero() || !totalLiabilities.isZero())) {
+          netAssets = totalAssets.minus(totalLiabilities);
         }
       }
       
-      return { totalAssets, totalLiabilities, netAssets, cashInBank };
+      return { 
+        totalAssets: FinancialCalc.toNumber(totalAssets), 
+        totalLiabilities: FinancialCalc.toNumber(totalLiabilities), 
+        netAssets: FinancialCalc.toNumber(netAssets), 
+        cashInBank: FinancialCalc.toNumber(cashInBank) 
+      };
     };
     
     // Process current and historical balance sheets
@@ -146,9 +163,9 @@ export async function GET(request: NextRequest) {
     const historicalBS = extractBalanceSheetValues(historicalBalanceSheet);
     
     // Process P&L Report  
-    let totalIncome = 0;
-    let totalExpenses = 0;
-    let netProfit = 0;
+    let totalIncome = FinancialCalc.decimal(0);
+    let totalExpenses = FinancialCalc.decimal(0);
+    let netProfit = FinancialCalc.decimal(0);
     
     if (profitLossResponse.body?.reports?.[0]?.rows) {
       const rows = profitLossResponse.body.reports[0].rows;
@@ -160,7 +177,7 @@ export async function GET(request: NextRequest) {
           if (row.title === 'Income' && row.rows) {
             row.rows.forEach((incomeRow: any) => {
               if (incomeRow.rowType === 'SummaryRow' && incomeRow.cells?.[0]?.value === 'Total Income') {
-                totalIncome = parseFloat(incomeRow.cells[1]?.value || '0');
+                totalIncome = FinancialCalc.decimal(incomeRow.cells[1]?.value || '0');
               }
             });
           }
@@ -169,7 +186,8 @@ export async function GET(request: NextRequest) {
             row.rows.forEach((costRow: any) => {
               if (costRow.rowType === 'SummaryRow' && costRow.cells?.[0]?.value === 'Total Cost of Sales') {
                 // Add cost of sales to expenses
-                totalExpenses += parseFloat(costRow.cells[1]?.value || '0');
+                const costOfSales = FinancialCalc.decimal(costRow.cells[1]?.value || '0');
+                totalExpenses = totalExpenses.plus(costOfSales);
               }
             });
           }
@@ -177,7 +195,8 @@ export async function GET(request: NextRequest) {
           else if (row.title === 'Less Operating Expenses' && row.rows) {
             row.rows.forEach((expenseRow: any) => {
               if (expenseRow.rowType === 'SummaryRow' && expenseRow.cells?.[0]?.value === 'Total Operating Expenses') {
-                totalExpenses += parseFloat(expenseRow.cells[1]?.value || '0');
+                const operatingExpenses = FinancialCalc.decimal(expenseRow.cells[1]?.value || '0');
+                totalExpenses = totalExpenses.plus(operatingExpenses);
               }
             });
           }
@@ -186,27 +205,33 @@ export async function GET(request: NextRequest) {
         else if (row.rowType === 'Section' && row.title === '' && row.rows) {
           row.rows.forEach((profitRow: any) => {
             if (profitRow.rowType === 'Row' && profitRow.cells?.[0]?.value === 'Net Profit') {
-              netProfit = parseFloat(profitRow.cells[1]?.value || '0');
+              netProfit = FinancialCalc.decimal(profitRow.cells[1]?.value || '0');
             }
           });
         }
       });
       
       // If net profit not found, calculate it
-      if (netProfit === 0 && (totalIncome > 0 || totalExpenses > 0)) {
-        netProfit = totalIncome - totalExpenses;
+      if (netProfit.isZero() && (!totalIncome.isZero() || !totalExpenses.isZero())) {
+        netProfit = totalIncome.minus(totalExpenses);
       }
     }
     
     console.log('Successfully fetched financial summary:', {
       current: currentBS,
       historical: historicalBS,
-      totalIncome,
-      totalExpenses,
-      netProfit
+      totalIncome: FinancialCalc.toNumber(totalIncome),
+      totalExpenses: FinancialCalc.toNumber(totalExpenses),
+      netProfit: FinancialCalc.toNumber(netProfit)
     });
     
-    return NextResponse.json({
+    // Calculate changes using decimal precision
+    const changeAssets = FinancialCalc.subtract(currentBS.totalAssets, historicalBS.totalAssets);
+    const changeLiabilities = FinancialCalc.subtract(currentBS.totalLiabilities, historicalBS.totalLiabilities);
+    const changeNetAssets = FinancialCalc.subtract(currentBS.netAssets, historicalBS.netAssets);
+    const changeCashInBank = FinancialCalc.subtract(currentBS.cashInBank, historicalBS.cashInBank);
+    
+    const response = {
       success: true,
       balanceSheet: {
         current: {
@@ -224,16 +249,16 @@ export async function GET(request: NextRequest) {
           asOfDate: fromDate
         },
         changes: {
-          totalAssets: currentBS.totalAssets - historicalBS.totalAssets,
-          totalLiabilities: currentBS.totalLiabilities - historicalBS.totalLiabilities,
-          netAssets: currentBS.netAssets - historicalBS.netAssets,
-          cashInBank: currentBS.cashInBank - historicalBS.cashInBank
+          totalAssets: FinancialCalc.toNumber(changeAssets),
+          totalLiabilities: FinancialCalc.toNumber(changeLiabilities),
+          netAssets: FinancialCalc.toNumber(changeNetAssets),
+          cashInBank: FinancialCalc.toNumber(changeCashInBank)
         }
       },
       profitLoss: {
-        totalIncome,
-        totalExpenses,
-        netProfit,
+        totalIncome: FinancialCalc.toNumber(totalIncome),
+        totalExpenses: FinancialCalc.toNumber(totalExpenses),
+        netProfit: FinancialCalc.toNumber(netProfit),
         period: {
           from: fromDate,
           to: toDate
@@ -242,13 +267,44 @@ export async function GET(request: NextRequest) {
       currency: 'GBP',
       source: 'xero-api',
       lastUpdated: new Date().toISOString()
-    });
+    };
+    
+    // Log successful financial summary generation
+    await auditLogger.logSuccess(
+      AuditAction.REPORT_GENERATE,
+      AuditResource.FINANCIAL_SUMMARY,
+      {
+        metadata: {
+          period,
+          dateRange: { from: fromDate, to: toDate },
+          tenant: tenants[0].tenantName
+        },
+        duration: Date.now() - startTime
+      }
+    );
+    
+    return NextResponse.json(response);
     
   } catch (error: any) {
     console.error('Financial summary error:', error);
+    
+    // Log failure
+    await auditLogger.logFailure(
+      AuditAction.REPORT_GENERATE,
+      AuditResource.FINANCIAL_SUMMARY,
+      error,
+      {
+        metadata: {
+          period: request.nextUrl.searchParams.get('period') || '30d'
+        },
+        duration: Date.now() - startTime
+      }
+    );
+    
     return NextResponse.json({
       error: 'Failed to fetch financial summary',
       details: error.message
     }, { status: 500 });
   }
-}
+  }
+)

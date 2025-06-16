@@ -251,11 +251,11 @@ model ErrorLog {
   id               String   @id @default(cuid())
   fingerprint      String
   errorName        String
-  errorMessage     String   @db.Text
-  errorStack       String?  @db.Text
+  errorMessage     String
+  errorStack       String?
   errorCode        String?
   severity         String   // low, medium, high, critical
-  context          Json     // Additional context data
+  context          String   // JSON string for additional context data
   occurredAt       DateTime
   createdAt        DateTime @default(now())
   
@@ -282,3 +282,25 @@ model CashFlowSyncLog {
   @@index([entityType])
 }
 
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String?
+  userEmail    String?
+  action       String
+  resource     String
+  resourceId   String?
+  metadata     String   @default("{}") // JSON string
+  ipAddress    String?
+  userAgent    String?
+  status       String   // success or failure
+  errorMessage String?
+  duration     Int?     // in milliseconds
+  timestamp    DateTime @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([resourceId])
+  @@index([timestamp])
+  @@index([status])
+}
