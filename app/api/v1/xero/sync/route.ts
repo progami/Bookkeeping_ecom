@@ -281,48 +281,48 @@ async function performSync(tx: any, syncLog: any, modifiedSince?: Date) {
       // Process transactions as they come in
       for await (const transactions of transactionPages) {
           // Process each transaction
-          for (const tx of transactions) {
-            if (!tx.bankTransactionID) continue;
+          for (const xeroTx of transactions) {
+            if (!xeroTx.bankTransactionID) continue;
             
             // Prepare line items as JSON string
-            const lineItemsJson = tx.lineItems ? JSON.stringify(tx.lineItems) : null;
+            const lineItemsJson = xeroTx.lineItems ? JSON.stringify(xeroTx.lineItems) : null;
             
             // Upsert transaction
-            const existing = await prisma.bankTransaction.findUnique({
-              where: { xeroTransactionId: tx.bankTransactionID }
+            const existing = await tx.bankTransaction.findUnique({
+              where: { xeroTransactionId: xeroTx.bankTransactionID }
             });
             
-            await prisma.bankTransaction.upsert({
-              where: { xeroTransactionId: tx.bankTransactionID },
+            await tx.bankTransaction.upsert({
+              where: { xeroTransactionId: xeroTx.bankTransactionID },
               update: {
                 bankAccountId: dbAccount.id,
-                date: new Date(tx.date || new Date()),
-                amount: tx.total || 0,
-                currencyCode: tx.currencyCode?.toString() || account.currencyCode?.toString() || null,
-                type: tx.type === BankTransaction.TypeEnum.RECEIVE ? 'RECEIVE' : 'SPEND',
-                status: tx.status?.toString() || 'AUTHORISED',
-                isReconciled: tx.isReconciled || false,
-                reference: tx.reference || null,
-                description: tx.reference || tx.lineItems?.[0]?.description || tx.contact?.name || null,
-                contactName: tx.contact?.name || null,
+                date: new Date(xeroTx.date || new Date()),
+                amount: xeroTx.total || 0,
+                currencyCode: xeroTx.currencyCode?.toString() || account.currencyCode?.toString() || null,
+                type: xeroTx.type === BankTransaction.TypeEnum.RECEIVE ? 'RECEIVE' : 'SPEND',
+                status: xeroTx.status?.toString() || 'AUTHORISED',
+                isReconciled: xeroTx.isReconciled || false,
+                reference: xeroTx.reference || null,
+                description: xeroTx.reference || xeroTx.lineItems?.[0]?.description || xeroTx.contact?.name || null,
+                contactName: xeroTx.contact?.name || null,
                 lineItems: lineItemsJson,
-                hasAttachments: tx.hasAttachments || false,
+                hasAttachments: xeroTx.hasAttachments || false,
                 lastSyncedAt: new Date()
               },
               create: {
-                xeroTransactionId: tx.bankTransactionID,
+                xeroTransactionId: xeroTx.bankTransactionID,
                 bankAccountId: dbAccount.id,
-                date: new Date(tx.date || new Date()),
-                amount: tx.total || 0,
-                currencyCode: tx.currencyCode?.toString() || account.currencyCode?.toString() || null,
-                type: tx.type === BankTransaction.TypeEnum.RECEIVE ? 'RECEIVE' : 'SPEND',
-                status: tx.status?.toString() || 'AUTHORISED',
-                isReconciled: tx.isReconciled || false,
-                reference: tx.reference || null,
-                description: tx.reference || tx.lineItems?.[0]?.description || tx.contact?.name || null,
-                contactName: tx.contact?.name || null,
+                date: new Date(xeroTx.date || new Date()),
+                amount: xeroTx.total || 0,
+                currencyCode: xeroTx.currencyCode?.toString() || account.currencyCode?.toString() || null,
+                type: xeroTx.type === BankTransaction.TypeEnum.RECEIVE ? 'RECEIVE' : 'SPEND',
+                status: xeroTx.status?.toString() || 'AUTHORISED',
+                isReconciled: xeroTx.isReconciled || false,
+                reference: xeroTx.reference || null,
+                description: xeroTx.reference || xeroTx.lineItems?.[0]?.description || xeroTx.contact?.name || null,
+                contactName: xeroTx.contact?.name || null,
                 lineItems: lineItemsJson,
-                hasAttachments: tx.hasAttachments || false
+                hasAttachments: xeroTx.hasAttachments || false
               }
             });
             

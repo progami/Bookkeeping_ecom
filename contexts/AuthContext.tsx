@@ -203,31 +203,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (authState.isSyncing) return
     
     setAuthState(prev => ({ ...prev, isSyncing: true }))
+    toast.loading('Syncing data from Xero...', { id: 'sync-toast' })
     
     try {
-      const response = await fetch('/api/v1/xero/sync-simple', { method: 'POST' })
+      const response = await fetch('/api/v1/xero/sync', { 
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ forceFullSync: false })
+      })
       
       if (response.ok) {
         const result = await response.json()
-        const totalSynced = result.bankAccountsSynced || 
-                           ((result.summary?.transactions || 0) + 
-                            (result.summary?.invoices || 0) + 
-                            (result.summary?.bills || 0))
-        toast.success(`Sync complete! ${totalSynced} records synced.`)
+        const summary = result.summary
+        const totalRecords = (summary?.transactions || 0) + 
+                           (summary?.invoices || 0) + 
+                           (summary?.bills || 0) +
+                           (summary?.glAccounts || 0) +
+                           (summary?.bankAccounts || 0)
+        
+        toast.dismiss('sync-toast')
+        toast.success(`Sync complete! ${totalRecords} records synced.`)
+        
+        // Add a small delay to ensure database writes are complete
+        await new Promise(resolve => setTimeout(resolve, 1000))
         
         // Refresh auth status to update hasData and lastSync
         await checkAuthStatus()
       } else if (response.status === 401) {
         // Token expired
+        toast.dismiss('sync-toast')
         toast.error('Xero session expired. Please reconnect.')
         setAuthState(prev => ({ ...prev, hasActiveToken: false }))
       } else {
         const errorData = await response.json().catch(() => ({}))
         console.error('Sync failed:', errorData)
+        toast.dismiss('sync-toast')
         toast.error(errorData.message || 'Sync failed. Please try again.')
       }
     } catch (error) {
       console.error('Sync error:', error)
+      toast.dismiss('sync-toast')
       toast.error('Failed to sync data')
     } finally {
       setAuthState(prev => ({ ...prev, isSyncing: false }))

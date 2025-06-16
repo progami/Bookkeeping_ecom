@@ -15,7 +15,7 @@ export async function GET() {
       prisma.gLAccount.count(),
       prisma.syncLog.findFirst({
         where: { 
-          status: 'SUCCESS',
+          status: 'success',
           syncType: 'full_sync'
         },
         orderBy: { completedAt: 'desc' }

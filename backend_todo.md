@@ -216,3 +216,64 @@
 - Error rates
 
 This application needs significant work before production deployment. Focus on P0 items first to ensure security and stability.
+
+## 🆕 BOOKKEEPING MODULE SPECIFIC ISSUES (Found 2025-06-16)
+
+### Critical Sync Issues
+1. **Sync Button Returns 404** ✅ FIXED
+   - **Problem**: `/api/v1/xero/sync` endpoint was not registered
+   - **Solution**: Fixed route registration and added proper body validation
+
+2. **Sync Operation Fails After First Transaction** ✅ FIXED
+   - **Problem**: Variable name conflict between `tx` (Prisma transaction) and `tx` (Xero transaction)
+   - **Solution**: Renamed Xero transaction variable to `xeroTx` to avoid conflict
+   - **Result**: Sync now completes successfully with all data imported
+
+3. **No User Feedback on Sync Operations** ✅ PARTIALLY FIXED
+   - **Fixed**: Added loading toast notification during sync
+   - **Fixed**: Added success toast with record count after sync
+   - **Fixed**: Added error toast notifications for failures
+   - **Remaining Issue**: "Sync (Never)" doesn't update after successful sync
+   - **Fix Needed**: Ensure lastSync timestamp updates properly in UI
+
+3. **Hardcoded Currency Rates**
+   - **Location**: `/app/api/v1/bookkeeping/cash-balance/route.ts`
+   - **Rates**: USD: 0.79, EUR: 0.86, PKR: 0.0028, SEK: 0.074
+   - **Impact**: Inaccurate financial calculations
+   - **Fix**: Integrate real-time exchange rate API
+
+4. **Brittle Report Parsing**
+   - **Location**: `/app/api/v1/bookkeeping/financial-summary/route.ts`
+   - **Issue**: Hardcoded string matching for 'Total Bank', 'Total Assets', etc.
+   - **Risk**: Will break when Xero changes report format
+   - **Fix**: Use pattern matching or configuration-driven approach
+
+5. **Read-Only Xero Integration**
+   - **Current Scopes**: Only read permissions
+   - **Missing**: Cannot reconcile, create invoices, or update transactions
+   - **Fix**: Request write scopes and implement two-way sync
+
+### Testing Results
+- ✅ Authentication flow working correctly
+- ✅ Session persistence fixed with cookie configuration
+- ✅ Bank accounts showing (11 accounts loaded)
+- ✅ Transactions page loads
+- ✅ Sync functionality working (successfully synced 154 records)
+- ✅ Basic error handling and user feedback added
+- ❌ Currency conversion using static rates
+- ❌ lastSync timestamp not updating in UI after sync
+
+### Immediate Action Items
+1. ✅ FIXED: Debug and fix sync endpoint routing (404 error)
+2. ✅ PARTIALLY FIXED: Add comprehensive error handling and user feedback
+3. ❌ TODO: Replace hardcoded currency rates with API integration
+4. ❌ TODO: Implement proper incremental sync logic (basic version exists)
+5. ❌ TODO: Add write capabilities to Xero integration
+6. ❌ TODO: Fix lastSync timestamp UI update issue
+
+### Summary of Fixes Applied
+1. **Fixed sync endpoint 404**: Updated route registration and endpoint path
+2. **Fixed sync transaction processing**: Resolved variable name conflict (tx → xeroTx)
+3. **Fixed database status check**: Corrected status value case sensitivity
+4. **Added sync UI feedback**: Loading and success/error toast notifications
+5. **Improved sync result reporting**: Shows total records synced from all categories
