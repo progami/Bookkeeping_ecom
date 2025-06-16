@@ -3,8 +3,7 @@ import { getXeroClientWithTenant } from '@/lib/xero-client';
 import { withAuthValidation } from '@/lib/auth/auth-wrapper';
 import { ValidationLevel } from '@/lib/auth/session-validation';
 import { withErrorHandling, createError } from '@/lib/errors/error-handler';
-import { xeroDataCache, CacheKey } from '@/lib/xero-data-cache';
-import { executeXeroAPICall } from '@/lib/xero-client-with-rate-limit';
+import { xeroDataManager } from '@/lib/xero-data-manager';
 
 export const GET = withErrorHandling(
   withAuthValidation(
@@ -16,62 +15,42 @@ export const GET = withErrorHandling(
         'CDN-Cache-Control': 'max-age=600',
       };
 
-      // Get Xero client
+      // Get Xero client to verify connection
       const xeroData = await getXeroClientWithTenant();
       if (!xeroData) {
         throw createError.authentication('Not connected to Xero');
       }
 
-      const { client: xero, tenantId } = xeroData;
+      const { tenantId } = xeroData;
 
-    // Get the time range from query params or use defaults
-    const searchParams = request.nextUrl.searchParams;
-    const timeRange = searchParams.get('timeRange') || '30d';
-    
-    // Calculate date range
-    const toDate = new Date();
-    const fromDate = new Date();
-    
-    switch(timeRange) {
-      case '7d':
-        fromDate.setDate(fromDate.getDate() - 7);
-        break;
-      case '30d':
-        fromDate.setDate(fromDate.getDate() - 30);
-        break;
-      case '90d':
-        fromDate.setDate(fromDate.getDate() - 90);
-        break;
-      case 'ytd':
-        fromDate.setMonth(0, 1); // January 1st of current year
-        break;
-      default:
-        fromDate.setDate(fromDate.getDate() - 30);
-    }
+      // Get the time range from query params or use defaults
+      const searchParams = request.nextUrl.searchParams;
+      const timeRange = searchParams.get('timeRange') || '30d';
+      
+      // Calculate date range
+      const toDate = new Date();
+      const fromDate = new Date();
+      
+      switch(timeRange) {
+        case '7d':
+          fromDate.setDate(fromDate.getDate() - 7);
+          break;
+        case '30d':
+          fromDate.setDate(fromDate.getDate() - 30);
+          break;
+        case '90d':
+          fromDate.setDate(fromDate.getDate() - 90);
+          break;
+        case 'ytd':
+          fromDate.setMonth(0, 1); // January 1st of current year
+          break;
+        default:
+          fromDate.setDate(fromDate.getDate() - 30);
+      }
 
-      // Get profit & loss report from cache or Xero API
-      const plResponse = await xeroDataCache.get(
-        CacheKey.PROFIT_LOSS,
-        tenantId,
-        session.user.userId,
-        async () => {
-          const response = await executeXeroAPICall(
-            tenantId,
-            (xeroClient) => xeroClient.accountingApi.getReportProfitAndLoss(
-              tenantId,
-              fromDate.toISOString().split('T')[0], // YYYY-MM-DD format
-              toDate.toISOString().split('T')[0],
-              11 as any, // periods (max allowed by Xero API)
-              'MONTH' as any // timeframe
-            )
-          );
-          return response;
-        },
-        { fromDate: fromDate.toISOString(), toDate: toDate.toISOString() },
-        5 * 60 * 1000 // 5 minute cache
-      );
-
-      const report = (plResponse as any).body.reports?.[0];
+      // Get profit & loss report from unified data manager
+      const xeroDataSet = await xeroDataManager.getAllData(tenantId);
+      const report = xeroDataSet.reports.profitLoss;
     if (!report || !report.rows) {
       throw new Error('Invalid profit & loss response from Xero');
     }

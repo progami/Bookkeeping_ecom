@@ -78,7 +78,8 @@ export enum AuditResource {
   CONFIGURATION = 'CONFIGURATION',
   USER_PERMISSION = 'USER_PERMISSION',
   SYSTEM = 'SYSTEM',
-  XERO_API = 'XERO_API'
+  XERO_API = 'XERO_API',
+  XERO_DATA = 'XERO_DATA'
 }
 
 class AuditLogger {

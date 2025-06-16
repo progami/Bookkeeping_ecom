@@ -3,8 +3,7 @@ import { getXeroClientWithTenant } from '@/lib/xero-client';
 import { withAuthValidation } from '@/lib/auth/auth-wrapper';
 import { ValidationLevel } from '@/lib/auth/session-validation';
 import { withErrorHandling, createError } from '@/lib/errors/error-handler';
-import { xeroDataCache, CacheKey } from '@/lib/xero-data-cache';
-import { executeXeroAPICall } from '@/lib/xero-client-with-rate-limit';
+import { xeroDataManager } from '@/lib/xero-data-manager';
 
 export const GET = withErrorHandling(
   withAuthValidation(
@@ -16,36 +15,17 @@ export const GET = withErrorHandling(
         'CDN-Cache-Control': 'max-age=600',
       };
 
-      // Get Xero client
+      // Get Xero client to verify connection
       const xeroData = await getXeroClientWithTenant();
       if (!xeroData) {
         throw createError.authentication('Not connected to Xero');
       }
 
-      const { client: xero, tenantId } = xeroData;
+      const { tenantId } = xeroData;
 
-      // Get balance sheet from cache or Xero API
-      const balanceSheetResponse = await xeroDataCache.get(
-        CacheKey.BALANCE_SHEET,
-        tenantId,
-        session.user.userId,
-        async () => {
-          const response = await executeXeroAPICall(
-            tenantId,
-            (xeroClient) => xeroClient.accountingApi.getReportBalanceSheet(
-              tenantId,
-              undefined, // date - uses today if not specified
-              3 as any, // periods
-              'MONTH' as any // timeframe
-            )
-          );
-          return response;
-        },
-        undefined,
-        5 * 60 * 1000 // 5 minute cache
-      );
-
-      const report = balanceSheetResponse.body.reports?.[0];
+      // Get all data from unified data manager
+      const xeroDataSet = await xeroDataManager.getAllData(tenantId);
+      const report = xeroDataSet.reports.balanceSheet;
     if (!report || !report.rows) {
       throw new Error('Invalid balance sheet response from Xero');
     }
@@ -108,28 +88,12 @@ export const GET = withErrorHandling(
     // Calculate net assets
     netAssets = totalAssets - totalLiabilities;
 
-      // Get additional bank account details from cache
-      const bankAccountsResponse = await xeroDataCache.get(
-        CacheKey.BANK_ACCOUNTS,
-        tenantId,
-        session.user.userId,
-        async () => {
-          const response = await executeXeroAPICall(
-            tenantId,
-            (xeroClient) => xeroClient.accountingApi.getAccounts(
-              tenantId,
-              undefined,
-              'Type=="BANK"&&Status=="ACTIVE"'
-            )
-          );
-          return response;
-        },
-        undefined,
-        5 * 60 * 1000 // 5 minute cache
+      // Get additional bank account details from unified data
+      const bankAccounts = xeroDataSet.accounts.filter(
+        account => account.type === 'BANK' && account.status === 'ACTIVE'
       );
 
       let detailedCashInBank = 0;
-      const bankAccounts = bankAccountsResponse.body.accounts || [];
     
     // Note: getReportBankSummary in this version doesn't support account-specific queries
     // We'll rely on the balance sheet calculation instead
