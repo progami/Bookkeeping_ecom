@@ -176,7 +176,7 @@ export default function SetupPage() {
             </div>
             <div>
               <h2 className="text-2xl font-bold text-white mb-2">
-                Welcome to {organization?.name || 'Your Financial Hub'}
+                Welcome to {organization?.tenantName || 'Your Financial Hub'}
               </h2>
               <p className="text-gray-400">
                 Let's get your financial data set up. This will only take a few minutes.
@@ -460,7 +460,7 @@ export default function SetupPage() {
             {currentStep < 4 && (
               <div className="flex justify-between mt-8">
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   onClick={handlePrevious}
                   disabled={currentStep === 1}
                   className={cn(currentStep === 1 && "invisible")}

@@ -22,13 +22,15 @@ export async function GET(request: NextRequest) {
     let organizationName = null
     
     try {
-      const xeroClient = await getXeroClient(session.user.tenantId)
-      const tokenSet = await xeroClient.readTokenSet()
-      hasXeroConnection = !!(tokenSet && tokenSet.access_token)
-      
-      if (hasXeroConnection) {
-        const tenants = await xeroClient.updateTenants()
-        organizationName = tenants?.[0]?.tenantName
+      const xeroClient = await getXeroClient()
+      if (xeroClient) {
+        const tokenSet = await xeroClient.readTokenSet()
+        hasXeroConnection = !!(tokenSet && tokenSet.access_token)
+        
+        if (hasXeroConnection) {
+          const tenants = await xeroClient.updateTenants()
+          organizationName = tenants?.[0]?.tenantName
+        }
       }
     } catch (error) {
       // No valid Xero connection

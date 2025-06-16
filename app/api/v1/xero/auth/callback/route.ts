@@ -219,6 +219,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
             create: {
               xeroUserId: userInfo.xeroUserId || tenant.tenantId,
               email: userInfo.email || `${tenant.tenantId}@xero.local`,
+              password: '', // Empty password for Xero-only users
               firstName: userInfo.firstName,
               lastName: userInfo.lastName,
               fullName: userInfo.fullName,

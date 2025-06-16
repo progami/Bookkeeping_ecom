@@ -67,9 +67,7 @@ export function middleware(request: NextRequest) {
     const userSession = request.cookies.get('user_session');
     const authToken = request.cookies.get('auth-token');
     
-    // For now, we'll skip auth check since we're transitioning
-    // In production, uncomment this:
-    /*
+    // Check for authentication
     if (!authToken) {
       console.log(`[Middleware] No auth token found for ${pathname}, redirecting to login`);
       const url = request.nextUrl.clone();
@@ -78,7 +76,6 @@ export function middleware(request: NextRequest) {
       url.searchParams.set('returnUrl', pathname);
       return NextResponse.redirect(url);
     }
-    */
   }
   
   // Add a custom header to track if this is an API route
