@@ -55,8 +55,9 @@ export const GET = withErrorHandling(
         tenantId,
         session.user.userId,
         async () => {
-          const response = await executeXeroAPICall(() =>
-            xero.accountingApi.getReportProfitAndLoss(
+          const response = await executeXeroAPICall(
+            tenantId,
+            (xeroClient) => xeroClient.accountingApi.getReportProfitAndLoss(
               tenantId,
               fromDate.toISOString().split('T')[0], // YYYY-MM-DD format
               toDate.toISOString().split('T')[0],

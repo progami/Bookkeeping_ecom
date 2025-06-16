@@ -289,8 +289,9 @@ export class XeroDataCache {
       {
         key: CacheKey.PROFIT_LOSS,
         fetch: async () => {
-          const report = await executeXeroAPICall(() =>
-            xero.accountingApi.getReportProfitAndLoss(
+          const report = await executeXeroAPICall(
+            tenantId,
+            (xeroClient) => xeroClient.accountingApi.getReportProfitAndLoss(
               tenantId,
               undefined,
               3 as any,
@@ -303,8 +304,9 @@ export class XeroDataCache {
       {
         key: CacheKey.BALANCE_SHEET,
         fetch: async () => {
-          const report = await executeXeroAPICall(() =>
-            xero.accountingApi.getReportBalanceSheet(
+          const report = await executeXeroAPICall(
+            tenantId,
+            (xeroClient) => xeroClient.accountingApi.getReportBalanceSheet(
               tenantId,
               undefined,
               3 as any,
@@ -317,8 +319,9 @@ export class XeroDataCache {
       {
         key: CacheKey.ACCOUNTS,
         fetch: async () => {
-          const accounts = await executeXeroAPICall(() =>
-            xero.accountingApi.getAccounts(tenantId)
+          const accounts = await executeXeroAPICall(
+            tenantId,
+            (xeroClient) => xeroClient.accountingApi.getAccounts(tenantId)
           );
           return accounts.body.accounts;
         }
@@ -326,8 +329,9 @@ export class XeroDataCache {
       {
         key: CacheKey.BANK_ACCOUNTS,
         fetch: async () => {
-          const accounts = await executeXeroAPICall(() =>
-            xero.accountingApi.getAccounts(tenantId, undefined, 'Type=="BANK"')
+          const accounts = await executeXeroAPICall(
+            tenantId,
+            (xeroClient) => xeroClient.accountingApi.getAccounts(tenantId, undefined, 'Type=="BANK"')
           );
           return accounts.body.accounts;
         }
@@ -337,7 +341,7 @@ export class XeroDataCache {
     // Fetch all data in parallel with rate limiting
     const results = await Promise.allSettled(
       fetchers.map(({ key, fetch }) =>
-        this.get(key, tenantId, userId, fetch)
+        this.get(key, tenantId, userId, fetch as any)
       )
     );
     

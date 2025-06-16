@@ -6,8 +6,9 @@ export const GET = withAdminAuth(async (
   request,
   session
 ) => {
+  const tableName = request.nextUrl.pathname.split('/').pop() || '';
+  
   try {
-    const tableName = request.nextUrl.pathname.split('/').pop() || '';
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = parseInt(searchParams.get('offset') || '0');

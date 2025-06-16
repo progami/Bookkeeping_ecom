@@ -31,8 +31,9 @@ export const GET = withErrorHandling(
         session.user.userId,
         async () => {
           // First, get ALL accounts from Xero
-          const allAccountsResponse = await executeXeroAPICall(() =>
-            xero.accountingApi.getAccounts(
+          const allAccountsResponse = await executeXeroAPICall(
+            tenantId,
+            (xeroClient) => xeroClient.accountingApi.getAccounts(
               tenantId,
               undefined,
               'Status=="ACTIVE"' as any
@@ -63,8 +64,9 @@ export const GET = withErrorHandling(
             if (account.accountID) {
               try {
                 // Get the account balance from a trial balance or transactions
-                const trialBalanceResponse = await executeXeroAPICall(() =>
-                  xero.accountingApi.getReportTrialBalance(
+                const trialBalanceResponse = await executeXeroAPICall(
+                  tenantId,
+                  (xeroClient) => xeroClient.accountingApi.getReportTrialBalance(
                     tenantId,
                     new Date().toISOString().split('T')[0] as any // Today's date
                   )
@@ -104,8 +106,9 @@ export const GET = withErrorHandling(
 
           try {
             // Try to get more detailed VAT information from transactions
-            const recentTransactions = await executeXeroAPICall(() =>
-              xero.accountingApi.getBankTransactions(
+            const recentTransactions = await executeXeroAPICall(
+              tenantId,
+              (xeroClient) => xeroClient.accountingApi.getBankTransactions(
                 tenantId,
                 undefined,
                 `Date>DateTime(${startDate.toISOString()})` as any,

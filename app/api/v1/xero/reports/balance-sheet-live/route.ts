@@ -30,12 +30,13 @@ export const GET = withErrorHandling(
         tenantId,
         session.user.userId,
         async () => {
-          const response = await executeXeroAPICall(() =>
-            xero.accountingApi.getReportBalanceSheet(
+          const response = await executeXeroAPICall(
+            tenantId,
+            (xeroClient) => xeroClient.accountingApi.getReportBalanceSheet(
               tenantId,
               undefined, // date - uses today if not specified
-              3, // periods
-              'MONTH' // timeframe
+              3 as any, // periods
+              'MONTH' as any // timeframe
             )
           );
           return response;
@@ -113,8 +114,9 @@ export const GET = withErrorHandling(
         tenantId,
         session.user.userId,
         async () => {
-          const response = await executeXeroAPICall(() =>
-            xero.accountingApi.getAccounts(
+          const response = await executeXeroAPICall(
+            tenantId,
+            (xeroClient) => xeroClient.accountingApi.getAccounts(
               tenantId,
               undefined,
               'Type=="BANK"&&Status=="ACTIVE"'
