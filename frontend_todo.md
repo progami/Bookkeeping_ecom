@@ -31,6 +31,27 @@ This document tracks all UI/UX tasks with their completion status.
 
 ## ❌ Incomplete Tasks
 
+### Architecture & Flow
+- [ ] **Implement Consistent Xero Connection Flow** - Critical UX inconsistency
+  - Implement "Offline-First with Trust Indicators" approach
+  - Update Finance page to show cached data instead of blocking
+  - Update Analytics to work with local vendor data
+  - Standardize empty states across all pages
+  - Add ConnectionStatusBanner component
+  - Update AuthContext to track lastSyncDate
+  - Remove blocking HOCs where cached data exists
+  - Add "last synced" timestamps to all data displays
+  - See XERO_CONNECTION_FLOW.md for detailed implementation
+
+- [ ] **Create Initial Setup Page** - Dedicated onboarding flow
+  - Create `/setup` page for first-time users
+  - Step 1: Connect to Xero
+  - Step 2: Select data to import (accounts, transactions, invoices)
+  - Step 3: Configure import settings (date range, categories)
+  - Step 4: Show import progress with real-time updates
+  - Step 5: Success screen with "Go to Dashboard" CTA
+  - Backend work required - see backend_todo.md
+
 ### Theme System
 - [ ] **Remove Light Mode Feature** - Light mode is unnecessary for this app
   - Remove ThemeContext and ThemeProvider
@@ -114,14 +135,14 @@ This document tracks all UI/UX tasks with their completion status.
 
 **Completed**: 18 tasks ✅
 **In Progress**: 0 tasks 🚧
-**Remaining**: 11 tasks ❌
-**Total Progress**: 62%
+**Remaining**: 12 tasks ❌
+**Total Progress**: 60%
 
 ## 🎯 Next Priority
 
-1. **Remove Light Mode Feature** - Simplify codebase
-2. **Create Component Storybook** - Improve documentation
-3. **Optimize Bundle Size** - Enhance performance
+1. **Implement Consistent Xero Connection Flow** - Fix critical UX inconsistency
+2. **Remove Light Mode Feature** - Simplify codebase
+3. **Create Component Storybook** - Improve documentation
 
 ---
 

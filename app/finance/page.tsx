@@ -87,6 +87,16 @@ export default function FinanceDashboard() {
         toast.success('Successfully connected to Xero!')
         // Re-check auth status to update the UI
         await checkAuthStatus()
+        
+        // Trigger data sync if we don't have data yet
+        // Small delay to ensure auth state is updated
+        setTimeout(async () => {
+          if (!hasData && hasActiveToken) {
+            console.log('[Finance] Triggering initial data sync after OAuth connection')
+            await syncData()
+          }
+        }, 500)
+        
         // Fetch finance data after successful connection
         fetchFinanceData()
         // Remove query params from URL
@@ -98,7 +108,7 @@ export default function FinanceDashboard() {
     }
     
     handleOAuthCallback()
-  }, [searchParams, checkAuthStatus])
+  }, [searchParams, checkAuthStatus, hasData, hasActiveToken, syncData])
 
   useEffect(() => {
     // Only fetch data if we're connected

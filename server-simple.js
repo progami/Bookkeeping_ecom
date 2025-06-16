@@ -1,6 +1,7 @@
 const { createServer } = require('https');
 const fs = require('fs');
 const path = require('path');
+const util = require('util');
 
 // Create logs directory if it doesn't exist
 const logsDir = path.join(__dirname, 'logs');
@@ -38,9 +39,17 @@ const writeLog = (level, originalMethod, args) => {
   originalMethod(`[${timestamp}]`, ...args);
   
   // Write to file
-  const message = args.map(arg => 
-    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-  ).join(' ');
+  const message = args.map(arg => {
+    if (typeof arg === 'object') {
+      try {
+        return JSON.stringify(arg, null, 2);
+      } catch (e) {
+        // Handle circular references
+        return util.inspect(arg, { depth: 2, colors: false });
+      }
+    }
+    return String(arg);
+  }).join(' ');
   logStream.write(`[${timestamp}] [${level}] ${message}\n`);
 };
 

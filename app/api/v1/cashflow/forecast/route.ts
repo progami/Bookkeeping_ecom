@@ -15,6 +15,19 @@ export const GET = withValidation(
       const includeScenarios = query?.scenarios || false;
       
       logger.info('Generating cashflow forecast', { days, includeScenarios });
+      
+      // Get session from cookie
+      const userSessionCookie = request.cookies.get('user_session');
+      if (!userSessionCookie) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      
+      const session = JSON.parse(userSessionCookie.value);
+      const tenantId = session.tenantId;
+      
+      if (!tenantId) {
+        return NextResponse.json({ error: 'No tenant ID in session' }, { status: 401 });
+      }
     
     // Set cache headers based on forecast days
     const cacheTime = days <= 30 ? 300 : 600; // 5 min for short, 10 min for long forecasts
@@ -23,12 +36,12 @@ export const GET = withValidation(
       'CDN-Cache-Control': `max-age=${cacheTime * 2}`,
     };
 
-    // Generate forecast
+    // Generate forecast - pass tenantId
     const engine = new CashFlowEngine();
     const forecast = await logApiCall(
       logger,
       `generate forecast for ${days} days`,
-      () => engine.generateForecast(days)
+      () => engine.generateForecast(days, tenantId)
     );
 
     // Format response
@@ -89,6 +102,19 @@ export const POST = withValidation(
       const regenerate = body?.regenerate || false;
       
       logger.info('Processing cashflow forecast request', { days, regenerate });
+      
+      // Get session from cookie
+      const userSessionCookie = request.cookies.get('user_session');
+      if (!userSessionCookie) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      
+      const session = JSON.parse(userSessionCookie.value);
+      const tenantId = session.tenantId;
+      
+      if (!tenantId) {
+        return NextResponse.json({ error: 'No tenant ID in session' }, { status: 401 });
+      }
 
     if (regenerate) {
       // Clear existing forecast
@@ -104,12 +130,12 @@ export const POST = withValidation(
       logger.info('Cleared existing forecast', { deletedCount: deleted.count });
     }
 
-    // Generate new forecast
+    // Generate new forecast - pass tenantId
     const engine = new CashFlowEngine();
     const forecast = await logApiCall(
       logger,
       `regenerate forecast for ${days} days`,
-      () => engine.generateForecast(days)
+      () => engine.generateForecast(days, tenantId)
     );
 
       logger.info('Cashflow forecast regenerated successfully', {

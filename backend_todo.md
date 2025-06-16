@@ -15,6 +15,18 @@ Only optimization and nice-to-have features remain!
   - [ ] Add error classification (user vs system)
   - [ ] Remove sensitive info from error messages
 
+- [ ] **Initial Setup API** (Requested by Frontend - see frontend_todo.md)
+  - [ ] Create `/api/v1/setup/status` endpoint to check setup completion
+  - [ ] Create `/api/v1/setup/configure` endpoint for import settings
+  - [ ] Add configurable import options:
+    - [ ] Date range selection (last 3/6/12 months)
+    - [ ] Entity selection (accounts, transactions, invoices, contacts)
+    - [ ] Category mapping preferences
+  - [ ] Create `/api/v1/setup/import` endpoint with progress tracking
+  - [ ] Implement WebSocket or SSE for real-time import progress
+  - [ ] Add setup completion flag in User model
+  - [ ] Redirect logic: If no data && connected → /setup page
+
 ### ⚡ MEDIUM PRIORITY (P2) - Scalability & Monitoring
 *Already completed!*
 
