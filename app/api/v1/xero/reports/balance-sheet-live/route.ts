@@ -4,6 +4,7 @@ import { withAuthValidation } from '@/lib/auth/auth-wrapper';
 import { ValidationLevel } from '@/lib/auth/session-validation';
 import { withErrorHandling, createError } from '@/lib/errors/error-handler';
 import { xeroDataManager } from '@/lib/xero-data-manager';
+import type { XeroReportRow } from '@/lib/types/xero-reports';
 
 export const GET = withErrorHandling(
   withAuthValidation(
@@ -40,13 +41,13 @@ export const GET = withErrorHandling(
     let equity = 0;
 
     // Extract values from the report rows
-    report.rows.forEach(row => {
-      if (row.rowType === 'Section' as any) {
+    report.rows.forEach((row: XeroReportRow) => {
+      if (row.rowType === 'Section') {
         const sectionTitle = row.title?.toLowerCase() || '';
         
         // Find the total row in this section
-        const totalRow = row.rows?.find(r => 
-          r.rowType === 'Row' as any && 
+        const totalRow = row.rows?.find((r: XeroReportRow) => 
+          r.rowType === 'Row' && 
           (r.cells?.[0]?.value?.toString().toLowerCase().includes('total') || false)
         );
 
@@ -64,8 +65,8 @@ export const GET = withErrorHandling(
         }
 
         // Look for specific line items
-        row.rows?.forEach((itemRow: any) => {
-          if (itemRow.rowType === 'Row' as any && itemRow.cells && itemRow.cells.length > 1) {
+        row.rows?.forEach((itemRow: XeroReportRow) => {
+          if (itemRow.rowType === 'Row' && itemRow.cells && itemRow.cells.length > 1) {
             const itemName = itemRow.cells[0]?.value?.toString().toLowerCase() || '';
             const itemValue = parseFloat(itemRow.cells[1]?.value?.toString() || '0');
 

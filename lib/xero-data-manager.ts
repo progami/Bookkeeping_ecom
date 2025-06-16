@@ -6,16 +6,23 @@ import { structuredLogger } from '@/lib/logger';
 import { ValidationLevel } from '@/lib/auth/session-validation';
 import { redis } from '@/lib/redis';
 import { memoryMonitor } from '@/lib/memory-monitor';
+import type { 
+  XeroAccount, 
+  XeroBankTransaction, 
+  XeroInvoice, 
+  XeroContact, 
+  XeroReport 
+} from '@/lib/types/xero-reports';
 
 export interface XeroDataSet {
-  accounts: any[];
-  transactions: any[];
-  invoices: any[];
-  contacts: any[];
+  accounts: XeroAccount[];
+  transactions: XeroBankTransaction[];
+  invoices: XeroInvoice[];
+  contacts: XeroContact[];
   reports: {
-    profitLoss?: any;
-    balanceSheet?: any;
-    vatLiability?: any;
+    profitLoss?: XeroReport;
+    balanceSheet?: XeroReport;
+    vatLiability?: XeroReport;
   };
   lastFetch: Date;
   tenantId: string;
@@ -124,27 +131,27 @@ export class XeroDataManager {
   /**
    * Get specific data type from cached dataset
    */
-  async getAccounts(tenantId: string): Promise<any[]> {
+  async getAccounts(tenantId: string): Promise<XeroAccount[]> {
     const data = await this.getAllData(tenantId);
     return data.accounts;
   }
   
-  async getTransactions(tenantId: string): Promise<any[]> {
+  async getTransactions(tenantId: string): Promise<XeroBankTransaction[]> {
     const data = await this.getAllData(tenantId);
     return data.transactions;
   }
   
-  async getInvoices(tenantId: string): Promise<any[]> {
+  async getInvoices(tenantId: string): Promise<XeroInvoice[]> {
     const data = await this.getAllData(tenantId);
     return data.invoices;
   }
   
-  async getContacts(tenantId: string): Promise<any[]> {
+  async getContacts(tenantId: string): Promise<XeroContact[]> {
     const data = await this.getAllData(tenantId);
     return data.contacts;
   }
   
-  async getReports(tenantId: string): Promise<any> {
+  async getReports(tenantId: string): Promise<XeroDataSet['reports']> {
     const data = await this.getAllData(tenantId);
     return data.reports;
   }
@@ -227,7 +234,7 @@ export class XeroDataManager {
   /**
    * Fetch Profit & Loss report
    */
-  private async fetchProfitLossReport(tenantId: string, xeroClient: any): Promise<any> {
+  private async fetchProfitLossReport(tenantId: string, xeroClient: any): Promise<XeroReport | null> {
     try {
       const response = await executeXeroAPICall(
         tenantId,
@@ -246,7 +253,7 @@ export class XeroDataManager {
   /**
    * Fetch Balance Sheet report
    */
-  private async fetchBalanceSheetReport(tenantId: string, xeroClient: any): Promise<any> {
+  private async fetchBalanceSheetReport(tenantId: string, xeroClient: any): Promise<XeroReport | null> {
     try {
       const response = await executeXeroAPICall(
         tenantId,
@@ -265,7 +272,7 @@ export class XeroDataManager {
   /**
    * Fetch Trial Balance report (for VAT calculations)
    */
-  private async fetchTrialBalanceReport(tenantId: string, xeroClient: any): Promise<any> {
+  private async fetchTrialBalanceReport(tenantId: string, xeroClient: any): Promise<XeroReport | null> {
     try {
       const response = await executeXeroAPICall(
         tenantId,
