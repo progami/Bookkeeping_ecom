@@ -9,17 +9,22 @@ export async function GET(request: NextRequest) {
     // Clean up old states
     cleanupStates();
     
+    // Get return URL from query params or referrer
+    const searchParams = request.nextUrl.searchParams;
+    const returnUrl = searchParams.get('returnUrl') || request.headers.get('referer')?.replace(request.nextUrl.origin, '') || '/finance';
+    
     // Generate a cryptographically secure random state for CSRF protection
     const state = crypto.randomBytes(32).toString('hex');
     
     // Generate PKCE pair
     const { codeVerifier, codeChallenge } = generatePKCEPair();
     
-    // Store state and PKCE in memory
+    // Store state and PKCE in memory with return URL
     stateStore.set(state, { 
       timestamp: Date.now(),
       codeVerifier,
-      codeChallenge
+      codeChallenge,
+      returnUrl
     });
     
     // Get the authorization URL with PKCE
@@ -29,7 +34,16 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(authUrl);
     response.cookies.set('xero_state', state, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true, // Always use secure in development with HTTPS
+      sameSite: 'lax',
+      maxAge: 60 * 10, // 10 minutes
+      path: '/'
+    });
+    
+    // Store PKCE code_verifier in a separate cookie as backup
+    response.cookies.set('xero_pkce', codeVerifier, {
+      httpOnly: true,
+      secure: true, // Always use secure in development with HTTPS
       sameSite: 'lax',
       maxAge: 60 * 10, // 10 minutes
       path: '/'

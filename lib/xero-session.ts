@@ -1,31 +1,10 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from './log-sanitizer';
+import { AUTH_COOKIE_OPTIONS, TOKEN_COOKIE_NAME } from './cookie-config';
 
-const COOKIE_NAME = 'xero_token';
-
-// Determine if we're in a secure context
-const isSecureContext = process.env.NODE_ENV === 'production' || 
-                       (process.env.NEXT_PUBLIC_APP_URL && process.env.NEXT_PUBLIC_APP_URL.startsWith('https://'));
-
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: !!isSecureContext, // Ensure it's a boolean
-  sameSite: 'lax' as const,
-  maxAge: 60 * 60 * 24 * 30, // 30 days
-  path: '/',
-  // Explicitly set domain to ensure cookie is available across all routes
-  ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {})
-};
-
-console.log('[XeroSession] Cookie configuration:', {
-  name: COOKIE_NAME,
-  options: COOKIE_OPTIONS,
-  nodeEnv: process.env.NODE_ENV,
-  appUrl: process.env.NEXT_PUBLIC_APP_URL,
-  isSecureContext,
-  cookieDomain: process.env.COOKIE_DOMAIN || 'not set'
-});
+const COOKIE_NAME = TOKEN_COOKIE_NAME;
+const COOKIE_OPTIONS = AUTH_COOKIE_OPTIONS;
 
 export interface XeroTokenSet {
   access_token: string;

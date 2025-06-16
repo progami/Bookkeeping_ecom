@@ -3,6 +3,7 @@ import { createXeroClient, storeTokenSet, xeroConfig } from '@/lib/xero-client';
 import { stateStore } from '@/lib/oauth-state';
 import { XeroSession } from '@/lib/xero-session';
 import { structuredLogger } from '@/lib/logger';
+import { AUTH_COOKIE_OPTIONS, SESSION_COOKIE_NAME } from '@/lib/cookie-config';
 
 export async function GET(request: NextRequest) {
   console.log('[AUTH_CALLBACK] Starting callback handler');
@@ -24,11 +25,11 @@ export async function GET(request: NextRequest) {
       error,
       errorDescription
     });
-    return NextResponse.redirect(`${baseUrl}/finance?error=${encodeURIComponent(errorDescription || error)}`);
+    return NextResponse.redirect(`${baseUrl}/login?error=${encodeURIComponent(errorDescription || error)}`);
   }
   
   if (!code) {
-    return NextResponse.redirect(`${baseUrl}/finance?error=no_code`);
+    return NextResponse.redirect(`${baseUrl}/login?error=no_code`);
   }
   
   // Verify state (CSRF protection)
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
       hasCookieState: !!storedState,
       memoryHasState: stateInMemory
     });
-    return NextResponse.redirect(`${baseUrl}/finance?error=invalid_state`);
+    return NextResponse.redirect(`${baseUrl}/login?error=invalid_state`);
   }
   
   // Retrieve state data including code verifier
@@ -80,6 +81,13 @@ export async function GET(request: NextRequest) {
   if (stateData) {
     codeVerifier = stateData.codeVerifier;
     console.log('[AUTH_CALLBACK] Retrieved code verifier from state');
+  } else {
+    // Fallback to cookie if state store doesn't have it
+    const pkceCookie = request.cookies.get('xero_pkce')?.value;
+    if (pkceCookie) {
+      codeVerifier = pkceCookie;
+      console.log('[AUTH_CALLBACK] Retrieved code verifier from cookie');
+    }
   }
   
   // Clean up the state from memory
@@ -99,13 +107,35 @@ export async function GET(request: NextRequest) {
     console.log('[AUTH_CALLBACK] Created Xero client');
     structuredLogger.debug('Exchanging code for token', {
       component: 'xero-auth-callback',
-      redirectUri: xeroConfig.redirectUris[0]
+      redirectUri: xeroConfig.redirectUris[0],
+      hasCodeVerifier: !!codeVerifier,
+      codeVerifierLength: codeVerifier?.length
     });
     
     // The Xero SDK requires openid-client to be initialized first
     console.log('[AUTH_CALLBACK] Initializing Xero SDK');
     await xero.initialize();
     console.log('[AUTH_CALLBACK] Xero SDK initialized');
+    
+    // Double-check if the Xero client has the code verifier set
+    if (codeVerifier && !(xero as any).__codeVerifier) {
+      console.log('[AUTH_CALLBACK] Code verifier was not set, setting it now');
+      (xero as any).__codeVerifier = codeVerifier;
+    }
+    
+    // Patch the openIdClient to include code_verifier in the token exchange
+    if (codeVerifier && xero.openIdClient) {
+      console.log('[AUTH_CALLBACK] Patching openIdClient for PKCE');
+      const originalOauthCallback = xero.openIdClient.oauthCallback;
+      xero.openIdClient.oauthCallback = async function(redirectUri: any, parameters: any, checks?: any, extras?: any) {
+        // Add code_verifier to the check object
+        if (checks && typeof checks === 'object') {
+          checks.code_verifier = codeVerifier;
+          console.log('[AUTH_CALLBACK] Added code_verifier to check object');
+        }
+        return originalOauthCallback.call(this, redirectUri, parameters, checks, extras);
+      };
+    }
     
     // Get the full callback URL (including code and state)
     const fullCallbackUrl = request.url;
@@ -117,7 +147,20 @@ export async function GET(request: NextRequest) {
     try {
       // The apiCallback only takes the callback URL as parameter
       // The state is checked internally using the state configured in the XeroClient
-      structuredLogger.debug('Calling apiCallback', { component: 'xero-auth-callback' });
+      structuredLogger.debug('Calling apiCallback', { 
+        component: 'xero-auth-callback',
+        hasCodeVerifier: !!(xero as any)._codeVerifier,
+        codeVerifierSet: codeVerifier ? 'yes' : 'no'
+      });
+      
+      // Check if openid-client is properly initialized
+      if (!(xero as any).openIdClient) {
+        structuredLogger.error('OpenID client not initialized', undefined, {
+          component: 'xero-auth-callback'
+        });
+        throw new Error('OpenID client not initialized');
+      }
+      
       const tokenSet = await xero.apiCallback(fullCallbackUrl);
       
       structuredLogger.info('Token exchange successful', {
@@ -127,7 +170,123 @@ export async function GET(request: NextRequest) {
         expiresAt: tokenSet.expires_at
       });
       
-      // Create response with redirect
+      // Get user info from Xero and store in database
+      try {
+        // Get Xero client to fetch user info
+        const xeroWithToken = createXeroClient();
+        xeroWithToken.setTokenSet(tokenSet);
+        await xeroWithToken.updateTenants();
+        
+        if (xeroWithToken.tenants && xeroWithToken.tenants.length > 0) {
+          const tenant = xeroWithToken.tenants[0];
+          
+          // Get user info from ID token if available
+          let userInfo: any = {};
+          if (tokenSet.id_token) {
+            try {
+              // Decode ID token to get user info
+              const idTokenPayload = JSON.parse(
+                Buffer.from(tokenSet.id_token.split('.')[1], 'base64').toString()
+              );
+              userInfo = {
+                xeroUserId: idTokenPayload.sub || idTokenPayload.xero_userid,
+                email: idTokenPayload.email,
+                firstName: idTokenPayload.given_name,
+                lastName: idTokenPayload.family_name,
+                fullName: idTokenPayload.name
+              };
+            } catch (e) {
+              console.error('Failed to decode ID token:', e);
+            }
+          }
+          
+          // Store user in database
+          const { prisma } = await import('@/lib/prisma');
+          const user = await prisma.user.upsert({
+            where: { 
+              email: userInfo.email || `${tenant.tenantId}@xero.local`
+            },
+            update: {
+              tenantId: tenant.tenantId,
+              tenantName: tenant.tenantName || 'Unknown',
+              tenantType: tenant.tenantType,
+              lastLoginAt: new Date(),
+              xeroAccessToken: tokenSet.access_token,
+              xeroRefreshToken: tokenSet.refresh_token,
+              tokenExpiresAt: new Date((tokenSet.expires_at || 0) * 1000)
+            },
+            create: {
+              xeroUserId: userInfo.xeroUserId || tenant.tenantId,
+              email: userInfo.email || `${tenant.tenantId}@xero.local`,
+              firstName: userInfo.firstName,
+              lastName: userInfo.lastName,
+              fullName: userInfo.fullName,
+              tenantId: tenant.tenantId,
+              tenantName: tenant.tenantName || 'Unknown',
+              tenantType: tenant.tenantType,
+              xeroAccessToken: tokenSet.access_token,
+              xeroRefreshToken: tokenSet.refresh_token,
+              tokenExpiresAt: new Date((tokenSet.expires_at || 0) * 1000)
+            }
+          });
+          
+          structuredLogger.info('User stored in database', {
+            component: 'xero-auth-callback',
+            userId: user.id,
+            email: user.email,
+            tenantName: user.tenantName
+          });
+          
+          // Create user session
+          const userSession = {
+            userId: user.id,
+            email: user.email,
+            tenantId: user.tenantId,
+            tenantName: user.tenantName
+          };
+          
+          // Prepare token data
+          const tokenData = {
+            access_token: tokenSet.access_token || '',
+            refresh_token: tokenSet.refresh_token || '',
+            expires_at: tokenSet.expires_at || (Math.floor(Date.now() / 1000) + (tokenSet.expires_in || 1800)),
+            expires_in: tokenSet.expires_in || 1800,
+            token_type: tokenSet.token_type || 'Bearer',
+            scope: tokenSet.scope || ''
+          };
+          
+          // Store session in cookie
+          // Check for return URL in state data
+          const returnUrl = stateData?.returnUrl || '/finance';
+          const redirectUrl = `${baseUrl}${returnUrl}?connected=true`;
+          
+          const response = NextResponse.redirect(redirectUrl);
+          response.cookies.set(SESSION_COOKIE_NAME, JSON.stringify(userSession), AUTH_COOKIE_OPTIONS);
+          
+          structuredLogger.debug('Setting user session cookie', {
+            component: 'xero-auth-callback',
+            cookieName: SESSION_COOKIE_NAME,
+            cookieOptions: AUTH_COOKIE_OPTIONS,
+            userSession
+          });
+          
+          // Store token in secure cookie
+          XeroSession.setTokenInResponse(response, tokenData);
+          
+          // Clear state and PKCE cookies
+          response.cookies.delete('xero_state');
+          response.cookies.delete('xero_pkce');
+          
+          return response;
+        }
+      } catch (error) {
+        structuredLogger.error('Failed to store user info', error, {
+          component: 'xero-auth-callback'
+        });
+        // Continue with auth flow even if user storage fails
+      }
+      
+      // Create response with redirect (fallback if user creation fails)
       structuredLogger.debug('Creating redirect response', { 
         component: 'xero-auth-callback',
         redirectTo: `${baseUrl}/finance?connected=true` 
@@ -164,19 +323,23 @@ export async function GET(request: NextRequest) {
         hasCookie: !!response.headers.get('set-cookie')
       });
       
-      // Clear state cookie
+      // Clear state and PKCE cookies
       response.cookies.delete('xero_state');
-      structuredLogger.debug('State cookie deleted', { component: 'xero-auth-callback' });
+      response.cookies.delete('xero_pkce');
+      structuredLogger.debug('State and PKCE cookies deleted', { component: 'xero-auth-callback' });
       return response;
     } catch (tokenError: any) {
       console.log('[AUTH_CALLBACK] Token exchange failed:', tokenError.message);
       console.log('[AUTH_CALLBACK] Error stack:', tokenError.stack);
       structuredLogger.error('Token exchange error', tokenError, {
-        component: 'xero-auth-callback'
+        component: 'xero-auth-callback',
+        errorMessage: tokenError.message,
+        errorName: tokenError.name,
+        hasCodeVerifier: !!codeVerifier
       });
       
-      // Try alternative approach
-      if (tokenError.message.includes('Access token is undefined')) {
+      // Try alternative approach - also for invalid_grant errors
+      if (tokenError.message.includes('Access token is undefined') || tokenError.message.includes('invalid_grant')) {
         structuredLogger.info('Trying manual token exchange', { component: 'xero-auth-callback' });
         
         // Build token exchange request manually
@@ -187,6 +350,25 @@ export async function GET(request: NextRequest) {
           redirect_uri: process.env.XERO_REDIRECT_URI || 'https://localhost:3003/api/v1/xero/auth/callback',
           client_id: process.env.XERO_CLIENT_ID || '',
           client_secret: process.env.XERO_CLIENT_SECRET || ''
+        });
+        
+        // Add PKCE code_verifier if available
+        if (codeVerifier) {
+          params.append('code_verifier', codeVerifier);
+          structuredLogger.debug('Added PKCE code_verifier to manual token exchange', {
+            component: 'xero-auth-callback',
+            codeVerifierLength: codeVerifier.length,
+            codeVerifier: codeVerifier.substring(0, 10) + '...' // Log first 10 chars for debugging
+          });
+        }
+        
+        structuredLogger.debug('Manual token exchange parameters', {
+          component: 'xero-auth-callback',
+          hasCode: !!params.get('code'),
+          hasCodeVerifier: !!params.get('code_verifier'),
+          redirectUri: params.get('redirect_uri'),
+          clientId: params.get('client_id')?.substring(0, 8) + '...',
+          grantType: params.get('grant_type')
         });
         
         const tokenResponse = await fetch(tokenUrl, {
@@ -248,9 +430,10 @@ export async function GET(request: NextRequest) {
           hasCookie: !!response.headers.get('set-cookie')
         });
         
-        // Clear state cookie
+        // Clear state and PKCE cookies
         response.cookies.delete('xero_state');
-        structuredLogger.debug('Manual state cookie deleted', { component: 'xero-auth-callback' });
+        response.cookies.delete('xero_pkce');
+        structuredLogger.debug('Manual state and PKCE cookies deleted', { component: 'xero-auth-callback' });
         return response;
       }
       
@@ -275,12 +458,12 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    return NextResponse.redirect(`${baseUrl}/finance?error=${errorMessage}`);
+    return NextResponse.redirect(`${baseUrl}/login?error=${errorMessage}`);
   }
   } catch (fatalError: any) {
     // Catch any errors that might occur before we can even log
     console.error('[FATAL] Xero callback error:', fatalError.message || fatalError);
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3003';
-    return NextResponse.redirect(`${baseUrl}/finance?error=callback_fatal_error`);
+    return NextResponse.redirect(`${baseUrl}/login?error=callback_fatal_error`);
   }
 }

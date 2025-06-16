@@ -19,9 +19,56 @@ const MAX_REQUEST_SIZE = 1 * 1024 * 1024; // 1MB default
 const REQUEST_TIMEOUT = 30000; // 30 seconds default
 const SYNC_REQUEST_TIMEOUT = 300000; // 5 minutes for sync operations
 
+// Public routes that don't require authentication
+const PUBLIC_ROUTES = [
+  '/login',
+  '/api/v1/xero/auth',
+  '/api/v1/xero/auth/callback',
+  '/api/v1/auth/session',
+  '/_next',
+  '/favicon.ico',
+  '/public'
+]
+
+// Routes that are protected and require authentication
+const PROTECTED_ROUTES = [
+  '/',
+  '/finance',
+  '/bookkeeping',
+  '/analytics',
+  '/cashflow',
+  '/database'
+]
+
 export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
   // Clone the request headers
   const requestHeaders = new Headers(request.headers);
+  
+  // Check if route requires authentication
+  const isProtectedRoute = PROTECTED_ROUTES.some(route => 
+    pathname === route || pathname.startsWith(route + '/')
+  );
+  
+  const isPublicRoute = PUBLIC_ROUTES.some(route => 
+    pathname === route || pathname.startsWith(route)
+  );
+  
+  // If it's a protected route and not public, check authentication
+  if (isProtectedRoute && !isPublicRoute) {
+    const userSession = request.cookies.get('user_session');
+    
+    // If no user session, redirect to login
+    if (!userSession) {
+      console.log(`[Middleware] No user session found for ${pathname}, redirecting to login`);
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      // Store the original URL to redirect back after login
+      url.searchParams.set('returnUrl', pathname);
+      return NextResponse.redirect(url);
+    }
+  }
   
   // Add a custom header to track if this is an API route
   if (request.nextUrl.pathname.startsWith('/api/')) {
@@ -93,11 +140,12 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Match all API routes
-    '/api/:path*',
-    // Match test routes
-    '/test/:path*',
-    // Match Xero-specific routes that might need cookie handling
-    '/bookkeeping/:path*',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };

@@ -8,6 +8,7 @@ export const stateStore = new Map<string, {
   timestamp: number;
   codeVerifier?: string;
   codeChallenge?: string;
+  returnUrl?: string;
 }>();
 
 // Clean up old states and enforce size limit
@@ -57,11 +58,22 @@ startBackgroundCleanup();
 
 // Generate PKCE code verifier and challenge
 export function generatePKCEPair() {
+  // Generate a code verifier - must be 43-128 characters
+  // Using 32 bytes = 43 characters in base64url
   const codeVerifier = crypto.randomBytes(32).toString('base64url');
+  
+  // Generate code challenge using SHA256
   const codeChallenge = crypto
     .createHash('sha256')
     .update(codeVerifier)
     .digest('base64url');
+  
+  console.log('[PKCE] Generated pair:', {
+    verifierLength: codeVerifier.length,
+    challengeLength: codeChallenge.length,
+    verifierSample: codeVerifier.substring(0, 10) + '...',
+    challengeSample: codeChallenge.substring(0, 10) + '...'
+  });
   
   return { codeVerifier, codeChallenge };
 }

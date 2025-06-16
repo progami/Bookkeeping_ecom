@@ -10,7 +10,18 @@ interface Organization {
   tenantType: string
 }
 
+interface User {
+  userId: string
+  email: string
+  tenantId: string
+  tenantName: string
+}
+
 interface AuthState {
+  // User authentication state
+  isAuthenticated: boolean
+  user: User | null
+  
   // Database state - do we have data?
   hasData: boolean
   lastSync: string | null
@@ -26,6 +37,8 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   // Actions
+  signIn: () => void
+  signOut: () => Promise<void>
   connectToXero: () => void
   disconnectFromXero: () => Promise<void>
   syncData: () => Promise<void>
@@ -37,6 +50,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
   const [authState, setAuthState] = useState<AuthState>({
+    isAuthenticated: false,
+    user: null,
     hasData: false,
     lastSync: null,
     hasActiveToken: false,
@@ -53,7 +68,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const checkAuthStatus = async () => {
     console.log('[AuthContext] Checking auth status...')
     try {
-      // Check both database state and Xero connection in parallel
+      // Check user session first
+      const sessionRes = await fetch('/api/v1/auth/session')
+      const sessionData = await sessionRes.json()
+      
+      if (!sessionData.authenticated) {
+        console.log('[AuthContext] No user session found')
+        setAuthState(prev => ({
+          ...prev,
+          isAuthenticated: false,
+          user: null,
+          isLoading: false
+        }))
+        return
+      }
+      
+      // User is authenticated, check database state and Xero connection
       const [dbStatusRes, xeroStatusRes] = await Promise.all([
         fetch('/api/v1/database/status'),
         fetch('/api/v1/xero/status')
@@ -63,12 +93,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const xeroStatus = await xeroStatusRes.json()
       
       console.log('[AuthContext] Status check results:', {
+        session: sessionData,
         dbStatus: { hasData: dbStatus.hasData, lastSync: dbStatus.lastSync },
         xeroStatus: { connected: xeroStatus.connected, organization: xeroStatus.organization }
       })
 
       setAuthState(prev => ({
         ...prev,
+        isAuthenticated: true,
+        user: sessionData.user,
         hasData: dbStatus.hasData || false,
         lastSync: dbStatus.lastSync,
         hasActiveToken: xeroStatus.connected || false,
@@ -87,6 +120,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const signIn = () => {
+    // Redirect to login page which will handle Xero OAuth
+    window.location.href = '/login'
+  }
+  
+  const signOut = async () => {
+    try {
+      const response = await fetch('/api/v1/auth/signout', {
+        method: 'POST',
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        // Clear auth state
+        setAuthState({
+          isAuthenticated: false,
+          user: null,
+          hasData: false,
+          lastSync: null,
+          hasActiveToken: false,
+          organization: null,
+          isLoading: false,
+          isSyncing: false
+        })
+        
+        // Redirect to login
+        window.location.href = '/login'
+      } else {
+        toast.error('Failed to sign out')
+      }
+    } catch (error) {
+      console.error('Error signing out:', error)
+      toast.error('Error signing out')
+    }
+  }
+  
   const connectToXero = () => {
     window.location.href = '/api/v1/xero/auth'
   }
@@ -167,6 +236,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const contextValue: AuthContextType = {
     ...authState,
+    signIn,
+    signOut,
     connectToXero,
     disconnectFromXero,
     syncData,
