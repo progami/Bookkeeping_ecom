@@ -404,7 +404,7 @@ export default function BookkeepingDashboard() {
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="relative z-10">
-                  <div className="mb-4">
+                  <div className="flex items-start justify-between mb-4">
                     <div className="p-3 bg-cyan-500/20 rounded-xl">
                       <FileText className="h-8 w-8 text-cyan-400" />
                     </div>
@@ -423,7 +423,7 @@ export default function BookkeepingDashboard() {
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="relative z-10">
-                  <div className="mb-4">
+                  <div className="flex items-start justify-between mb-4">
                     <div className="p-3 bg-amber-500/20 rounded-xl">
                       <BookOpen className="h-8 w-8 text-amber-400" />
                     </div>

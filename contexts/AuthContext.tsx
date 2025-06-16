@@ -51,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const checkAuthStatus = async () => {
+    console.log('[AuthContext] Checking auth status...')
     try {
       // Check both database state and Xero connection in parallel
       const [dbStatusRes, xeroStatusRes] = await Promise.all([
@@ -60,6 +61,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const dbStatus = await dbStatusRes.json()
       const xeroStatus = await xeroStatusRes.json()
+      
+      console.log('[AuthContext] Status check results:', {
+        dbStatus: { hasData: dbStatus.hasData, lastSync: dbStatus.lastSync },
+        xeroStatus: { connected: xeroStatus.connected, organization: xeroStatus.organization }
+      })
 
       setAuthState(prev => ({
         ...prev,

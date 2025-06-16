@@ -42,7 +42,7 @@ export default function BusinessAnalytics() {
     measurePageLoad('Business Analytics');
   }
   const router = useRouter()
-  const { hasActiveToken } = useAuth()
+  const { hasActiveToken, checkAuthStatus, isLoading: authLoading } = useAuth()
   const [vendors, setVendors] = useState<VendorData[]>([])
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('30d')
@@ -53,11 +53,20 @@ export default function BusinessAnalytics() {
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryData[]>([])
   const [growthRate, setGrowthRate] = useState(0)
 
+  // Re-check auth status on mount
   useEffect(() => {
-    fetchVendorData()
-    fetchSpendTrend()
-    fetchCategoryBreakdown()
-  }, [timeRange])
+    console.log('[Analytics] Component mounted, checking auth status...')
+    checkAuthStatus()
+  }, [])
+
+  useEffect(() => {
+    console.log('[Analytics] Auth state changed:', { authLoading, hasActiveToken })
+    if (!authLoading && hasActiveToken) {
+      fetchVendorData()
+      fetchSpendTrend()
+      fetchCategoryBreakdown()
+    }
+  }, [timeRange, hasActiveToken, authLoading])
 
   const fetchVendorData = async () => {
     try {
@@ -236,7 +245,7 @@ export default function BusinessAnalytics() {
         }
       />
 
-        {loading ? (
+        {loading || authLoading ? (
           <>
             {/* Loading Skeletons */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
