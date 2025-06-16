@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { redis } from '@/lib/redis';
 import { memoryMonitor } from '@/lib/memory-monitor';
 import { structuredLogger } from '@/lib/logger';
+import { checkQueueHealth } from '@/lib/queue/queue-config';
 
 export async function GET(request: NextRequest) {
   try {
@@ -130,6 +131,23 @@ export async function GET(request: NextRequest) {
       healthChecks.checks.dataIntegrity = {
         status: 'error',
         error: error.message
+      };
+    }
+
+    // Check job queues
+    try {
+      const queueHealth = await checkQueueHealth();
+      healthChecks.checks.queues = queueHealth;
+      
+      if (!queueHealth.healthy) {
+        healthChecks.status = 'degraded';
+        healthChecks.errors.push('One or more job queues are unhealthy');
+      }
+    } catch (error: any) {
+      healthChecks.checks.queues = {
+        status: 'error',
+        error: error.message,
+        healthy: false
       };
     }
 

@@ -51,34 +51,118 @@ model BankAccount {
   @@index([xeroAccountId])
 }
 
+model Contact {
+  id                         String   @id @default(cuid())
+  xeroContactId              String   @unique
+  contactNumber              String?
+  accountNumber              String?
+  contactStatus              String?
+  name                       String
+  firstName                  String?
+  lastName                   String?
+  companyNumber              String?
+  emailAddress               String?
+  bankAccountDetails         String?
+  taxNumber                  String?
+  accountsReceivableTaxType  String?
+  accountsPayableTaxType     String?
+  isSupplier                 Boolean  @default(false)
+  isCustomer                 Boolean  @default(false)
+  defaultCurrency            String?
+  updatedDateUTC             DateTime
+  lastSyncedAt               DateTime @default(now())
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+  
+  transactions               BankTransaction[]
+  invoices                   Invoice[]
+  
+  @@index([xeroContactId])
+  @@index([emailAddress])
+  @@index([isSupplier])
+  @@index([isCustomer])
+}
+
+model Invoice {
+  id                    String    @id @default(cuid())
+  xeroInvoiceId         String    @unique
+  type                  String    // 'ACCREC' or 'ACCPAY'
+  contactId             String
+  date                  DateTime
+  dueDate               DateTime?
+  status                String    // 'DRAFT', 'AUTHORISED', 'PAID', etc
+  lineAmountTypes       String?
+  invoiceNumber         String?
+  reference             String?
+  brandingThemeId       String?
+  url                   String?
+  currencyCode          String?
+  currencyRate          Decimal?
+  subTotal              Decimal   @default(0)
+  totalTax              Decimal   @default(0)
+  total                 Decimal   @default(0)
+  totalDiscount         Decimal?
+  hasAttachments        Boolean   @default(false)
+  isDiscounted          Boolean   @default(false)
+  amountDue             Decimal   @default(0)
+  amountPaid            Decimal   @default(0)
+  fullyPaidOnDate       DateTime?
+  amountCredited        Decimal   @default(0)
+  updatedDateUTC        DateTime
+  lastSyncedAt          DateTime  @default(now())
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  contact               Contact   @relation(fields: [contactId], references: [xeroContactId])
+  
+  @@index([xeroInvoiceId])
+  @@index([contactId])
+  @@index([type])
+  @@index([status])
+  @@index([date])
+  @@index([dueDate])
+}
+
 model BankTransaction {
-  id                String   @id @default(cuid())
-  xeroTransactionId String   @unique
-  bankAccountId     String
-  date              DateTime
-  amount            Decimal
-  currencyCode      String?
-  type              String   // 'SPEND' or 'RECEIVE'
-  status            String   // 'AUTHORISED', 'DELETED', etc
-  isReconciled      Boolean  @default(false)
-  reference         String?
-  description       String?
-  contactName       String?
-  lineItems         String?  // Store line items as JSON string
-  hasAttachments    Boolean  @default(false)
+  id                   String   @id @default(cuid())
+  bankTransactionId    String?  @unique // Made optional for existing data
+  xeroTransactionId    String?  @unique // Keep for backward compatibility
+  type                 String   // 'SPEND' or 'RECEIVE'
+  contactId            String?
+  contactName          String?  // Keep for backward compatibility
+  bankAccountId        String
+  isReconciled         Boolean  @default(false)
+  date                 DateTime
+  reference            String?
+  description          String?  // Keep for backward compatibility
+  currencyCode         String?
+  currencyRate         Decimal?
+  amount               Decimal? // Keep for backward compatibility
+  url                  String?
+  status               String   // 'AUTHORISED', 'DELETED', etc
+  lineAmountTypes      String?
+  lineItems            String?  // Keep for backward compatibility
+  subTotal             Decimal  @default(0)
+  totalTax             Decimal  @default(0)
+  total                Decimal  @default(0)
+  prepaymentId         String?
+  overpaymentId        String?
+  updatedDateUTC       DateTime @default(now())
+  hasAttachments       Boolean  @default(false)
+  statusAttributeString String?
+  accountCode          String?  // Keep for backward compatibility
+  taxType              String?  // Keep for backward compatibility
+  lastSyncedAt         DateTime @default(now())
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
   
-  // Categorization (rules removed)
-  accountCode       String?
-  taxType           String?
+  bankAccount          BankAccount @relation(fields: [bankAccountId], references: [id])
+  contact              Contact?    @relation(fields: [contactId], references: [xeroContactId])
   
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  lastSyncedAt      DateTime @default(now())
-  
-  bankAccount       BankAccount @relation(fields: [bankAccountId], references: [id])
-  
+  @@index([bankTransactionId])
   @@index([xeroTransactionId])
   @@index([bankAccountId])
+  @@index([contactId])
   @@index([date])
   @@index([isReconciled])
 }
@@ -340,4 +424,27 @@ model CurrencyRate {
   @@unique([fromCurrency, toCurrency, effectiveDate])
   @@index([effectiveDate])
   @@index([fromCurrency, toCurrency])
+}
+
+model Report {
+  id           String   @id @default(cuid())
+  userId       String
+  type         String   // 'profit-loss', 'balance-sheet', 'cash-flow', 'tax-summary'
+  format       String   // 'pdf', 'excel', 'csv'
+  startDate    DateTime
+  endDate      DateTime
+  filePath     String
+  fileSize     Int
+  status       String   @default("pending") // 'pending', 'generating', 'completed', 'failed'
+  generatedAt  DateTime?
+  expiresAt    DateTime
+  downloadCount Int     @default(0)
+  lastDownloadAt DateTime?
+  errorMessage String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+  @@index([expiresAt])
 }
