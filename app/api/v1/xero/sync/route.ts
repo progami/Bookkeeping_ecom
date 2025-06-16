@@ -577,6 +577,40 @@ async function performSync(tx: any, syncLog: any, modifiedSince?: Date) {
       updated: updatedTransactions
     });
     
+    // Update sync log to success status
+    await tx.syncLog.update({
+      where: { id: syncLog.id },
+      data: {
+        status: 'success',
+        completedAt: new Date(),
+        recordsCreated: createdTransactions,
+        recordsUpdated: updatedTransactions,
+        errorMessage: null
+      }
+    });
+    
+    // Log sync success
+    await auditLogger.logSuccess(
+      AuditAction.SYNC_COMPLETE,
+      AuditResource.SYNC_OPERATION,
+      {
+        resourceId: syncLog.id,
+        metadata: {
+          syncType: syncLog.syncType,
+          summary: {
+            glAccounts: totalGLAccounts,
+            bankAccounts: totalAccounts,
+            transactions: totalTransactions,
+            invoices: totalInvoices,
+            bills: totalBills,
+            created: createdTransactions,
+            updated: updatedTransactions
+          }
+        },
+        duration: Date.now() - syncLog.startedAt.getTime()
+      }
+    );
+    
     return {
       success: true,
       summary: {
