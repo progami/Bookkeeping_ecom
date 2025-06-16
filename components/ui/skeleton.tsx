@@ -47,7 +47,7 @@ export function Skeleton({
 // Composite skeleton components for common patterns
 export function SkeletonCard({ className }: { className?: string }) {
   return (
-    <div className={cn("bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6", className)}>
+    <div className={cn("bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4 sm:p-6", className)}>
       <div className="flex items-center justify-between mb-4">
         <Skeleton variant="circular" width={48} height={48} />
         <Skeleton variant="text" width={60} height={12} />
@@ -79,7 +79,7 @@ export function SkeletonTable({ rows = 5 }: { rows?: number }) {
 
 export function SkeletonChart({ height = 300 }: { height?: number }) {
   return (
-    <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6">
+    <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4 sm:p-6">
       <Skeleton variant="text" width={150} height={24} className="mb-6" />
       <Skeleton variant="rectangular" height={height} />
     </div>
@@ -89,7 +89,7 @@ export function SkeletonChart({ height = 300 }: { height?: number }) {
 // Finance page specific skeletons
 export function SkeletonMetricCard() {
   return (
-    <div className="relative bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6">
+    <div className="relative bg-slate-800/30 border border-slate-700/50 rounded-2xl p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="p-3 bg-slate-700/30 rounded-xl">
           <Skeleton variant="rectangular" width={24} height={24} />
@@ -105,7 +105,7 @@ export function SkeletonMetricCard() {
 
 export function SkeletonModuleCard() {
   return (
-    <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+    <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-4 sm:p-6">
       <div className="absolute top-0 right-0 w-32 h-32 bg-slate-700/20 rounded-full blur-3xl" />
       
       <div className="relative z-10">
@@ -143,7 +143,7 @@ export function SkeletonModuleCard() {
 
 export function SkeletonHealthScore() {
   return (
-    <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-3xl p-8">
+    <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-3xl p-6 sm:p-8">
       <div className="flex items-center justify-between flex-wrap gap-6">
         <div>
           <Skeleton variant="text" width={250} height={32} className="mb-4" />
@@ -209,7 +209,7 @@ export function SkeletonTransactionRow() {
 export function SkeletonTransactionList() {
   return (
     <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl">
-      <div className="p-6 border-b border-slate-700/50">
+      <div className="p-4 sm:p-6 border-b border-slate-700/50">
         <div className="flex items-center justify-between">
           <Skeleton variant="text" width={200} height={28} />
           <div className="flex gap-2">

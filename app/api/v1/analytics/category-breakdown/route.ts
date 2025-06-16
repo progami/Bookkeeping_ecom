@@ -30,22 +30,46 @@ export const GET = withValidation(
         startDate.setDate(now.getDate() - 30);
     }
 
-    // Query transactions with account codes
-    const transactions = await prisma.bankTransaction.findMany({
-      where: {
-        date: {
-          gte: startDate,
-          lte: now
+    // Get page and pageSize from query parameters
+    const page = parseInt((request.nextUrl.searchParams.get('page') || '1'));
+    const pageSize = parseInt((request.nextUrl.searchParams.get('pageSize') || '1000'));
+    const skip = (page - 1) * pageSize;
+    
+    // Query transactions with account codes and get total count
+    const [transactions, totalTransactions] = await Promise.all([
+      prisma.bankTransaction.findMany({
+        where: {
+          date: {
+            gte: startDate,
+            lte: now
+          },
+          type: 'SPEND',
+          status: {
+            not: 'DELETED'
+          },
+          accountCode: {
+            not: null
+          }
         },
-        type: 'SPEND',
-        status: {
-          not: 'DELETED'
-        },
-        accountCode: {
-          not: null
+        skip,
+        take: pageSize
+      }),
+      prisma.bankTransaction.count({
+        where: {
+          date: {
+            gte: startDate,
+            lte: now
+          },
+          type: 'SPEND',
+          status: {
+            not: 'DELETED'
+          },
+          accountCode: {
+            not: null
+          }
         }
-      }
-    });
+      })
+    ]);
 
     // Get GL accounts for mapping
     const glAccounts = await prisma.gLAccount.findMany({
@@ -121,6 +145,8 @@ export const GET = withValidation(
       }))
       .sort((a, b) => b.amount - a.amount);
 
+      const totalPages = Math.ceil(totalTransactions / pageSize);
+      
       return NextResponse.json({
         success: true,
         categories,
@@ -132,6 +158,14 @@ export const GET = withValidation(
           topCategory: categories[0]?.category || 'N/A',
           topCategoryPercentage: categories[0]?.percentage || 0,
           categoryCount: categories.length
+        },
+        pagination: {
+          page,
+          pageSize,
+          totalTransactions,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1
         }
       });
 

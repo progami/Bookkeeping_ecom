@@ -1,24 +1,39 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     console.log('[Account Transactions YTD] Fetching from database...');
+    
+    // Get pagination parameters
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '100');
+    const skip = (page - 1) * pageSize;
     
     // Get current year start date for YTD
     const currentYear = new Date().getFullYear();
     const fromDate = new Date(`${currentYear}-01-01`);
     const toDate = new Date();
     
-    // Get all GL accounts from database
-    const glAccounts = await prisma.gLAccount.findMany({
-      where: {
-        status: 'ACTIVE'
-      },
-      orderBy: {
-        code: 'asc'
-      }
-    });
+    // Get GL accounts with pagination and total count
+    const [glAccounts, totalAccounts] = await Promise.all([
+      prisma.gLAccount.findMany({
+        where: {
+          status: 'ACTIVE'
+        },
+        orderBy: {
+          code: 'asc'
+        },
+        skip,
+        take: pageSize
+      }),
+      prisma.gLAccount.count({
+        where: {
+          status: 'ACTIVE'
+        }
+      })
+    ]);
     
     // Get all bank transactions for YTD
     const bankTransactions = await prisma.bankTransaction.findMany({
@@ -88,9 +103,18 @@ export async function GET() {
       console.log(`  - ${vat.name} (${vat.code}): YTD Movement = ${vat.ytdMovement}`);
     });
     
+    const totalPages = Math.ceil(totalAccounts / pageSize);
+    
     return NextResponse.json({
       accounts: accountsWithYTD,
-      totalAccounts: accountsWithYTD.length,
+      pagination: {
+        page,
+        pageSize,
+        totalAccounts,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      },
       dateRange: { 
         fromDate: fromDate.toISOString().split('T')[0], 
         toDate: toDate.toISOString().split('T')[0]

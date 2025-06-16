@@ -235,7 +235,7 @@ export default function BusinessAnalytics() {
   ]
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6 sm:py-8">
       {/* Header */}
       <UnifiedPageHeader 
         title="Business Analytics"
@@ -260,7 +260,7 @@ export default function BusinessAnalytics() {
         {loading || authLoading ? (
           <>
             {/* Loading Skeletons */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {[...Array(5)].map((_, i) => (
                 <SkeletonCard key={i} />
               ))}
@@ -269,7 +269,7 @@ export default function BusinessAnalytics() {
               <SkeletonChart />
               <SkeletonChart />
             </div>
-            <div className="bg-secondary border border-default rounded-2xl p-6">
+            <div className="bg-secondary border border-default rounded-2xl p-4 sm:p-6">
               <SkeletonTable />
             </div>
           </>
@@ -300,8 +300,8 @@ export default function BusinessAnalytics() {
         ) : (
           <>
             {/* Enhanced Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-brand-blue rounded-xl">
                     <DollarSign className="h-6 w-6 text-brand-blue" />
@@ -316,7 +316,7 @@ export default function BusinessAnalytics() {
                 <div className="text-sm text-tertiary mt-1">Total Spend</div>
               </div>
 
-              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-brand-emerald rounded-xl">
                     <Building2 className="h-6 w-6 text-brand-emerald" />
@@ -328,7 +328,7 @@ export default function BusinessAnalytics() {
                 <div className="text-sm text-tertiary mt-1">Active Vendors</div>
               </div>
 
-              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-brand-purple rounded-xl">
                     <BarChart3 className="h-6 w-6 text-brand-purple" />
@@ -340,7 +340,7 @@ export default function BusinessAnalytics() {
                 <div className="text-sm text-tertiary mt-1">Top 5 Concentration</div>
               </div>
 
-              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-brand-blue rounded-xl">
                     <TrendingUp className="h-6 w-6 text-brand-blue" />
@@ -352,7 +352,7 @@ export default function BusinessAnalytics() {
                 <div className="text-sm text-tertiary mt-1">Top Vendor</div>
               </div>
 
-              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-brand-amber rounded-xl">
                     <Activity className="h-6 w-6 text-brand-amber" />
@@ -368,7 +368,7 @@ export default function BusinessAnalytics() {
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               {/* Spend Trend Chart */}
-              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6">
                 <h2 className="text-xl font-semibold text-white mb-6">Spend Trend</h2>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={spendTrend}>
@@ -410,7 +410,7 @@ export default function BusinessAnalytics() {
               </div>
 
               {/* Category Breakdown */}
-              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6">
                 <h2 className="text-xl font-semibold text-white mb-6">Expense Breakdown</h2>
                 <ResponsiveContainer width="100%" height={300}>
                   <RePieChart>
@@ -504,7 +504,7 @@ export default function BusinessAnalytics() {
 
             {/* Additional Analytics Sections */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
                   <PieChart className="h-5 w-5 mr-2 text-indigo-400" />
                   Vendor Insights
@@ -531,7 +531,7 @@ export default function BusinessAnalytics() {
                 </div>
               </div>
 
-              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
                   <Activity className="h-5 w-5 mr-2 text-emerald-400" />
                   Performance Metrics

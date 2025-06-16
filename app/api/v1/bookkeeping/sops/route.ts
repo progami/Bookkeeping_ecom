@@ -7,7 +7,9 @@ import { z } from 'zod'
 const sopQuerySchema = z.object({
   year: z.string().regex(/^\d{4}$/).optional(),
   chartOfAccount: z.string().optional(),
-  isActive: z.enum(['true', 'false']).optional()
+  isActive: z.enum(['true', 'false']).optional(),
+  page: z.string().regex(/^\d+$/).optional(),
+  pageSize: z.string().regex(/^\d+$/).optional()
 });
 
 const createSOPSchema = z.object({
@@ -21,7 +23,7 @@ const createSOPSchema = z.object({
   notes: z.string().optional()
 });
 
-// GET all SOPs with optional filtering
+// GET all SOPs with optional filtering and pagination
 export const GET = withValidation(
   { querySchema: sopQuerySchema },
   async (request, { query }) => {
@@ -29,16 +31,37 @@ export const GET = withValidation(
     if (query?.year) where.year = query.year
     if (query?.chartOfAccount) where.chartOfAccount = query.chartOfAccount
     if (query?.isActive !== undefined) where.isActive = query.isActive === 'true'
+    
+    const page = parseInt(query?.page || '1')
+    const pageSize = parseInt(query?.pageSize || '50')
+    const skip = (page - 1) * pageSize
 
-    const sops = await prisma.standardOperatingProcedure.findMany({
-      where,
-      orderBy: [
-        { chartOfAccount: 'asc' },
-        { serviceType: 'asc' }
-      ]
+    const [sops, total] = await Promise.all([
+      prisma.standardOperatingProcedure.findMany({
+        where,
+        orderBy: [
+          { chartOfAccount: 'asc' },
+          { serviceType: 'asc' }
+        ],
+        skip,
+        take: pageSize
+      }),
+      prisma.standardOperatingProcedure.count({ where })
+    ])
+    
+    const totalPages = Math.ceil(total / pageSize)
+
+    return NextResponse.json({
+      sops,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      }
     })
-
-    return NextResponse.json(sops)
   }
 )
 

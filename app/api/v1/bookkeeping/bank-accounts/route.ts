@@ -3,42 +3,59 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get bank accounts from database
-    const dbAccounts = await prisma.bankAccount.findMany({
-      include: {
-        _count: {
-          select: {
-            transactions: {
-              where: {
-                isReconciled: false,
-                status: { not: 'DELETED' }
+    // Batch all queries using Promise.all for better performance
+    const [
+      dbAccounts,
+      totalUnreconciled,
+      totalTransactions,
+      reconciledTransactions,
+      oldestUnreconciledTx
+    ] = await Promise.all([
+      // Get bank accounts from database
+      prisma.bankAccount.findMany({
+        include: {
+          _count: {
+            select: {
+              transactions: {
+                where: {
+                  isReconciled: false,
+                  status: { not: 'DELETED' }
+                }
               }
             }
           }
         }
-      }
-    });
-
-    // Get total unreconciled count
-    const totalUnreconciled = await prisma.bankTransaction.count({
-      where: {
-        isReconciled: false,
-        status: { not: 'DELETED' }
-      }
-    });
-
-    // Calculate reconciliation rate
-    const totalTransactions = await prisma.bankTransaction.count({
-      where: {
-        status: { not: 'DELETED' }
-      }
-    });
-    const reconciledTransactions = await prisma.bankTransaction.count({
-      where: {
-        isReconciled: true,
-        status: { not: 'DELETED' }
-      }
-    });
+      }),
+      // Get total unreconciled count
+      prisma.bankTransaction.count({
+        where: {
+          isReconciled: false,
+          status: { not: 'DELETED' }
+        }
+      }),
+      // Get total transactions
+      prisma.bankTransaction.count({
+        where: {
+          status: { not: 'DELETED' }
+        }
+      }),
+      // Get reconciled transactions
+      prisma.bankTransaction.count({
+        where: {
+          isReconciled: true,
+          status: { not: 'DELETED' }
+        }
+      }),
+      // Get oldest unreconciled transaction
+      prisma.bankTransaction.findFirst({
+        where: { 
+          isReconciled: false,
+          status: { not: 'DELETED' }
+        },
+        orderBy: { date: 'asc' },
+        select: { date: true }
+      })
+    ]);
     const reconciliationRate = totalTransactions > 0 
       ? Math.round((reconciledTransactions / totalTransactions) * 100)
       : 100;
@@ -67,14 +84,7 @@ export async function GET(request: NextRequest) {
       totalUnreconciled,
       reconciliationRate,
       needsAttention: accounts.filter(acc => acc.unreconciledTransactions > 10).length,
-      oldestUnreconciled: await prisma.bankTransaction.findFirst({
-        where: { 
-          isReconciled: false,
-          status: { not: 'DELETED' }
-        },
-        orderBy: { date: 'asc' },
-        select: { date: true }
-      })?.then(tx => tx?.date || null)
+      oldestUnreconciled: oldestUnreconciledTx?.date || null
     });
     
   } catch (error: any) {

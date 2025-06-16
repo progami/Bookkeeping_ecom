@@ -205,7 +205,7 @@ export default function CashFlowPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6 sm:py-8">
       <Toaster position="top-right" />
       
       {/* Header */}
@@ -261,7 +261,7 @@ export default function CashFlowPage() {
         <>
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
+            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-cyan-500/20 rounded-xl">
                   <DollarSign className="h-6 w-6 text-cyan-400" />
@@ -274,7 +274,7 @@ export default function CashFlowPage() {
               <div className="text-sm text-tertiary mt-1">Cash Balance</div>
             </div>
 
-            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
+            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-red-500/20 rounded-xl">
                   <TrendingDown className="h-6 w-6 text-red-400" />
@@ -291,7 +291,7 @@ export default function CashFlowPage() {
               <div className="text-sm text-tertiary mt-1">Lowest Balance</div>
             </div>
 
-            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
+            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-green-500/20 rounded-xl">
                   <ArrowUpRight className="h-6 w-6 text-green-400" />
@@ -304,7 +304,7 @@ export default function CashFlowPage() {
               <div className="text-sm text-tertiary mt-1">Total Inflows</div>
             </div>
 
-            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
+            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-amber-500/20 rounded-xl">
                   <AlertTriangle className="h-6 w-6 text-amber-400" />
@@ -408,7 +408,7 @@ export default function CashFlowPage() {
           {/* Cash Flow Details */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {/* Inflows/Outflows Chart */}
-            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
+            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Daily Cash Movements</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={chartData.slice(0, 30)}>
@@ -428,7 +428,7 @@ export default function CashFlowPage() {
             </div>
 
             {/* Alerts & Actions */}
-            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
+            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Alerts & Actions</h3>
               <div className="space-y-3 max-h-[300px] overflow-y-auto">
                 {forecast

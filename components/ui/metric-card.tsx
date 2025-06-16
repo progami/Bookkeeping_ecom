@@ -62,7 +62,7 @@ export function MetricCard({
   return (
     <Component
       onClick={onClick}
-      className={`group relative overflow-hidden bg-gradient-to-br ${styles.container} border rounded-2xl p-6 transition-all duration-300 ${onClick ? 'cursor-pointer' : ''} w-full text-left`}
+      className={`group relative overflow-hidden bg-gradient-to-br ${styles.container} border rounded-2xl p-4 sm:p-6 transition-all duration-300 ${onClick ? 'cursor-pointer' : ''} w-full text-left`}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       <div className="relative z-10">

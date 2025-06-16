@@ -72,7 +72,7 @@ export function ImportDialog({ onClose, onImportComplete }: ImportDialogProps) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="p-6 border-b border-slate-700">
+        <div className="p-4 sm:p-6 border-b border-slate-700">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-white">Import Bookkeeping Rules</h2>
@@ -88,11 +88,11 @@ export function ImportDialog({ onClose, onImportComplete }: ImportDialogProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+        <div className="p-4 sm:p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-200px)]">
           {/* File Upload */}
           <div>
             <label className="block">
-              <div className="border-2 border-dashed border-slate-700 rounded-lg p-8 text-center hover:border-emerald-500 transition-colors cursor-pointer">
+              <div className="border-2 border-dashed border-slate-700 rounded-lg p-6 sm:p-8 text-center hover:border-emerald-500 transition-colors cursor-pointer">
                 <FileSpreadsheet className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-white mb-2">
                   {file ? file.name : 'Click to upload Excel file'}
@@ -168,7 +168,7 @@ export function ImportDialog({ onClose, onImportComplete }: ImportDialogProps) {
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-slate-700">
+        <div className="p-4 sm:p-6 border-t border-slate-700">
           <div className="flex items-center justify-end gap-3">
             <button
               onClick={onClose}

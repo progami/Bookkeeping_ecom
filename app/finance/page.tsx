@@ -201,7 +201,7 @@ export default function FinanceDashboard() {
   return (
     <div className="min-h-screen bg-slate-950">
       <Toaster position="top-right" />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         
         {/* Enhanced Header */}
         <UnifiedPageHeader 
@@ -244,7 +244,7 @@ export default function FinanceDashboard() {
             {/* Remove the warning since we now show empty state when not connected */}
             
             {/* Financial Health Score Card */}
-            <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-3xl p-8 mb-8">
+            <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-3xl p-6 sm:p-8 mb-8">
               <div className="flex items-center justify-between flex-wrap gap-6">
                 <div>
                   <h2 className={cn(responsiveText.heading[2], "font-semibold text-white mb-2 flex items-center gap-2")}>
@@ -321,7 +321,7 @@ export default function FinanceDashboard() {
             {/* Key Financial Metrics - Non-clickable info cards */}
             <div className={cn(gridLayouts.cards.metrics, "mb-8")}>
               {/* Cash Balance - Most Important */}
-              <div className="relative bg-slate-800/30 border border-default rounded-2xl p-6">
+              <div className="relative bg-slate-800/30 border border-default rounded-2xl p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-brand-blue rounded-xl">
                     <Wallet className="h-6 w-6 text-brand-blue" />
@@ -338,7 +338,7 @@ export default function FinanceDashboard() {
               </div>
 
               {/* Revenue */}
-              <div className="relative bg-slate-800/30 border border-default rounded-2xl p-6">
+              <div className="relative bg-slate-800/30 border border-default rounded-2xl p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-brand-emerald/20 rounded-xl">
                     <TrendingUp className="h-6 w-6 text-brand-emerald" />
@@ -359,7 +359,7 @@ export default function FinanceDashboard() {
               </div>
 
               {/* Expenses */}
-              <div className="relative bg-slate-800/30 border border-default rounded-2xl p-6">
+              <div className="relative bg-slate-800/30 border border-default rounded-2xl p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-red-500/20 rounded-xl">
                     <TrendingDown className="h-6 w-6 text-red-400" />
@@ -380,7 +380,7 @@ export default function FinanceDashboard() {
               </div>
 
               {/* Net Income */}
-              <div className="relative bg-slate-800/30 border border-default rounded-2xl p-6">
+              <div className="relative bg-slate-800/30 border border-default rounded-2xl p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-cyan-500/20 rounded-xl">
                     <Activity className="h-6 w-6 text-cyan-400" />
@@ -410,7 +410,7 @@ export default function FinanceDashboard() {
             <div className={cn(gridLayouts.cards.modules, "mb-8")}>
               {/* Bookkeeping - PRIMARY MODULE */}
               <div 
-                className="group relative bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6 hover:border-brand-emerald hover:shadow-lg hover:shadow-brand-emerald/10 transition-all cursor-pointer transform hover:-translate-y-1"
+                className="group relative bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6 hover:border-brand-emerald hover:shadow-lg hover:shadow-brand-emerald/10 transition-all cursor-pointer transform hover:-translate-y-1"
                 onClick={() => router.push('/bookkeeping')}
                 onMouseEnter={() => {
                   // Prefetch data for bookkeeping module on hover
@@ -465,7 +465,7 @@ export default function FinanceDashboard() {
 
               {/* Cash Flow - Active */}
               <div 
-                className="group relative bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
+                className="group relative bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
                 onClick={() => router.push('/cashflow')}
                 onMouseEnter={() => {
                   // Prefetch data for cashflow module on hover
@@ -517,7 +517,7 @@ export default function FinanceDashboard() {
 
               {/* Business Analytics */}
               <div 
-                className="group relative bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
+                className="group relative bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
                 onClick={() => router.push('/analytics')}
                 onMouseEnter={() => {
                   // Prefetch data for analytics module on hover

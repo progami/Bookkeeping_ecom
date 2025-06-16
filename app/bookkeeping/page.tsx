@@ -219,7 +219,7 @@ export default function BookkeepingDashboard() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6 sm:py-8">
       {/* Header */}
       <UnifiedPageHeader 
         title="Bookkeeping Dashboard"
@@ -274,7 +274,7 @@ export default function BookkeepingDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             {/* Rest of the dashboard content remains the same */}
             {/* Cash in Bank */}
-            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-emerald-500/50 transition-all duration-300">
+            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-4 sm:p-6 hover:border-emerald-500/50 transition-all duration-300">
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-4">
@@ -291,7 +291,7 @@ export default function BookkeepingDashboard() {
             </div>
 
             {/* Balance Sheet */}
-            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-blue-500/50 transition-all duration-300">
+            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-4 sm:p-6 hover:border-blue-500/50 transition-all duration-300">
               <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-4">
@@ -311,7 +311,7 @@ export default function BookkeepingDashboard() {
             </div>
 
             {/* P&L Statement */}
-            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-green-500/50 transition-all duration-300">
+            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-4 sm:p-6 hover:border-green-500/50 transition-all duration-300">
               <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-4">
@@ -336,7 +336,7 @@ export default function BookkeepingDashboard() {
             </div>
 
             {/* VAT Liability */}
-            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-amber-500/50 transition-all duration-300">
+            <div className="group relative overflow-hidden bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-4 sm:p-6 hover:border-amber-500/50 transition-all duration-300">
               <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-4">
@@ -363,7 +363,7 @@ export default function BookkeepingDashboard() {
               {/* SOP Generator */}
               <button
                 onClick={() => router.push('/bookkeeping/sop-generator')}
-                className="group relative overflow-hidden bg-gradient-to-br from-emerald-600/20 to-cyan-600/20 border border-emerald-500/30 rounded-2xl p-6 hover:border-emerald-500 transition-all duration-300 text-left"
+                className="group relative overflow-hidden bg-gradient-to-br from-emerald-600/20 to-cyan-600/20 border border-emerald-500/30 rounded-2xl p-4 sm:p-6 hover:border-emerald-500 transition-all duration-300 text-left"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="relative z-10">
@@ -383,7 +383,7 @@ export default function BookkeepingDashboard() {
               {/* All Transactions */}
               <button
                 onClick={() => router.push('/bookkeeping/transactions')}
-                className="group relative overflow-hidden bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl p-6 hover:border-purple-500 transition-all duration-300 text-left"
+                className="group relative overflow-hidden bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl p-4 sm:p-6 hover:border-purple-500 transition-all duration-300 text-left"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="relative z-10">
@@ -407,7 +407,7 @@ export default function BookkeepingDashboard() {
               {/* SOP Tables */}
               <button
                 onClick={() => router.push('/bookkeeping/sop-tables')}
-                className="group relative overflow-hidden bg-gradient-to-br from-cyan-600/20 to-teal-600/20 border border-cyan-500/30 rounded-2xl p-6 hover:border-cyan-500 transition-all duration-300 text-left"
+                className="group relative overflow-hidden bg-gradient-to-br from-cyan-600/20 to-teal-600/20 border border-cyan-500/30 rounded-2xl p-4 sm:p-6 hover:border-cyan-500 transition-all duration-300 text-left"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="relative z-10">
@@ -426,7 +426,7 @@ export default function BookkeepingDashboard() {
               {/* Chart of Accounts */}
               <button
                 onClick={() => router.push('/bookkeeping/chart-of-accounts')}
-                className="group relative overflow-hidden bg-gradient-to-br from-amber-600/20 to-orange-600/20 border border-amber-500/30 rounded-2xl p-6 hover:border-amber-500 transition-all duration-300 text-left"
+                className="group relative overflow-hidden bg-gradient-to-br from-amber-600/20 to-orange-600/20 border border-amber-500/30 rounded-2xl p-4 sm:p-6 hover:border-amber-500 transition-all duration-300 text-left"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="relative z-10">
@@ -448,7 +448,7 @@ export default function BookkeepingDashboard() {
             {/* Bank Accounts */}
             <div className="lg:col-span-2 space-y-6">
               {/* Bank Accounts Section */}
-              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-semibold text-white flex items-center">
                     <div className="w-1 h-6 bg-cyan-500 rounded-full mr-3" />
@@ -506,7 +506,7 @@ export default function BookkeepingDashboard() {
               </div>
 
               {/* Recent Transactions */}
-              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-semibold text-white flex items-center">
                     <div className="w-1 h-6 bg-purple-500 rounded-full mr-3" />
@@ -579,7 +579,7 @@ export default function BookkeepingDashboard() {
 
             {/* Reconciliation Status */}
             <div className="space-y-6">
-              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-4 sm:p-6">
                 <h2 className="text-xl font-semibold text-white mb-6">Reconciliation</h2>
                 
                 <div className="space-y-4">

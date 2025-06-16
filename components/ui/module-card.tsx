@@ -61,7 +61,7 @@ export function ModuleCard({
   
   return (
     <div 
-      className={`group relative bg-secondary backdrop-blur-sm border ${styles.border} rounded-2xl p-6 hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1`}
+      className={`group relative bg-secondary backdrop-blur-sm border ${styles.border} rounded-2xl p-4 sm:p-6 hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1`}
       onClick={onClick}
     >
       <div className="relative z-10">

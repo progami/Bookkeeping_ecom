@@ -143,7 +143,7 @@ export function EmptyState({
         {/* Action Button */}
         <button 
           onClick={handleAction}
-          className="group px-8 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all inline-flex items-center gap-3 text-lg font-medium shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 animate-pulse"
+          className="group px-6 sm:px-8 py-3 sm:py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all inline-flex items-center gap-3 text-lg font-medium shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 animate-pulse"
         >
           <Cloud className="h-6 w-6" />
           {actionLabel}

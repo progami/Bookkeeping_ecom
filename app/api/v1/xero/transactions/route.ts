@@ -35,69 +35,101 @@ export const GET = withValidation(
     // Filter out deleted transactions
     where.status = { not: 'DELETED' };
     
-    // Get total count for pagination
-    const totalCount = await prisma.bankTransaction.count({ where });
-    
-    // Fetch GL accounts from database
-    let glAccountMap = new Map<string, string>();
-    try {
-      // Get all GL accounts from our database
-      const glAccounts = await prisma.gLAccount.findMany({
+    // Execute all queries in parallel to minimize database round trips
+    const [
+      transactions,
+      totalCount,
+      glAccounts,
+      bankAccounts,
+      totalTransactions,
+      unreconciledCount,
+      reconciledCount
+    ] = await Promise.all([
+      // 1. Fetch transactions with bank account info
+      prisma.bankTransaction.findMany({
+        where,
+        include: {
+          bankAccount: true
+        },
+        orderBy: { date: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize
+      }),
+      
+      // 2. Get total count for current filter
+      prisma.bankTransaction.count({ where }),
+      
+      // 3. Fetch GL accounts
+      prisma.gLAccount.findMany({
         where: { status: 'ACTIVE' },
         select: { code: true, name: true }
-      });
+      }),
       
-      // Build the map from database
-      glAccounts.forEach(acc => {
-        glAccountMap.set(acc.code, acc.name);
-      });
+      // 4. Get bank accounts for filter
+      prisma.bankAccount.findMany({
+        select: {
+          xeroAccountId: true,
+          name: true,
+          currencyCode: true,
+          _count: {
+            select: { transactions: true }
+          }
+        }
+      }),
       
-      console.log(`Loaded ${glAccounts.length} GL accounts from database`);
-      
-      // If no accounts in database, try to sync from Xero
-      if (glAccounts.length === 0) {
-        console.warn('No GL accounts in database, using fallback mapping');
-        
-        // Fallback mapping for demo purposes
-        const fallbackAccounts = new Map([
-          ['200', 'Sales'],
-          ['310', 'Cost of Goods Sold'],
-          ['400', 'Advertising'],
-          ['404', 'Bank Fees'],
-          ['408', 'Cleaning'],
-          ['412', 'Consulting & Accounting'],
-          ['420', 'Entertainment'],
-          ['429', 'General Expenses'],
-          ['433', 'Insurance'],
-          ['445', 'Light, Power, Heating'],
-          ['453', 'Office Expenses'],
-          ['461', 'Printing & Stationery'],
-          ['469', 'Rent'],
-          ['477', 'Salaries'],
-          ['485', 'Subscriptions'],
-          ['489', 'Telephone & Internet'],
-          ['493', 'Travel - National'],
-          ['500', 'Corporation Tax']
-        ]);
-        
-        fallbackAccounts.forEach((name, code) => {
-          glAccountMap.set(code, name);
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching GL accounts from database:', error);
-    }
+      // 5-7. Get summary statistics
+      prisma.bankTransaction.count({ where: { status: { not: 'DELETED' } } }),
+      prisma.bankTransaction.count({ 
+        where: { 
+          isReconciled: false,
+          status: { not: 'DELETED' }
+        } 
+      }),
+      prisma.bankTransaction.count({ 
+        where: { 
+          isReconciled: true,
+          status: { not: 'DELETED' }
+        } 
+      })
+    ]);
     
-    // Fetch transactions with bank account info
-    const transactions = await prisma.bankTransaction.findMany({
-      where,
-      include: {
-        bankAccount: true
-      },
-      orderBy: { date: 'desc' },
-      skip: (page - 1) * pageSize,
-      take: pageSize
+    // Build GL account map
+    const glAccountMap = new Map<string, string>();
+    glAccounts.forEach(acc => {
+      glAccountMap.set(acc.code, acc.name);
     });
+    
+    console.log(`Loaded ${glAccounts.length} GL accounts from database`);
+    
+    // If no accounts in database, use fallback mapping
+    if (glAccounts.length === 0) {
+      console.warn('No GL accounts in database, using fallback mapping');
+      
+      const fallbackAccounts = new Map([
+        ['200', 'Sales'],
+        ['310', 'Cost of Goods Sold'],
+        ['400', 'Advertising'],
+        ['404', 'Bank Fees'],
+        ['408', 'Cleaning'],
+        ['412', 'Consulting & Accounting'],
+        ['420', 'Entertainment'],
+        ['429', 'General Expenses'],
+        ['433', 'Insurance'],
+        ['445', 'Light, Power, Heating'],
+        ['453', 'Office Expenses'],
+        ['461', 'Printing & Stationery'],
+        ['469', 'Rent'],
+        ['477', 'Salaries'],
+        ['485', 'Subscriptions'],
+        ['489', 'Telephone & Internet'],
+        ['493', 'Travel - National'],
+        ['500', 'Corporation Tax']
+      ]);
+      
+      fallbackAccounts.forEach((name, code) => {
+        glAccountMap.set(code, name);
+      });
+    }
     
     // Transform for frontend
     const transformedTransactions = transactions.map(tx => {
@@ -178,35 +210,6 @@ export const GET = withValidation(
     
     // Since rules have been removed, we'll just use transformedTransactions directly
     const matchedTransactions = transformedTransactions;
-    
-    // Get bank accounts for filter
-    const bankAccounts = await prisma.bankAccount.findMany({
-      select: {
-        xeroAccountId: true,
-        name: true,
-        currencyCode: true,
-        _count: {
-          select: { transactions: true }
-        }
-      }
-    });
-    
-    // Get summary statistics for ALL transactions (not just current page)
-    const [totalTransactions, unreconciledCount, reconciledCount] = await Promise.all([
-      prisma.bankTransaction.count({ where: { status: { not: 'DELETED' } } }),
-      prisma.bankTransaction.count({ 
-        where: { 
-          isReconciled: false,
-          status: { not: 'DELETED' }
-        } 
-      }),
-      prisma.bankTransaction.count({ 
-        where: { 
-          isReconciled: true,
-          status: { not: 'DELETED' }
-        } 
-      })
-    ]);
     
     return NextResponse.json({
       transactions: matchedTransactions,

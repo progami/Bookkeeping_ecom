@@ -10,7 +10,14 @@ export async function GET(request: NextRequest) {
     const sixtyDaysAgo = new Date();
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
     
-    const [totalUnreconciled, oldUnreconciled, veryOldUnreconciled] = await Promise.all([
+    // Batch all queries for better performance
+    const [
+      totalUnreconciled, 
+      oldUnreconciled, 
+      veryOldUnreconciled,
+      recentPayments,
+      oldestUnreconciled
+    ] = await Promise.all([
       prisma.bankTransaction.count({
         where: { isReconciled: false }
       }),
@@ -25,25 +32,23 @@ export async function GET(request: NextRequest) {
           isReconciled: false,
           date: { lt: sixtyDaysAgo }
         }
+      }),
+      // Get recent spend transactions that might be payments
+      prisma.bankTransaction.count({
+        where: {
+          type: 'SPEND',
+          date: {
+            gte: new Date(new Date().setDate(new Date().getDate() - 7))
+          }
+        }
+      }),
+      // Get oldest unreconciled transaction
+      prisma.bankTransaction.findFirst({
+        where: { isReconciled: false },
+        orderBy: { date: 'asc' },
+        select: { date: true }
       })
     ]);
-    
-    // Get recent spend transactions that might be payments
-    const recentPayments = await prisma.bankTransaction.count({
-      where: {
-        type: 'SPEND',
-        date: {
-          gte: new Date(new Date().setDate(new Date().getDate() - 7))
-        }
-      }
-    });
-    
-    // Get oldest unreconciled transaction
-    const oldestUnreconciled = await prisma.bankTransaction.findFirst({
-      where: { isReconciled: false },
-      orderBy: { date: 'asc' },
-      select: { date: true }
-    });
     
     return NextResponse.json({
       unreconciled: {

@@ -167,7 +167,7 @@ function ToastComponent({ toast, onDismiss }: ToastComponentProps) {
   return (
     <div
       className={cn(
-        'flex items-start gap-3 p-4 rounded-xl border backdrop-blur-sm shadow-lg',
+        'flex items-start gap-3 p-3 sm:p-4 rounded-xl border backdrop-blur-sm shadow-lg',
         'transform transition-all duration-200',
         colors[toast.type],
         isExiting ? 'opacity-0 translate-x-full' : 'opacity-100 translate-x-0'

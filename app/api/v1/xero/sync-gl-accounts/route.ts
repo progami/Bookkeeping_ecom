@@ -50,6 +50,32 @@ export async function POST(request: NextRequest) {
     let updated = 0;
     let errors = 0;
 
+    // Get all existing accounts to avoid N+1 queries
+    const existingAccounts = await prisma.gLAccount.findMany({
+      select: {
+        code: true,
+        name: true,
+        type: true,
+        status: true,
+        description: true,
+        systemAccount: true,
+        showInExpenseClaims: true,
+        enablePaymentsToAccount: true,
+        class: true,
+        reportingCode: true,
+        reportingCodeName: true
+      }
+    });
+    
+    // Create a map for quick lookup
+    const existingAccountsMap = new Map(
+      existingAccounts.map(acc => [acc.code, acc])
+    );
+
+    // Prepare batch operations
+    const accountsToCreate: any[] = [];
+    const accountsToUpdate: any[] = [];
+
     for (const account of accounts) {
       try {
         // For accounts without codes, generate a special code based on type
@@ -65,10 +91,8 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Check if account exists before upsert
-        const existingAccount = await prisma.gLAccount.findUnique({
-          where: { code: accountCode }
-        });
+        // Check if account exists from our map
+        const existingAccount = existingAccountsMap.get(accountCode);
 
         // Prepare the account data
         const newAccountData = {
@@ -100,35 +124,54 @@ export async function POST(request: NextRequest) {
             existingAccount.reportingCodeName !== newAccountData.reportingCodeName;
 
           if (hasChanged) {
-            // Update only if there are changes
-            await prisma.gLAccount.update({
-              where: { code: accountCode },
+            // Queue for update
+            accountsToUpdate.push({
+              code: accountCode,
               data: {
                 ...newAccountData,
                 updatedAt: new Date()
               }
             });
-            updated++;
-            console.log(`Updated account ${accountCode}: ${account.name} (changes detected)`);
+            console.log(`Queued update for account ${accountCode}: ${account.name} (changes detected)`);
           } else {
             // No changes, skip update
             console.log(`Skipped account ${accountCode}: ${account.name} (no changes)`);
           }
         } else {
-          // Create new account
-          await prisma.gLAccount.create({
-            data: {
-              code: accountCode,
-              ...newAccountData
-            }
+          // Queue for creation
+          accountsToCreate.push({
+            code: accountCode,
+            ...newAccountData
           });
-          created++;
-          console.log(`Created new account ${accountCode}: ${account.name}`);
+          console.log(`Queued creation of account ${accountCode}: ${account.name}`);
         }
       } catch (error) {
         console.error(`Error processing account ${account.code}:`, error);
         errors++;
       }
+    }
+    
+    // Perform batch operations using transaction
+    if (accountsToCreate.length > 0 || accountsToUpdate.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        // Batch create
+        if (accountsToCreate.length > 0) {
+          await tx.gLAccount.createMany({
+            data: accountsToCreate,
+            skipDuplicates: true
+          });
+          created = accountsToCreate.length;
+        }
+        
+        // Batch update - need to do individually within transaction
+        for (const update of accountsToUpdate) {
+          await tx.gLAccount.update({
+            where: { code: update.code },
+            data: update.data
+          });
+          updated++;
+        }
+      });
     }
 
     // Log the sync

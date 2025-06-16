@@ -3,6 +3,12 @@ import { getXeroClient } from '@/lib/xero-client';
 
 export async function GET(request: NextRequest) {
   try {
+    // Get pagination parameters
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '500');
+    const offset = (page - 1) * pageSize;
+    
     const xero = await getXeroClient();
     if (!xero) {
       return NextResponse.json({ error: 'Not connected to Xero' }, { status: 401 });
@@ -13,7 +19,8 @@ export async function GET(request: NextRequest) {
     
     console.log('Fetching GL accounts from Xero...');
     
-    // Get all accounts (Chart of Accounts)
+    // Get accounts (Chart of Accounts)
+    // Note: Xero's getAccounts API doesn't support pagination directly
     const response = await xero.accountingApi.getAccounts(
       tenant.tenantId,
       undefined,
@@ -60,16 +67,28 @@ export async function GET(request: NextRequest) {
         type: acc.type
       }));
 
+    // Implement manual pagination since Xero API doesn't support it
+    const paginatedAccounts = accounts.slice(offset, offset + pageSize);
+    const totalAccounts = accounts.length;
+    const totalPages = Math.ceil(totalAccounts / pageSize);
+    
     return NextResponse.json({
-      total: accounts.length,
-      accountsByType,
-      expenseAccounts,
-      allAccounts: accounts.map(acc => ({
+      accounts: paginatedAccounts.map(acc => ({
         code: acc.code,
         name: acc.name,
         type: acc.type,
         status: acc.status
-      }))
+      })),
+      accountsByType,
+      expenseAccounts,
+      pagination: {
+        page,
+        pageSize,
+        totalAccounts,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      }
     });
     
   } catch (error: any) {
