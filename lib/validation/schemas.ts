@@ -157,18 +157,13 @@ export const bankTransactionQuerySchema = transactionsQuerySchema;
 
 // Cash flow forecast schemas
 export const cashFlowForecastQuerySchema = z.object({
-  startDate: z.string().datetime(),
-  endDate: z.string().datetime(),
-  includeProjected: z.boolean().optional()
+  days: z.string().transform(Number).pipe(z.number().int().min(1).max(365)).optional(),
+  scenarios: z.string().transform((val) => val === 'true').optional()
 });
 
 export const cashFlowForecastBodySchema = z.object({
-  projections: z.array(z.object({
-    date: z.string().datetime(),
-    category: z.string(),
-    amount: z.number(),
-    type: z.enum(['income', 'expense'])
-  })).optional()
+  days: z.number().int().min(1).max(365).optional(),
+  regenerate: z.boolean().optional()
 });
 
 // Accounts query schema

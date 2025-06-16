@@ -3,13 +3,18 @@ import { CashFlowEngine } from '@/lib/cashflow-engine';
 import { prisma } from '@/lib/prisma';
 import { withValidation } from '@/lib/validation/middleware';
 import { cashFlowForecastQuerySchema, cashFlowForecastBodySchema } from '@/lib/validation/schemas';
+import { getApiLogger, logApiCall } from '@/lib/api-logger';
 
 export const GET = withValidation(
   { querySchema: cashFlowForecastQuerySchema },
   async (request, { query }) => {
+    const logger = getApiLogger(request);
+    
     try {
       const days = query?.days || 90;
       const includeScenarios = query?.scenarios || false;
+      
+      logger.info('Generating cashflow forecast', { days, includeScenarios });
     
     // Set cache headers based on forecast days
     const cacheTime = days <= 30 ? 300 : 600; // 5 min for short, 10 min for long forecasts
@@ -20,7 +25,11 @@ export const GET = withValidation(
 
     // Generate forecast
     const engine = new CashFlowEngine();
-    const forecast = await engine.generateForecast(days);
+    const forecast = await logApiCall(
+      logger,
+      `generate forecast for ${days} days`,
+      () => engine.generateForecast(days)
+    );
 
     // Format response
     const response = {
@@ -50,11 +59,18 @@ export const GET = withValidation(
       },
     };
 
+      logger.info('Cashflow forecast generated successfully', {
+        days,
+        forecastDays: forecast.length,
+        lowestBalance: response.summary.lowestBalance,
+        criticalAlerts: response.summary.criticalAlerts,
+      });
+      
       return NextResponse.json(response, {
         headers: responseHeaders
       });
     } catch (error) {
-      console.error('Forecast generation error:', error);
+      logger.error('Forecast generation error', error);
       return NextResponse.json(
         { error: error instanceof Error ? error.message : 'Forecast failed' },
         { status: 500 }
@@ -66,30 +82,48 @@ export const GET = withValidation(
 export const POST = withValidation(
   { bodySchema: cashFlowForecastBodySchema },
   async (request, { body }) => {
+    const logger = getApiLogger(request);
+    
     try {
       const days = body?.days || 90;
       const regenerate = body?.regenerate || false;
+      
+      logger.info('Processing cashflow forecast request', { days, regenerate });
 
     if (regenerate) {
       // Clear existing forecast
-      await prisma.cashFlowForecast.deleteMany({
-        where: {
-          date: { gte: new Date() },
-        },
-      });
+      const deleted = await logApiCall(
+        logger,
+        'clear existing forecast',
+        () => prisma.cashFlowForecast.deleteMany({
+          where: {
+            date: { gte: new Date() },
+          },
+        })
+      );
+      logger.info('Cleared existing forecast', { deletedCount: deleted.count });
     }
 
     // Generate new forecast
     const engine = new CashFlowEngine();
-    const forecast = await engine.generateForecast(days);
+    const forecast = await logApiCall(
+      logger,
+      `regenerate forecast for ${days} days`,
+      () => engine.generateForecast(days)
+    );
 
+      logger.info('Cashflow forecast regenerated successfully', {
+        days,
+        daysGenerated: forecast.length,
+      });
+      
       return NextResponse.json({
         success: true,
         daysGenerated: forecast.length,
         message: `Forecast generated for ${days} days`,
       });
     } catch (error) {
-      console.error('Forecast generation error:', error);
+      logger.error('Forecast generation error', error);
       return NextResponse.json(
         { error: error instanceof Error ? error.message : 'Forecast failed' },
         { status: 500 }

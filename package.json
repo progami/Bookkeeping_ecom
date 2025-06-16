@@ -21,7 +21,11 @@
     "type-check": "tsc --noEmit",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "logs": "node scripts/log-viewer.js",
+    "logs:tail": "node scripts/log-viewer.js tail",
+    "logs:errors": "node scripts/log-viewer.js view --level error",
+    "logs:list": "node scripts/log-viewer.js list"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
