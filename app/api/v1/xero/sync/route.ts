@@ -13,6 +13,7 @@ import { auditLogger, AuditAction, AuditResource } from '@/lib/audit-logger';
 import { CurrencyService } from '@/lib/currency-service';
 import { withAuthValidation } from '@/lib/auth/auth-wrapper';
 import { ValidationLevel } from '@/lib/auth/session-validation';
+import { memoryMonitor } from '@/lib/memory-monitor';
 
 export const POST = withRateLimit(
   withAuthValidation(
@@ -46,7 +47,8 @@ export const POST = withRateLimit(
       async () => {
         return await withIdempotency(idempotencyKey, async () => {
           // Use transaction for entire sync operation
-          return await prisma.$transaction(async (tx) => {
+          return await memoryMonitor.monitorOperation('xero-sync-transaction', async () => {
+            return await prisma.$transaction(async (tx) => {
             // Create sync log within transaction
             syncLog = await tx.syncLog.create({
               data: {
@@ -620,6 +622,7 @@ async function performSync(tx: any, syncLog: any, modifiedSince?: Date) {
     
     throw error; // Re-throw to trigger transaction rollback
   }
+});
 }
 
 // GET endpoint to check sync status

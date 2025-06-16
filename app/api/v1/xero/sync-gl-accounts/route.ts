@@ -236,7 +236,8 @@ export async function POST(request: NextRequest) {
       error: 'Failed to sync GL accounts',
       message: error.message
     }, { status: 500 });
-  }
+    }
+  });
 }
 
 export async function GET(request: NextRequest) {

@@ -69,7 +69,7 @@ export default function DatabaseSchemaPage() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         {/* Header */}
         <div className="mb-8">
           <button

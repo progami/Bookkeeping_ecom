@@ -80,7 +80,7 @@ export default function AnalyticsPage() {
 
   if (loading || !analyticsData) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin h-8 w-8 border-2 border-emerald-500 border-t-transparent rounded-full"></div>
         </div>
@@ -89,7 +89,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6 sm:py-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">

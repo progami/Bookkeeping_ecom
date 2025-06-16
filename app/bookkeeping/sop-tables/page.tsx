@@ -656,7 +656,7 @@ export default function SOPTablesPage() {
 
   return (
     <div className="min-h-screen bg-slate-900">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="container mx-auto px-4 py-6 sm:py-8 max-w-7xl">
         <Toaster position="top-right" />
         
         {/* Header */}

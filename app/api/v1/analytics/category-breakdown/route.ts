@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withValidation } from '@/lib/validation/middleware';
 import { analyticsPeriodSchema } from '@/lib/validation/schemas';
+import { memoryMonitor } from '@/lib/memory-monitor';
 
 export const GET = withValidation(
   { querySchema: analyticsPeriodSchema },
   async (request, { query }) => {
-    try {
+    return memoryMonitor.monitorOperation('analytics-category-breakdown', async () => {
+      try {
       const period = query?.period || '30d';
     
     // Calculate date range
@@ -179,6 +181,7 @@ export const GET = withValidation(
         },
         { status: 500 }
       );
-    }
+      }
+    });
   }
 )
