@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClientWithTenant } from '@/lib/xero-client';
 import { prisma } from '@/lib/prisma';
+import { withRateLimit } from '@/lib/rate-limiter';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function GET(request: NextRequest) {
+export const GET = withRateLimit(async (request: NextRequest) => {
   try {
     console.log('=== Fetching Accounts with Balances ===');
     
@@ -222,4 +223,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

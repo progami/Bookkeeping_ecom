@@ -1,21 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClientWithTenant } from '@/lib/xero-client';
+import { withAuthValidation } from '@/lib/auth/auth-wrapper';
+import { ValidationLevel } from '@/lib/auth/session-validation';
+import { withErrorHandling, createError } from '@/lib/errors/error-handler';
+import { xeroDataCache, CacheKey } from '@/lib/xero-data-cache';
+import { executeXeroAPICall } from '@/lib/xero-client-with-rate-limit';
 
-export async function GET(request: NextRequest) {
-  try {
-    // Set cache headers for performance
-    const responseHeaders = {
-      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-      'CDN-Cache-Control': 'max-age=600',
-    };
+export const GET = withErrorHandling(
+  withAuthValidation(
+    { authLevel: ValidationLevel.XERO },
+    async (request, { session }) => {
+      // Set cache headers for performance
+      const responseHeaders = {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        'CDN-Cache-Control': 'max-age=600',
+      };
 
-    // Get Xero client
-    const xeroData = await getXeroClientWithTenant();
-    if (!xeroData) {
-      return NextResponse.json({ error: 'Not connected to Xero' }, { status: 401 });
-    }
+      // Get Xero client
+      const xeroData = await getXeroClientWithTenant();
+      if (!xeroData) {
+        throw createError.authentication('Not connected to Xero');
+      }
 
-    const { client: xero, tenantId } = xeroData;
+      const { client: xero, tenantId } = xeroData;
 
     // Get the time range from query params or use defaults
     const searchParams = request.nextUrl.searchParams;
@@ -42,16 +49,28 @@ export async function GET(request: NextRequest) {
         fromDate.setDate(fromDate.getDate() - 30);
     }
 
-    // Get profit & loss report from Xero API
-    const plResponse = await xero.accountingApi.getReportProfitAndLoss(
-      tenantId,
-      fromDate.toISOString().split('T')[0], // YYYY-MM-DD format
-      toDate.toISOString().split('T')[0],
-      11, // periods (max allowed by Xero API)
-      'MONTH' // timeframe
-    );
+      // Get profit & loss report from cache or Xero API
+      const plResponse = await xeroDataCache.get(
+        CacheKey.PROFIT_LOSS,
+        tenantId,
+        session.user.userId,
+        async () => {
+          const response = await executeXeroAPICall(() =>
+            xero.accountingApi.getReportProfitAndLoss(
+              tenantId,
+              fromDate.toISOString().split('T')[0], // YYYY-MM-DD format
+              toDate.toISOString().split('T')[0],
+              11, // periods (max allowed by Xero API)
+              'MONTH' // timeframe
+            )
+          );
+          return response;
+        },
+        { fromDate: fromDate.toISOString(), toDate: toDate.toISOString() },
+        5 * 60 * 1000 // 5 minute cache
+      );
 
-    const report = plResponse.body.reports?.[0];
+      const report = plResponse.body.reports?.[0];
     if (!report || !report.rows) {
       throw new Error('Invalid profit & loss response from Xero');
     }
@@ -147,30 +166,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      revenue: totalRevenue,
-      expenses: totalExpenses,
-      netProfit,
-      grossProfit,
-      operatingExpenses,
-      revenueChange,
-      profitChange,
-      periodStart: fromDate.toISOString(),
-      periodEnd: toDate.toISOString(),
-      timeRange,
-      source: 'xero_api'
-    }, {
-      headers: responseHeaders
-    });
-
-  } catch (error: any) {
-    console.error('Profit & Loss API error:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to fetch profit & loss from Xero',
-        message: error.message || 'Unknown error'
-      },
-      { status: 500 }
-    );
-  }
-}
+      return NextResponse.json({
+        revenue: totalRevenue,
+        expenses: totalExpenses,
+        netProfit,
+        grossProfit,
+        operatingExpenses,
+        revenueChange,
+        profitChange,
+        periodStart: fromDate.toISOString(),
+        periodEnd: toDate.toISOString(),
+        timeRange,
+        source: 'xero_api'
+      }, {
+        headers: responseHeaders
+      });
+    }
+  )
+);

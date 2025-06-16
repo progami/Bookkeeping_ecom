@@ -193,3 +193,6 @@ if (typeof process !== 'undefined') {
     rateLimiter.destroy();
   });
 }
+
+// Export Bottleneck for use in other modules
+export { default as Bottleneck } from 'bottleneck';

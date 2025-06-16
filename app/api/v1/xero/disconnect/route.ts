@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { clearTokenSet } from '@/lib/xero-client';
 import { XeroSession } from '@/lib/xero-session';
+import { withRateLimit } from '@/lib/rate-limiter';
 
-export async function POST(request: NextRequest) {
+export const POST = withRateLimit(async (request: NextRequest) => {
   try {
     // Clear token from storage
     await clearTokenSet();
@@ -30,4 +31,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

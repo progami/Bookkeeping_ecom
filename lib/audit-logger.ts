@@ -49,7 +49,8 @@ export enum AuditAction {
   // System Operations
   CONFIG_CHANGE = 'CONFIG_CHANGE',
   PERMISSION_CHANGE = 'PERMISSION_CHANGE',
-  ERROR = 'ERROR'
+  ERROR = 'ERROR',
+  DATA_REFRESH = 'DATA_REFRESH'
 }
 
 export enum AuditResource {
@@ -76,7 +77,8 @@ export enum AuditResource {
   // System
   CONFIGURATION = 'CONFIGURATION',
   USER_PERMISSION = 'USER_PERMISSION',
-  SYSTEM = 'SYSTEM'
+  SYSTEM = 'SYSTEM',
+  XERO_API = 'XERO_API'
 }
 
 class AuditLogger {

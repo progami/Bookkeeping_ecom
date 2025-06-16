@@ -1,31 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClientWithTenant } from '@/lib/xero-client';
+import { withAuthValidation } from '@/lib/auth/auth-wrapper';
+import { ValidationLevel } from '@/lib/auth/session-validation';
+import { withErrorHandling, createError } from '@/lib/errors/error-handler';
+import { xeroDataCache, CacheKey } from '@/lib/xero-data-cache';
+import { executeXeroAPICall } from '@/lib/xero-client-with-rate-limit';
 
-export async function GET(request: NextRequest) {
-  try {
-    // Set cache headers for performance
-    const responseHeaders = {
-      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-      'CDN-Cache-Control': 'max-age=600',
-    };
+export const GET = withErrorHandling(
+  withAuthValidation(
+    { authLevel: ValidationLevel.XERO },
+    async (request, { session }) => {
+      // Set cache headers for performance
+      const responseHeaders = {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        'CDN-Cache-Control': 'max-age=600',
+      };
 
-    // Get Xero client
-    const xeroData = await getXeroClientWithTenant();
-    if (!xeroData) {
-      return NextResponse.json({ error: 'Not connected to Xero' }, { status: 401 });
-    }
+      // Get Xero client
+      const xeroData = await getXeroClientWithTenant();
+      if (!xeroData) {
+        throw createError.authentication('Not connected to Xero');
+      }
 
-    const { client: xero, tenantId } = xeroData;
+      const { client: xero, tenantId } = xeroData;
 
-    // Get balance sheet from Xero API
-    const balanceSheetResponse = await xero.accountingApi.getReportBalanceSheet(
-      tenantId,
-      undefined, // date - uses today if not specified
-      3, // periods
-      'MONTH' // timeframe
-    );
+      // Get balance sheet from cache or Xero API
+      const balanceSheetResponse = await xeroDataCache.get(
+        CacheKey.BALANCE_SHEET,
+        tenantId,
+        session.user.userId,
+        async () => {
+          const response = await executeXeroAPICall(() =>
+            xero.accountingApi.getReportBalanceSheet(
+              tenantId,
+              undefined, // date - uses today if not specified
+              3, // periods
+              'MONTH' // timeframe
+            )
+          );
+          return response;
+        },
+        undefined,
+        5 * 60 * 1000 // 5 minute cache
+      );
 
-    const report = balanceSheetResponse.body.reports?.[0];
+      const report = balanceSheetResponse.body.reports?.[0];
     if (!report || !report.rows) {
       throw new Error('Invalid balance sheet response from Xero');
     }
@@ -88,15 +107,27 @@ export async function GET(request: NextRequest) {
     // Calculate net assets
     netAssets = totalAssets - totalLiabilities;
 
-    // Get additional bank account details if needed
-    const bankAccountsResponse = await xero.accountingApi.getAccounts(
-      tenantId,
-      undefined,
-      'Type=="BANK"&&Status=="ACTIVE"'
-    );
+      // Get additional bank account details from cache
+      const bankAccountsResponse = await xeroDataCache.get(
+        CacheKey.BANK_ACCOUNTS,
+        tenantId,
+        session.user.userId,
+        async () => {
+          const response = await executeXeroAPICall(() =>
+            xero.accountingApi.getAccounts(
+              tenantId,
+              undefined,
+              'Type=="BANK"&&Status=="ACTIVE"'
+            )
+          );
+          return response;
+        },
+        undefined,
+        5 * 60 * 1000 // 5 minute cache
+      );
 
-    let detailedCashInBank = 0;
-    const bankAccounts = bankAccountsResponse.body.accounts || [];
+      let detailedCashInBank = 0;
+      const bankAccounts = bankAccountsResponse.body.accounts || [];
     
     // Note: getReportBankSummary in this version doesn't support account-specific queries
     // We'll rely on the balance sheet calculation instead
@@ -106,31 +137,22 @@ export async function GET(request: NextRequest) {
       cashInBank = detailedCashInBank;
     }
 
-    return NextResponse.json({
-      totalAssets,
-      totalLiabilities,
-      netAssets,
-      equity,
-      currentAssets,
-      currentLiabilities,
-      cashInBank,
-      accountsReceivable: 0, // Would need to parse from report
-      accountsPayable: 0, // Would need to parse from report
-      inventory: 0, // Would need to parse from report
-      reportDate: new Date().toISOString(),
-      source: 'xero_api'
-    }, {
-      headers: responseHeaders
-    });
-
-  } catch (error: any) {
-    console.error('Balance sheet API error:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to fetch balance sheet from Xero',
-        message: error.message || 'Unknown error'
-      },
-      { status: 500 }
-    );
-  }
-}
+      return NextResponse.json({
+        totalAssets,
+        totalLiabilities,
+        netAssets,
+        equity,
+        currentAssets,
+        currentLiabilities,
+        cashInBank,
+        accountsReceivable: 0, // Would need to parse from report
+        accountsPayable: 0, // Would need to parse from report
+        inventory: 0, // Would need to parse from report
+        reportDate: new Date().toISOString(),
+        source: 'xero_api'
+      }, {
+        headers: responseHeaders
+      });
+    }
+  )
+);

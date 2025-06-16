@@ -4,8 +4,9 @@ import { stateStore } from '@/lib/oauth-state';
 import { XeroSession } from '@/lib/xero-session';
 import { structuredLogger } from '@/lib/logger';
 import { AUTH_COOKIE_OPTIONS, SESSION_COOKIE_NAME } from '@/lib/cookie-config';
+import { withRateLimit } from '@/lib/rate-limiter';
 
-export async function GET(request: NextRequest) {
+export const GET = withRateLimit(async (request: NextRequest) => {
   console.log('[AUTH_CALLBACK] Starting callback handler');
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -466,4 +467,4 @@ export async function GET(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3003';
     return NextResponse.redirect(`${baseUrl}/login?error=callback_fatal_error`);
   }
-}
+});

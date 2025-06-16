@@ -3,8 +3,9 @@ import { getAuthUrl } from '@/lib/xero-client';
 import { stateStore, cleanupStates, generatePKCEPair } from '@/lib/oauth-state';
 import crypto from 'crypto';
 import { structuredLogger } from '@/lib/logger';
+import { withRateLimit } from '@/lib/rate-limiter';
 
-export async function GET(request: NextRequest) {
+export const GET = withRateLimit(async (request: NextRequest) => {
   try {
     // Clean up old states
     cleanupStates();
@@ -68,4 +69,4 @@ export async function GET(request: NextRequest) {
     const errorMessage = encodeURIComponent(error.message || 'auth_initialization_failed');
     return NextResponse.redirect(`${baseUrl}/bookkeeping?error=${errorMessage}&details=${encodeURIComponent(error.stack || 'No stack trace')}`);
   }
-}
+});

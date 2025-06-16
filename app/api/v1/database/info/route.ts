@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAdminAuth } from '@/lib/auth/auth-wrapper';
+import { withRateLimit } from '@/lib/rate-limiter';
 
-export const GET = withAdminAuth(async (request, session) => {
+export const GET = withRateLimit(
+  withAdminAuth(async (request, session) => {
   try {
     // Get record counts for each table
     const [
@@ -270,4 +272,5 @@ export const GET = withAdminAuth(async (request, session) => {
       message: error.message
     }, { status: 500 });
   }
-});
+  })
+);
