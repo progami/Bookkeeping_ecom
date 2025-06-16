@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { 
-  Home, BookOpen, LineChart, BarChart3, Database,
+  Home, BookOpen, LineChart, BarChart3, Database, FileCode,
   ChevronLeft, ChevronRight, Menu, X, LogOut, User
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
@@ -49,6 +49,12 @@ const navigation: NavItem[] = [
     href: '/database-schema',
     icon: Database,
     description: 'Schema viewer'
+  },
+  {
+    title: 'API Docs',
+    href: '/api-docs',
+    icon: FileCode,
+    description: 'OpenAPI documentation'
   }
 ]
 
