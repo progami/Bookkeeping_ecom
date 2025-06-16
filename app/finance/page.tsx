@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
 import { StandardPageHeader } from '@/components/ui/standard-page-header'
 import { formatNumber } from '@/lib/design-tokens'
+import { HelpTooltip, ContextualHelp } from '@/components/ui/tooltip'
 
 interface FinanceMetrics {
   totalRevenue: number
@@ -241,7 +242,19 @@ export default function FinanceDashboard() {
             <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-3xl p-8 mb-8">
               <div className="flex items-center justify-between flex-wrap gap-6">
                 <div>
-                  <h2 className="text-2xl font-semibold text-white mb-2">Financial Health Score</h2>
+                  <h2 className="text-2xl font-semibold text-white mb-2 flex items-center gap-2">
+                    Financial Health Score
+                    <ContextualHelp
+                      title="Financial Health Score"
+                      description="A comprehensive metric that evaluates your business's financial wellbeing based on multiple factors."
+                      tips={[
+                        "Score above 80: Excellent financial health",
+                        "Score 60-80: Good health with room for improvement",
+                        "Score below 60: Requires attention to financial management"
+                      ]}
+                      learnMoreUrl="#"
+                    />
+                  </h2>
                   <div className="flex items-baseline gap-3">
                     <span className={`text-6xl font-bold ${getHealthColor(moduleStatus?.cashFlow.healthScore || 0)}`}>
                       {moduleStatus?.cashFlow.healthScore || 0}
@@ -258,13 +271,25 @@ export default function FinanceDashboard() {
                     <div className="text-3xl font-bold text-white">
                       {metrics?.quickRatio.toFixed(2)}
                     </div>
-                    <div className="text-sm text-gray-400">Quick Ratio</div>
+                    <div className="text-sm text-gray-400 flex items-center justify-center gap-1">
+                      Quick Ratio
+                      <HelpTooltip 
+                        content="Measures ability to pay short-term obligations with liquid assets. A ratio > 1.0 is generally good."
+                        size="sm"
+                      />
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-3xl font-bold text-white">
                       {metrics?.profitMargin.toFixed(1)}%
                     </div>
-                    <div className="text-sm text-gray-400">Profit Margin</div>
+                    <div className="text-sm text-gray-400 flex items-center justify-center gap-1">
+                      Profit Margin
+                      <HelpTooltip 
+                        content="Percentage of revenue that becomes profit. Higher margins indicate better cost control."
+                        size="sm"
+                      />
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className={`text-3xl font-bold capitalize ${
@@ -272,7 +297,13 @@ export default function FinanceDashboard() {
                     }`}>
                       {metrics?.cashFlowTrend}
                     </div>
-                    <div className="text-sm text-gray-400">Cash Flow</div>
+                    <div className="text-sm text-gray-400 flex items-center justify-center gap-1">
+                      Cash Flow
+                      <HelpTooltip 
+                        content="Direction of cash movement. Positive means more cash coming in than going out."
+                        size="sm"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
