@@ -103,7 +103,7 @@ export const GET = withValidation(
 
     // Calculate revenue using decimal precision
     revenueTransactions.forEach(tx => {
-      const amount = FinancialCalc.toNumber(tx.amount)
+      const amount = FinancialCalc.toNumber(tx.amount || 0)
       profitLoss.totalRevenue += amount
       profitLoss.revenue += amount
     })
@@ -111,7 +111,7 @@ export const GET = withValidation(
     // Calculate expenses and categorize them
     expenseTransactions.forEach(tx => {
       const accountType = accountTypes.get(tx.accountCode || '')
-      const amount = FinancialCalc.toNumber(tx.amount)
+      const amount = FinancialCalc.toNumber(tx.amount || 0)
       
       // Check if this is cost of goods sold based on account type
       if (accountType && (

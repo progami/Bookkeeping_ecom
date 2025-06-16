@@ -75,7 +75,7 @@ export const GET = withValidation(
       }
       
       const currentAmount = trendMap.get(dateKey) || 0;
-      trendMap.set(dateKey, currentAmount + Math.abs(tx.amount.toNumber()));
+      trendMap.set(dateKey, currentAmount + Math.abs(tx.amount?.toNumber() || 0));
     });
 
     // Fill in missing dates

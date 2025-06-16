@@ -1,245 +1,107 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ZodError, ZodSchema } from 'zod';
+import { z } from 'zod';
 import { structuredLogger } from '@/lib/logger';
 
-export interface ValidationError {
-  field: string;
-  message: string;
+export interface ValidationConfig {
+  querySchema?: z.ZodSchema;
+  bodySchema?: z.ZodSchema;
+  paramsSchema?: z.ZodSchema;
 }
 
-export interface ValidationErrorResponse {
-  error: string;
-  message: string;
-  validationErrors: ValidationError[];
+export interface ValidatedData {
+  query?: any;
+  body?: any;
+  params?: any;
 }
 
-/**
- * Validate request body against a Zod schema
- */
-export async function validateBody<T>(
-  request: NextRequest,
-  schema: ZodSchema<T>
-): Promise<{ data: T | null; error: NextResponse | null }> {
-  try {
-    const body = await request.json();
-    const data = schema.parse(body);
-    return { data, error: null };
-  } catch (error) {
-    if (error instanceof ZodError) {
-      const validationErrors: ValidationError[] = error.errors.map(err => ({
-        field: err.path.join('.'),
-        message: err.message
-      }));
-
-      structuredLogger.warn('Request validation failed', {
-        component: 'validation-middleware',
-        path: request.nextUrl.pathname,
-        errors: validationErrors
-      });
-
-      const response: ValidationErrorResponse = {
-        error: 'Validation failed',
-        message: 'Invalid request data',
-        validationErrors
-      };
-
-      return {
-        data: null,
-        error: NextResponse.json(response, { status: 400 })
-      };
-    }
-
-    // Handle JSON parse errors
-    if (error instanceof SyntaxError) {
-      return {
-        data: null,
-        error: NextResponse.json({
-          error: 'Invalid JSON',
-          message: 'Request body must be valid JSON'
-        }, { status: 400 })
-      };
-    }
-
-    // Handle other errors
-    structuredLogger.error('Unexpected validation error', error, {
-      component: 'validation-middleware',
-      path: request.nextUrl.pathname
-    });
-
-    return {
-      data: null,
-      error: NextResponse.json({
-        error: 'Internal server error',
-        message: 'An unexpected error occurred'
-      }, { status: 500 })
-    };
-  }
-}
-
-/**
- * Validate query parameters against a Zod schema
- */
-export function validateQuery<T>(
-  request: NextRequest,
-  schema: ZodSchema<T>
-): { data: T | null; error: NextResponse | null } {
-  try {
-    const searchParams = request.nextUrl.searchParams;
-    const query: Record<string, any> = {};
-    
-    // Convert URLSearchParams to object
-    searchParams.forEach((value, key) => {
-      // Handle array parameters (e.g., ?id=1&id=2)
-      if (query[key]) {
-        if (Array.isArray(query[key])) {
-          query[key].push(value);
-        } else {
-          query[key] = [query[key], value];
-        }
-      } else {
-        query[key] = value;
-      }
-    });
-
-    const data = schema.parse(query);
-    return { data, error: null };
-  } catch (error) {
-    if (error instanceof ZodError) {
-      const validationErrors: ValidationError[] = error.errors.map(err => ({
-        field: err.path.join('.'),
-        message: err.message
-      }));
-
-      structuredLogger.warn('Query validation failed', {
-        component: 'validation-middleware',
-        path: request.nextUrl.pathname,
-        errors: validationErrors
-      });
-
-      const response: ValidationErrorResponse = {
-        error: 'Validation failed',
-        message: 'Invalid query parameters',
-        validationErrors
-      };
-
-      return {
-        data: null,
-        error: NextResponse.json(response, { status: 400 })
-      };
-    }
-
-    return {
-      data: null,
-      error: NextResponse.json({
-        error: 'Internal server error',
-        message: 'An unexpected error occurred'
-      }, { status: 500 })
-    };
-  }
-}
-
-/**
- * Higher-order function to wrap API route handlers with validation
- */
-export function withValidation<TBody = any, TQuery = any>(
-  options: {
-    bodySchema?: ZodSchema<TBody>;
-    querySchema?: ZodSchema<TQuery>;
-  },
-  handler: (
-    request: NextRequest,
-    context: {
-      body?: TBody;
-      query?: TQuery;
-      params?: any;
-    }
-  ) => Promise<NextResponse>
+export function withValidation(
+  config: ValidationConfig,
+  handler: (request: NextRequest, validatedData: ValidatedData) => Promise<NextResponse>
 ) {
-  return async (request: NextRequest, props?: { params?: any }): Promise<NextResponse> => {
-    const context: { body?: TBody; query?: TQuery; params?: any } = {
-      params: props?.params
-    };
+  return async (request: NextRequest) => {
+    const validatedData: ValidatedData = {};
+    const errors: Record<string, any> = {};
 
-    // Validate body if schema provided
-    if (options.bodySchema) {
-      const { data, error } = await validateBody(request, options.bodySchema);
-      if (error) return error;
-      context.body = data!;
-    }
-
-    // Validate query if schema provided
-    if (options.querySchema) {
-      const { data, error } = validateQuery(request, options.querySchema);
-      if (error) return error;
-      context.query = data!;
-    }
-
-    // Call the handler with validated data
     try {
-      return await handler(request, context);
-    } catch (error) {
-      structuredLogger.error('Handler error after validation', error, {
+      // Validate query parameters
+      if (config.querySchema) {
+        try {
+          const url = new URL(request.url);
+          const queryParams = Object.fromEntries(url.searchParams.entries());
+          validatedData.query = config.querySchema.parse(queryParams);
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            errors.query = formatZodError(error);
+          } else {
+            errors.query = 'Invalid query parameters';
+          }
+        }
+      }
+
+      // Validate request body
+      if (config.bodySchema && request.method !== 'GET') {
+        try {
+          const body = await request.json();
+          validatedData.body = config.bodySchema.parse(body);
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            errors.body = formatZodError(error);
+          } else {
+            errors.body = 'Invalid request body';
+          }
+        }
+      }
+
+      // If there are validation errors, return 400
+      if (Object.keys(errors).length > 0) {
+        structuredLogger.warn('Validation errors', {
+          component: 'validation-middleware',
+          endpoint: request.url,
+          method: request.method,
+          errors
+        });
+
+        return NextResponse.json(
+          {
+            error: 'Validation failed',
+            errors,
+            message: 'Please check your request and try again'
+          },
+          { status: 400 }
+        );
+      }
+
+      // Call the handler with validated data
+      return handler(request, validatedData);
+
+    } catch (error: any) {
+      structuredLogger.error('Validation middleware error', error, {
         component: 'validation-middleware',
-        path: request.nextUrl.pathname
+        endpoint: request.url
       });
 
-      return NextResponse.json({
-        error: 'Internal server error',
-        message: 'An unexpected error occurred'
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          error: 'Internal server error',
+          message: 'An unexpected error occurred during validation'
+        },
+        { status: 500 }
+      );
     }
   };
 }
 
-/**
- * Sanitize user input to prevent XSS and injection attacks
- */
-export function sanitizeInput(input: string): string {
-  // Remove HTML tags
-  let sanitized = input.replace(/<[^>]*>/g, '');
-  
-  // Escape special characters for HTML
-  sanitized = sanitized
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;');
-  
-  // Remove SQL special characters to prevent SQL injection
-  sanitized = sanitized.replace(/[;\\]/g, '');
-  
-  // Remove null bytes
-  sanitized = sanitized.replace(/\0/g, '');
-  
-  // Trim whitespace
-  sanitized = sanitized.trim();
-  
-  return sanitized;
-}
+// Format Zod errors for better readability
+function formatZodError(error: z.ZodError): Record<string, string[]> {
+  const formatted: Record<string, string[]> = {};
 
-/**
- * Sanitize object recursively
- */
-export function sanitizeObject(obj: any): any {
-  if (typeof obj === 'string') {
-    return sanitizeInput(obj);
-  }
-  
-  if (Array.isArray(obj)) {
-    return obj.map(sanitizeObject);
-  }
-  
-  if (obj !== null && typeof obj === 'object') {
-    const sanitized: any = {};
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        sanitized[key] = sanitizeObject(obj[key]);
-      }
+  error.errors.forEach((err) => {
+    const path = err.path.join('.');
+    if (!formatted[path]) {
+      formatted[path] = [];
     }
-    return sanitized;
-  }
-  
-  return obj;
+    formatted[path].push(err.message);
+  });
+
+  return formatted;
 }

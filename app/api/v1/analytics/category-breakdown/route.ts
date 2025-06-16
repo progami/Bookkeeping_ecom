@@ -128,7 +128,7 @@ export const GET = withValidation(
     
     transactions.forEach(tx => {
       const category = tx.accountCode ? (categoryMap.get(tx.accountCode) || 'Other') : 'Other';
-      const amount = Math.abs(tx.amount.toNumber());
+      const amount = tx.amount ? Math.abs(tx.amount.toNumber()) : 0;
       
       categoryTotals.set(category, (categoryTotals.get(category) || 0) + amount);
       totalSpend += amount;

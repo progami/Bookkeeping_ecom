@@ -3,14 +3,36 @@
 import { useTheme } from '@/contexts/ThemeContext'
 import { Moon, Sun, Monitor } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useEffect, useState } from 'react'
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
+    console.log(`[ThemeToggle] Changing theme from ${theme} to ${newTheme}`)
+    setTheme(newTheme)
+  }
+
+  // Avoid hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="flex items-center gap-1 p-1 bg-slate-800 rounded-lg">
+        <div className="p-2 rounded-md bg-slate-700/50 w-9 h-9" />
+        <div className="p-2 rounded-md bg-slate-700/50 w-9 h-9" />
+        <div className="p-2 rounded-md bg-slate-700/50 w-9 h-9" />
+      </div>
+    )
+  }
 
   return (
     <div className="flex items-center gap-1 p-1 bg-slate-800 rounded-lg">
       <button
-        onClick={() => setTheme('light')}
+        onClick={() => handleThemeChange('light')}
         className={cn(
           "p-2 rounded-md transition-all",
           theme === 'light' 
@@ -24,7 +46,7 @@ export function ThemeToggle() {
       </button>
       
       <button
-        onClick={() => setTheme('dark')}
+        onClick={() => handleThemeChange('dark')}
         className={cn(
           "p-2 rounded-md transition-all",
           theme === 'dark' 
@@ -38,7 +60,7 @@ export function ThemeToggle() {
       </button>
       
       <button
-        onClick={() => setTheme('system')}
+        onClick={() => handleThemeChange('system')}
         className={cn(
           "p-2 rounded-md transition-all",
           theme === 'system' 

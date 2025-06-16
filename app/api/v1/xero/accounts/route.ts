@@ -160,9 +160,9 @@ export const GET = withValidation(
             let calculatedBalance = 0;
             for (const tx of transactions) {
               if (tx.type === 'RECEIVE') {
-                calculatedBalance += tx.amount.toNumber();
+                calculatedBalance += tx.amount?.toNumber() || 0;
               } else {
-                calculatedBalance -= tx.amount.toNumber();
+                calculatedBalance -= tx.amount?.toNumber() || 0;
               }
             }
             

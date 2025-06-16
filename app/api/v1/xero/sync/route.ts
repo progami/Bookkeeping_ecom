@@ -22,7 +22,7 @@ export const POST = withRateLimit(
     let syncLog: any;
 
     try {
-      const forceFullSync = body?.forceFullSync || false;
+      const forceFullSync = body?.forceSync || false;
     
     // Get last successful sync for incremental sync
     const lastSuccessfulSync = await prisma.syncLog.findFirst({

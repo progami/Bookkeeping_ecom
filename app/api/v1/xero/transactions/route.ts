@@ -155,7 +155,7 @@ export const GET = withValidation(
       
       // Debug first few transactions
       if (transactions.indexOf(tx) < 3 && accountCode) {
-        console.log(`Transaction ${tx.xeroTransactionId.substring(0, 8)}: accountCode=${accountCode}, accountName=${accountName}, mapSize=${glAccountMap.size}`);
+        console.log(`Transaction ${tx.xeroTransactionId?.substring(0, 8)}: accountCode=${accountCode}, accountName=${accountName}, mapSize=${glAccountMap.size}`);
         // Extra debug - check if code exists in map
         if (!glAccountMap.has(accountCode)) {
           console.log(`  WARNING: Code ${accountCode} not found in GL map!`);

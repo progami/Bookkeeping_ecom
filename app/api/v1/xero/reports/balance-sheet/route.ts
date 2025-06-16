@@ -33,7 +33,7 @@ export const GET = withValidation(
     for (const account of bankAccounts) {
       const balance = account.transactions.reduce((sum, tx) => {
         // RECEIVE is positive, SPEND is negative
-        const amount = typeof tx.amount === 'number' ? tx.amount : tx.amount.toNumber()
+        const amount = tx.amount ? (typeof tx.amount === 'number' ? tx.amount : tx.amount.toNumber()) : 0
         return sum + (tx.type === 'RECEIVE' ? amount : -Math.abs(amount))
       }, 0)
       totalCash += balance

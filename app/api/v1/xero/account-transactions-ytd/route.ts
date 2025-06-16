@@ -60,9 +60,9 @@ export async function GET(request: NextRequest) {
     bankTransactions.forEach(tx => {
       if (tx.accountCode && accountTotals[tx.accountCode]) {
         if (tx.type === 'RECEIVE') {
-          accountTotals[tx.accountCode].credits += Math.abs(tx.amount.toNumber());
+          accountTotals[tx.accountCode].credits += Math.abs(tx.amount?.toNumber() || 0);
         } else {
-          accountTotals[tx.accountCode].debits += Math.abs(tx.amount.toNumber());
+          accountTotals[tx.accountCode].debits += Math.abs(tx.amount?.toNumber() || 0);
         }
       }
     });

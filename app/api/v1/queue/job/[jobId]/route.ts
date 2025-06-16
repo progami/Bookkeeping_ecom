@@ -3,11 +3,16 @@ import { getQueue, QUEUE_NAMES } from '@/lib/queue/queue-config';
 import { withAuthValidation } from '@/lib/auth/auth-wrapper';
 import { ValidationLevel } from '@/lib/auth/session-validation';
 
-export const GET = withAuthValidation(
-  { authLevel: ValidationLevel.USER },
-  async (request, { session }, { params }: { params: { jobId: string } }) => {
-    try {
-      const { jobId } = params;
+// Dynamic route handler for /api/v1/queue/job/[jobId]
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { jobId: string } }
+) {
+  return withAuthValidation(
+    { authLevel: ValidationLevel.USER },
+    async (request: NextRequest, context: any) => {
+      try {
+        const { jobId } = params;
       
       // Search for job in all queues
       let jobInfo = null;
@@ -56,13 +61,18 @@ export const GET = withAuthValidation(
       );
     }
   }
-);
+  )(request);
+}
 
-export const DELETE = withAuthValidation(
-  { authLevel: ValidationLevel.ADMIN },
-  async (request, { session }, { params }: { params: { jobId: string } }) => {
-    try {
-      const { jobId } = params;
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { jobId: string } }
+) {
+  return withAuthValidation(
+    { authLevel: ValidationLevel.ADMIN },
+    async (request: NextRequest, context: any) => {
+      try {
+        const { jobId } = params;
       
       // Search for job in all queues
       let deleted = false;
@@ -88,6 +98,9 @@ export const DELETE = withAuthValidation(
           { status: 404 }
         );
       }
+      
+      // This should never be reached but TypeScript needs it
+      return NextResponse.json({ error: 'Unexpected error' }, { status: 500 });
 
     } catch (error: any) {
       console.error('Error deleting job:', error);
@@ -97,4 +110,5 @@ export const DELETE = withAuthValidation(
       );
     }
   }
-);
+  )(request);
+}

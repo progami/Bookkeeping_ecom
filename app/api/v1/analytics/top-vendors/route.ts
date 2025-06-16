@@ -95,7 +95,7 @@ export const GET = withValidation(
       }
       
       // Use absolute value since expenses are negative
-      vendorSpending[vendorName].totalAmount += Math.abs(tx.amount.toNumber());
+      vendorSpending[vendorName].totalAmount += Math.abs(tx.amount?.toNumber() || 0);
       vendorSpending[vendorName].transactionCount += 1;
       
       if (tx.date > vendorSpending[vendorName].lastTransaction) {
@@ -117,7 +117,7 @@ export const GET = withValidation(
         };
       }
       
-      vendorSpending[vendorName].previousAmount += Math.abs(tx.amount.toNumber());
+      vendorSpending[vendorName].previousAmount += Math.abs(tx.amount?.toNumber() || 0);
     });
 
     // Convert to array and sort by total spend

@@ -43,10 +43,10 @@ export async function GET(request: NextRequest) {
       totalTransactions: transactions.length,
       totalIncome: transactions
         .filter(tx => tx.type === 'RECEIVE')
-        .reduce((sum, tx) => sum + tx.amount.toNumber(), 0),
+        .reduce((sum, tx) => sum + tx.amount?.toNumber() || 0, 0),
       totalExpenses: Math.abs(transactions
         .filter(tx => tx.type === 'SPEND')
-        .reduce((sum, tx) => sum + tx.amount.toNumber(), 0)),
+        .reduce((sum, tx) => sum + tx.amount?.toNumber() || 0, 0)),
       netAmount: 0,
       periodStart: startDate.toISOString(),
       periodEnd: now.toISOString()
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
       }
       const acc = accountMap.get(key);
       acc.transactionCount++;
-      acc.totalAmount += tx.type === 'RECEIVE' ? tx.amount : -tx.amount;
+      acc.totalAmount += tx.type === 'RECEIVE' ? (tx.amount?.toNumber() || 0) : -(tx.amount?.toNumber() || 0);
     });
     
     const byAccount = Array.from(accountMap.values())
@@ -90,9 +90,9 @@ export async function GET(request: NextRequest) {
       const month = monthMap.get(monthKey);
       month.transactionCount++;
       if (tx.type === 'RECEIVE') {
-        month.income += tx.amount;
+        month.income += tx.amount?.toNumber() || 0;
       } else {
-        month.expenses += tx.amount;
+        month.expenses += tx.amount?.toNumber() || 0;
       }
       month.net = month.income - Math.abs(month.expenses);
     });
@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
       if (!categoryMap.has(category)) {
         categoryMap.set(category, 0);
       }
-      categoryMap.set(category, categoryMap.get(category) + Math.abs(tx.amount.toNumber()));
+      categoryMap.set(category, categoryMap.get(category) + Math.abs(tx.amount?.toNumber() || 0));
     });
     
     const totalCategoryAmount = Array.from(categoryMap.values()).reduce((a, b) => a + b, 0);
@@ -156,10 +156,10 @@ export async function GET(request: NextRequest) {
     
     const prevIncome = previousTransactions
       .filter(tx => tx.type === 'RECEIVE')
-      .reduce((sum, tx) => sum + tx.amount.toNumber(), 0);
+      .reduce((sum, tx) => sum + tx.amount?.toNumber() || 0, 0);
     const prevExpenses = Math.abs(previousTransactions
       .filter(tx => tx.type === 'SPEND')
-      .reduce((sum, tx) => sum + tx.amount.toNumber(), 0));
+      .reduce((sum, tx) => sum + tx.amount?.toNumber() || 0, 0));
     
     const trends = {
       incomeGrowth: prevIncome > 0 ? ((summary.totalIncome - prevIncome) / prevIncome) * 100 : 0,
