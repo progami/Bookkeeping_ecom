@@ -218,7 +218,9 @@ export function ToastContainer() {
 
   useEffect(() => {
     const unsubscribe = toastStore.subscribe(setToasts)
-    return unsubscribe
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   return (

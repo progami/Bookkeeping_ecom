@@ -51,7 +51,8 @@
   - [x] Reduces API calls significantly
 
 - [x] **Incremental Sync**
-  - [x] Added Modified-Since support
+  - [x] Added Modified-Since support for bank transactions
+  - [x] Added Modified-Since support for invoices (ACCREC & ACCPAY)
   - [x] Tracks last successful sync
   - [x] Option for force full sync
   - [x] Reduces sync time and API usage
@@ -75,6 +76,40 @@
   - [ ] Add pagination to all list endpoints
   - [ ] Implement query result batching
   - [ ] Add database query optimization
+
+- [ ] **Single Data Fetch Strategy**
+  - [ ] **Implement One-Time API Call Pattern**
+    - All Xero API data should be fetched ONCE per session/refresh
+    - No repeated calls to same endpoints during session
+    - Data refresh ONLY on:
+      - Manual refresh button click
+      - New sign-in/authentication
+      - Scheduled background sync
+  
+  - [ ] **Fix Multiple API Call Issues**
+    - Current: P&L, Balance Sheet, VAT, Account balances fetched repeatedly
+    - Solution: Fetch all data once on app load/refresh
+    - Store in session-scoped cache (memory/Redis)
+    - Affected endpoints:
+      - `/api/v1/xero/reports/profit-loss-live`
+      - `/api/v1/xero/reports/balance-sheet-live`
+      - `/api/v1/xero/accounts`
+      - `/api/v1/xero/reports/vat-liability-live`
+      - `/api/v1/xero/accounts-with-balances`
+
+  - [ ] **Create Unified Data Store**
+    - Session-based cache for all Xero data
+    - Pattern: Fetch once → Cache → Serve from cache
+    - Cache key: `xero:${tenantId}:${dataType}`
+    - TTL: Session duration or manual refresh
+    - Clear only on explicit refresh/re-auth
+
+  - [ ] **Global Refresh Mechanism**
+    - Single refresh endpoint: `/api/v1/xero/refresh-all`
+    - Fetches all data in parallel (respecting rate limits)
+    - Updates all caches atomically
+    - Returns refresh timestamp
+    - Prevents concurrent refresh requests
 
 - [ ] **Error Handling Standardization**
   - [ ] Create standardized error response format
@@ -236,17 +271,26 @@ This application needs significant work before production deployment. Focus on P
    - **Remaining Issue**: "Sync (Never)" doesn't update after successful sync
    - **Fix Needed**: Ensure lastSync timestamp updates properly in UI
 
-3. **Hardcoded Currency Rates**
+3. **Hardcoded Currency Rates** ✅ FIXED
    - **Location**: `/app/api/v1/bookkeeping/cash-balance/route.ts`
-   - **Rates**: USD: 0.79, EUR: 0.86, PKR: 0.0028, SEK: 0.074
-   - **Impact**: Inaccurate financial calculations
-   - **Fix**: Integrate real-time exchange rate API
+   - **Old Rates**: USD: 0.79, EUR: 0.86, PKR: 0.0028, SEK: 0.074
+   - **Solution Implemented**:
+     - Created CurrencyRate model in database
+     - Implemented CurrencyService with caching
+     - Added fallback rates for reliability
+     - Integrated currency sync into Xero sync process
+     - Future-ready for Xe.com API integration
 
-4. **Brittle Report Parsing**
+4. **Brittle Report Parsing** ✅ FIXED
    - **Location**: `/app/api/v1/bookkeeping/financial-summary/route.ts`
    - **Issue**: Hardcoded string matching for 'Total Bank', 'Total Assets', etc.
    - **Risk**: Will break when Xero changes report format
-   - **Fix**: Use pattern matching or configuration-driven approach
+   - **Solution Implemented**:
+     - Created XeroReportParser class with configuration-driven parsing
+     - Flexible search terms for each field type
+     - Fallback values for missing data
+     - Support for different report structures
+     - Easy to update configuration without code changes
 
 5. **Read-Only Xero Integration**
    - **Current Scopes**: Only read permissions
@@ -265,15 +309,28 @@ This application needs significant work before production deployment. Focus on P
 
 ### Immediate Action Items
 1. ✅ FIXED: Debug and fix sync endpoint routing (404 error)
-2. ✅ PARTIALLY FIXED: Add comprehensive error handling and user feedback
-3. ❌ TODO: Replace hardcoded currency rates with API integration
-4. ❌ TODO: Implement proper incremental sync logic (basic version exists)
+2. ✅ FIXED: Add comprehensive error handling and user feedback
+3. ✅ FIXED: Replace hardcoded currency rates with API integration
+4. ✅ FIXED: Implement proper incremental sync logic
 5. ❌ TODO: Add write capabilities to Xero integration
-6. ❌ TODO: Fix lastSync timestamp UI update issue
+6. ✅ FIXED: Fix lastSync timestamp UI update issue
 
 ### Summary of Fixes Applied
 1. **Fixed sync endpoint 404**: Updated route registration and endpoint path
 2. **Fixed sync transaction processing**: Resolved variable name conflict (tx → xeroTx)
-3. **Fixed database status check**: Corrected status value case sensitivity
+3. **Fixed database status check**: Corrected status value case sensitivity and added support for multiple sync types
 4. **Added sync UI feedback**: Loading and success/error toast notifications
 5. **Improved sync result reporting**: Shows total records synced from all categories
+6. **Implemented currency conversion system**:
+   - Created CurrencyRate database model
+   - Built CurrencyService with caching and fallback rates
+   - Integrated currency sync into Xero sync process
+   - Replaced hardcoded rates with dynamic conversion
+7. **Implemented configuration-driven report parser**:
+   - Created XeroReportParser class to handle brittle Xero report structures
+   - Flexible search terms and fallback values
+   - Easy to update without code changes
+8. **Fixed incremental sync implementation**:
+   - Added proper Modified-Since support for bank transactions
+   - Added proper Modified-Since support for invoices (ACCREC & ACCPAY)
+   - Reduces API calls by only fetching changed data

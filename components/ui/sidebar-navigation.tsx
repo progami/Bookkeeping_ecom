@@ -3,11 +3,12 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { 
   Home, BookOpen, LineChart, BarChart3, Database,
-  ChevronLeft, ChevronRight, Menu, X
+  ChevronLeft, ChevronRight, Menu, X, LogOut, User
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/components/layouts/app-layout'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface NavItem {
   title: string
@@ -54,6 +55,7 @@ export function SidebarNavigation() {
   const pathname = usePathname()
   const router = useRouter()
   const { isCollapsed, setIsCollapsed } = useSidebar()
+  const { user, signOut } = useAuth()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
 
   // Close mobile menu on route change
@@ -77,7 +79,7 @@ export function SidebarNavigation() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-slate-800 border border-slate-700 rounded-xl shadow-lg"
+        className="lg:hidden fixed top-4 left-4 z-[100] p-3 bg-slate-800 border border-slate-700 rounded-xl shadow-lg hover:bg-slate-700 transition-colors"
         aria-label="Toggle navigation menu"
       >
         {isMobileOpen ? (
@@ -90,7 +92,7 @@ export function SidebarNavigation() {
       {/* Mobile Overlay */}
       {isMobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          className="lg:hidden fixed inset-0 bg-black/50 z-[90]"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
@@ -98,7 +100,7 @@ export function SidebarNavigation() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-40 h-screen bg-slate-900 border-r border-slate-800 transition-all duration-300",
+          "fixed left-0 top-0 z-[95] h-screen bg-slate-900 border-r border-slate-800 transition-all duration-300",
           isCollapsed ? "w-20" : "w-64",
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
@@ -171,7 +173,37 @@ export function SidebarNavigation() {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-slate-800">
+          <div className="p-4 border-t border-slate-800 space-y-4">
+            {/* User Info & Sign Out */}
+            {user && (
+              <div className="space-y-2">
+                {!isCollapsed && (
+                  <div className="flex items-center gap-3 px-3 py-2 bg-slate-800 rounded-lg">
+                    <User className="h-4 w-4 text-gray-400" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-white truncate">{user.tenantName}</div>
+                      <div className="text-xs text-gray-400 truncate">{user.email}</div>
+                    </div>
+                  </div>
+                )}
+                
+                <button
+                  onClick={signOut}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all",
+                    "hover:bg-red-600/10 text-gray-400 hover:text-red-400"
+                  )}
+                  title={isCollapsed ? "Sign Out" : undefined}
+                >
+                  <LogOut className="h-5 w-5 flex-shrink-0" />
+                  {!isCollapsed && (
+                    <span className="font-medium text-sm">Sign Out</span>
+                  )}
+                </button>
+              </div>
+            )}
+            
+            {/* Version Info */}
             {!isCollapsed ? (
               <div className="text-xs text-gray-500">
                 <div>© 2025 Bookkeeping</div>

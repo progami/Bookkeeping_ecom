@@ -75,11 +75,17 @@ export function ModuleCard({
               <p className="text-sm text-gray-400">{subtitle}</p>
             </div>
           </div>
-          <ArrowUpRight className={`h-5 w-5 text-gray-400 group-hover:${styles.iconColor} transition-colors`} />
+          <ArrowUpRight className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
         </div>
         
         {stats && (
-          <div className={`grid grid-cols-${stats.length} gap-3 mb-4`}>
+          <div className={`grid ${
+            stats.length === 1 ? 'grid-cols-1' :
+            stats.length === 2 ? 'grid-cols-2' :
+            stats.length === 3 ? 'grid-cols-3' :
+            stats.length === 4 ? 'grid-cols-4' :
+            'grid-cols-2'
+          } gap-3 mb-4`}>
             {stats.map((stat, index) => (
               <div key={index} className="bg-slate-900/50 rounded-lg p-3">
                 <div className="text-sm font-medium text-white">{stat.value}</div>

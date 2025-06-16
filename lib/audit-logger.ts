@@ -4,7 +4,7 @@
  */
 
 import { prisma } from './prisma';
-import { logger } from './logger';
+import { structuredLogger as logger } from './logger';
 import { FinancialCalc } from './financial-calculations';
 
 export interface AuditLogEntry {

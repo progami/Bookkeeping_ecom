@@ -12,15 +12,17 @@ import {
 import toast, { Toaster } from 'react-hot-toast'
 import { MetricCard } from '@/components/ui/metric-card'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { SkeletonDashboard } from '@/components/ui/skeleton'
 import { BackButton } from '@/components/ui/back-button'
-import { PageHeader } from '@/components/ui/page-header'
-import { ModuleHeader } from '@/components/ui/module-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
-import { StandardPageHeader } from '@/components/ui/standard-page-header'
+import { UnifiedPageHeader } from '@/components/ui/unified-page-header'
 import { formatNumber } from '@/lib/design-tokens'
 import { HelpTooltip, ContextualHelp } from '@/components/ui/tooltip'
+import { responsiveText } from '@/lib/responsive-utils'
+import { cn } from '@/lib/utils'
+import { gridLayouts } from '@/lib/grid-utils'
 
 interface FinanceMetrics {
   totalRevenue: number
@@ -202,16 +204,19 @@ export default function FinanceDashboard() {
       <div className="container mx-auto px-4 py-8">
         
         {/* Enhanced Header */}
-        <StandardPageHeader 
+        <UnifiedPageHeader 
           title="Financial Overview"
-          subtitle="Real-time financial intelligence powered by Xero"
+          description="Real-time financial intelligence powered by Xero"
           showBackButton={false}
+          showAuthStatus={true}
           showTimeRangeSelector={true}
           timeRange={timeRange}
           onTimeRangeChange={setTimeRange}
         />
 
-        {!hasActiveToken ? (
+        {loading && hasActiveToken ? (
+          <SkeletonDashboard />
+        ) : !hasActiveToken ? (
           <EmptyState 
             title="Welcome to Your Financial Hub"
             description="Connect your Xero account to unlock real-time financial insights, automated bookkeeping, and powerful analytics."
@@ -242,7 +247,7 @@ export default function FinanceDashboard() {
             <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-3xl p-8 mb-8">
               <div className="flex items-center justify-between flex-wrap gap-6">
                 <div>
-                  <h2 className="text-2xl font-semibold text-white mb-2 flex items-center gap-2">
+                  <h2 className={cn(responsiveText.heading[2], "font-semibold text-white mb-2 flex items-center gap-2")}>
                     Financial Health Score
                     <ContextualHelp
                       title="Financial Health Score"
@@ -256,10 +261,14 @@ export default function FinanceDashboard() {
                     />
                   </h2>
                   <div className="flex items-baseline gap-3">
-                    <span className={`text-6xl font-bold ${getHealthColor(moduleStatus?.cashFlow.healthScore || 0)}`}>
+                    <span className={cn(
+                      responsiveText.display[2], 
+                      "font-bold",
+                      getHealthColor(moduleStatus?.cashFlow.healthScore || 0)
+                    )}>
                       {moduleStatus?.cashFlow.healthScore || 0}
                     </span>
-                    <span className="text-2xl text-gray-400">/100</span>
+                    <span className={cn(responsiveText.heading[3], "text-gray-400")}>/100</span>
                   </div>
                   <p className="text-gray-400 mt-2">
                     Based on cash reserves, profit margins, and liquidity ratios
@@ -310,7 +319,7 @@ export default function FinanceDashboard() {
             </div>
 
             {/* Key Financial Metrics - Non-clickable info cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+            <div className={cn(gridLayouts.cards.metrics, "mb-8")}>
               {/* Cash Balance - Most Important */}
               <div className="relative bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -319,7 +328,7 @@ export default function FinanceDashboard() {
                   </div>
                   <span className="text-xs text-gray-500 uppercase tracking-wider">Total</span>
                 </div>
-                <div className="text-3xl font-bold text-white">
+                <div className={cn(responsiveText.metric.medium, "font-bold text-white")}>
                   {formatCurrency(metrics?.cashBalance || 0)}
                 </div>
                 <div className="text-sm text-gray-400 mt-1">Cash Balance</div>
@@ -398,7 +407,7 @@ export default function FinanceDashboard() {
               Financial Modules
             </h2>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+            <div className={cn(gridLayouts.cards.modules, "mb-8")}>
               {/* Bookkeeping - PRIMARY MODULE */}
               <div 
                 className="group relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10 transition-all cursor-pointer transform hover:-translate-y-1"

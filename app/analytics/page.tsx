@@ -7,7 +7,7 @@ import {
   Download, PieChart, TrendingDown, Activity
 } from 'lucide-react'
 import { measurePageLoad } from '@/lib/performance-utils'
-import { StandardPageHeader } from '@/components/ui/standard-page-header'
+import { UnifiedPageHeader } from '@/components/ui/unified-page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatNumber } from '@/lib/design-tokens'
@@ -229,13 +229,14 @@ export default function BusinessAnalytics() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
-      <StandardPageHeader 
+      <UnifiedPageHeader 
         title="Business Analytics"
-        subtitle="Comprehensive insights into your business performance"
+        description="Comprehensive insights into your business performance"
+        showAuthStatus={true}
         showTimeRangeSelector={true}
         timeRange={timeRange}
         onTimeRangeChange={setTimeRange}
-        additionalActions={
+        actions={
           vendors.length > 0 && (
             <button
               onClick={exportData}

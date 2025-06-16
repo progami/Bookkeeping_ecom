@@ -20,6 +20,10 @@
 3. ALWAYS save screenshots to the `screenshots/` folder
 4. Use descriptive names for screenshots (e.g., 'finance-dashboard-loaded.png')
 5. Include full page screenshots for important views: `fullPage: true`
+6. **IMPORTANT**: Keep ONE browser session open to avoid repeated 2FA authentication
+   - DO NOT close the browser between tests
+   - Navigate between pages using the same session
+   - Only close browser when completely done testing
 
 ## 🔧 QUICK COMMANDS
 

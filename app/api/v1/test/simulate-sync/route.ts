@@ -12,19 +12,22 @@ export async function POST(request: NextRequest) {
         data: {
           syncType: 'simulated_sync',
           status: 'in_progress',
-          itemsSynced: 0,
+          recordsCreated: 0,
+          recordsUpdated: 0,
           startedAt: new Date()
         }
       });
 
       // Simulate sync progress
       setTimeout(async () => {
+        const itemsSynced = Math.floor(Math.random() * 1000) + 100;
         await prisma.syncLog.update({
           where: { id: syncLog.id },
           data: {
             status: 'success',
             completedAt: new Date(),
-            itemsSynced: Math.floor(Math.random() * 1000) + 100,
+            recordsCreated: Math.floor(itemsSynced * 0.7),
+            recordsUpdated: Math.floor(itemsSynced * 0.3),
             errorMessage: null
           }
         });
@@ -54,7 +57,8 @@ export async function POST(request: NextRequest) {
         data: {
           syncType: 'simulated_sync',
           status: 'failed',
-          itemsSynced: 0,
+          recordsCreated: 0,
+          recordsUpdated: 0,
           startedAt: new Date(),
           completedAt: new Date(),
           errorMessage: 'Simulated sync error: Connection timeout'

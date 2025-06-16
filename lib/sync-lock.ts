@@ -3,7 +3,7 @@
  * Prevents concurrent sync operations that could lead to data corruption
  */
 
-import { logger } from './logger';
+import { structuredLogger as logger } from './logger';
 
 interface Lock {
   id: string;

@@ -72,7 +72,9 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require('./tailwind-plugins/design-tokens.js'),
+  ],
 }
 
 export default config

@@ -12,7 +12,7 @@ import {
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { measurePageLoad } from '@/lib/performance-utils'
-import { StandardPageHeader } from '@/components/ui/standard-page-header'
+import { UnifiedPageHeader } from '@/components/ui/unified-page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 
 interface FinancialOverview {
@@ -220,9 +220,10 @@ export default function BookkeepingDashboard() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
-      <StandardPageHeader 
+      <UnifiedPageHeader 
         title="Bookkeeping Dashboard"
-        subtitle="Manage your financial records and transactions"
+        description="Manage your financial records and transactions"
+        showAuthStatus={true}
         showTimeRangeSelector={true}
         timeRange={timeRange}
         onTimeRangeChange={setTimeRange}

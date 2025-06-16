@@ -260,7 +260,7 @@ async function performSync(tx: any, syncLog: any, modifiedSince?: Date) {
           console.log(`  Fetching page ${pageNum} for ${account.name}...`);
           const response = await client.accountingApi.getBankTransactions(
             tenant.tenantId,
-            undefined, // If-Modified-Since
+            modifiedSince, // If-Modified-Since for incremental sync
             `BankAccount.AccountID=Guid("${account.accountID}")`, // Filter by account
             undefined, // Order
             100, // Page size
@@ -395,7 +395,7 @@ async function performSync(tx: any, syncLog: any, modifiedSince?: Date) {
         tenant.tenantId,
         async (client) => client.accountingApi.getInvoices(
           tenant.tenantId,
-          undefined,
+          modifiedSince, // If-Modified-Since for incremental sync
           'Status=="AUTHORISED"&&Type=="ACCREC"',
           undefined,
           undefined,
@@ -459,7 +459,7 @@ async function performSync(tx: any, syncLog: any, modifiedSince?: Date) {
         tenant.tenantId,
         async (client) => client.accountingApi.getInvoices(
           tenant.tenantId,
-          undefined,
+          modifiedSince, // If-Modified-Since for incremental sync
           'Status=="AUTHORISED"&&Type=="ACCPAY"',
           undefined,
           undefined,

@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       tenantId,
       fromDate.toISOString().split('T')[0], // YYYY-MM-DD format
       toDate.toISOString().split('T')[0],
-      12, // periods
+      11, // periods (max allowed by Xero API)
       'MONTH' // timeframe
     );
 

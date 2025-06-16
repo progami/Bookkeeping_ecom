@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     
     cookieStore.set('test_cookie', JSON.stringify(testData), {
       httpOnly: true,
-      secure: isSecure,
+      secure: !!isSecure, // Ensure boolean type
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30, // 30 days
       path: '/'

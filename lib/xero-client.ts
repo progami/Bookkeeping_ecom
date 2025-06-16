@@ -24,12 +24,23 @@ export function createXeroClient(state?: string, codeVerifier?: string) {
     state: state
   };
   
-  // If we have a code verifier, we need to set it
-  if (codeVerifier) {
-    config.codeVerifier = codeVerifier;
-  }
-  
   const xero = new XeroClient(config);
+  
+  // If we have a code verifier, we need to store it for PKCE
+  // The Xero SDK uses openid-client internally which expects the code_verifier
+  if (codeVerifier) {
+    // Store for later use in apiCallback
+    (xero as any).__codeVerifier = codeVerifier;
+    
+    // Try to set it on the config as well
+    (xero as any).config.code_verifier = codeVerifier;
+    
+    structuredLogger.debug('Set code verifier on Xero client', {
+      component: 'xero-client',
+      codeVerifierLength: codeVerifier.length,
+      hasCodeVerifier: !!(xero as any).__codeVerifier
+    });
+  }
   
   return xero;
 }

@@ -123,7 +123,7 @@ class ErrorMonitor {
               errorStack: error.stack,
               errorCode: error.code,
               severity: error.severity || 'medium',
-              context: error.context || {},
+              context: JSON.stringify(error.context || {}),
               occurredAt: new Date()
             }
           })

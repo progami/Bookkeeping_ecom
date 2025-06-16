@@ -10,7 +10,7 @@ import {
 import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
 import toast, { Toaster } from 'react-hot-toast'
 import { measurePageLoad } from '@/lib/performance-utils'
-import { StandardPageHeader } from '@/components/ui/standard-page-header'
+import { UnifiedPageHeader } from '@/components/ui/unified-page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 
 // Import recharts components
@@ -208,11 +208,12 @@ export default function CashFlowPage() {
       <Toaster position="top-right" />
       
       {/* Header */}
-      <StandardPageHeader 
+      <UnifiedPageHeader 
         title="Cash Flow Forecast"
-        subtitle={`${forecastDays}-day projection with ${Math.round((summary?.averageConfidence || 0) * 100)}% average confidence`}
+        description={`${forecastDays}-day projection with ${Math.round((summary?.averageConfidence || 0) * 100)}% average confidence`}
+        showAuthStatus={true}
         showTimeRangeSelector={false}
-        additionalActions={
+        actions={
           <select
             value={forecastDays}
             onChange={(e) => setForecastDays(parseInt(e.target.value))}

@@ -78,6 +78,9 @@ export class FinancialCalc {
    * Round to currency (2 decimal places)
    */
   static toCurrency(value: Decimal | number | string): string {
+    if (value instanceof Decimal) {
+      return value.toFixed(2);
+    }
     return this.decimal(value).toFixed(2);
   }
 
@@ -85,6 +88,9 @@ export class FinancialCalc {
    * Round to specified decimal places
    */
   static round(value: Decimal | number | string, decimals: number = 2): string {
+    if (value instanceof Decimal) {
+      return value.toFixed(decimals);
+    }
     return this.decimal(value).toFixed(decimals);
   }
 
@@ -92,6 +98,9 @@ export class FinancialCalc {
    * Convert to number (use with caution, only for display or when precision isn't critical)
    */
   static toNumber(value: Decimal | number | string): number {
+    if (value instanceof Decimal) {
+      return value.toNumber();
+    }
     return this.decimal(value).toNumber();
   }
 
