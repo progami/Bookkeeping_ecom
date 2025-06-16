@@ -60,8 +60,8 @@ export const GET = withErrorHandling(
               tenantId,
               fromDate.toISOString().split('T')[0], // YYYY-MM-DD format
               toDate.toISOString().split('T')[0],
-              11, // periods (max allowed by Xero API)
-              'MONTH' // timeframe
+              11 as any, // periods (max allowed by Xero API)
+              'MONTH' as any // timeframe
             )
           );
           return response;
@@ -70,7 +70,7 @@ export const GET = withErrorHandling(
         5 * 60 * 1000 // 5 minute cache
       );
 
-      const report = plResponse.body.reports?.[0];
+      const report = (plResponse as any).body.reports?.[0];
     if (!report || !report.rows) {
       throw new Error('Invalid profit & loss response from Xero');
     }
@@ -83,12 +83,12 @@ export const GET = withErrorHandling(
     let operatingExpenses = 0;
 
     // Extract values from the report rows
-    report.rows.forEach(row => {
+    report.rows.forEach((row: any) => {
       if (row.rowType === 'Section' as any) {
         const sectionTitle = row.title?.toLowerCase() || '';
         
         // Find the total row in this section
-        const totalRow = row.rows?.find(r => 
+        const totalRow = row.rows?.find((r: any) => 
           r.rowType === 'Row' as any && 
           (r.cells?.[0]?.value?.toString().toLowerCase().includes('total') || false)
         );
@@ -109,7 +109,7 @@ export const GET = withErrorHandling(
     });
 
     // Look for net profit row
-    const netProfitRow = report.rows.find(row => 
+    const netProfitRow = report.rows.find((row: any) => 
       row.rowType === 'Row' as any && 
       row.cells?.[0]?.value?.toString().toLowerCase().includes('net profit')
     );
@@ -130,13 +130,13 @@ export const GET = withErrorHandling(
 
     if (report.rows.length > 0) {
       // Find revenue comparison
-      const revenueSection = report.rows.find(row => 
+      const revenueSection = report.rows.find((row: any) => 
         row.title?.toLowerCase().includes('income') || 
         row.title?.toLowerCase().includes('revenue')
       );
 
       if (revenueSection && revenueSection.rows) {
-        const totalRevenueRow = revenueSection.rows.find(r => 
+        const totalRevenueRow = revenueSection.rows.find((r: any) => 
           r.cells?.[0]?.value?.toString().toLowerCase().includes('total')
         );
 
@@ -151,7 +151,7 @@ export const GET = withErrorHandling(
       }
 
       // Find profit comparison
-      const netProfitRowForChange = report.rows.find(row => 
+      const netProfitRowForChange = report.rows.find((row: any) => 
         row.rowType === 'Row' as any && 
         row.cells?.[0]?.value?.toString().toLowerCase().includes('net profit')
       );

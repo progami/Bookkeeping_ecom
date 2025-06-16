@@ -83,7 +83,7 @@ export const GET = withErrorHandling(
         }
 
         // Look for specific line items
-        row.rows?.forEach(itemRow => {
+        row.rows?.forEach((itemRow: any) => {
           if (itemRow.rowType === 'Row' as any && itemRow.cells && itemRow.cells.length > 1) {
             const itemName = itemRow.cells[0]?.value?.toString().toLowerCase() || '';
             const itemValue = parseFloat(itemRow.cells[1]?.value?.toString() || '0');

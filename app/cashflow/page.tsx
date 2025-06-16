@@ -261,25 +261,25 @@ export default function CashFlowPage() {
         <>
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-cyan-500/20 rounded-xl">
                   <DollarSign className="h-6 w-6 text-cyan-400" />
                 </div>
-                <span className="text-xs text-gray-400">Current</span>
+                <span className="text-xs text-tertiary">Current</span>
               </div>
               <div className="text-xl sm:text-2xl font-bold text-white">
                 {formatCurrency(forecast[0]?.openingBalance || 0)}
               </div>
-              <div className="text-sm text-gray-400 mt-1">Cash Balance</div>
+              <div className="text-sm text-tertiary mt-1">Cash Balance</div>
             </div>
 
-            <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-red-500/20 rounded-xl">
                   <TrendingDown className="h-6 w-6 text-red-400" />
                 </div>
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-tertiary">
                   {summary?.lowestBalanceDate ? format(new Date(summary.lowestBalanceDate), 'MMM dd') : '-'}
                 </span>
               </div>
@@ -288,38 +288,38 @@ export default function CashFlowPage() {
               }`}>
                 {formatCurrency(summary?.lowestBalance || 0)}
               </div>
-              <div className="text-sm text-gray-400 mt-1">Lowest Balance</div>
+              <div className="text-sm text-tertiary mt-1">Lowest Balance</div>
             </div>
 
-            <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-green-500/20 rounded-xl">
                   <ArrowUpRight className="h-6 w-6 text-green-400" />
                 </div>
-                <span className="text-xs text-gray-400">{forecastDays} days</span>
+                <span className="text-xs text-tertiary">{forecastDays} days</span>
               </div>
               <div className="text-xl sm:text-2xl font-bold text-white">
                 {formatCurrency(summary?.totalInflows || 0)}
               </div>
-              <div className="text-sm text-gray-400 mt-1">Total Inflows</div>
+              <div className="text-sm text-tertiary mt-1">Total Inflows</div>
             </div>
 
-            <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-amber-500/20 rounded-xl">
                   <AlertTriangle className="h-6 w-6 text-amber-400" />
                 </div>
-                <span className="text-xs text-gray-400">Alerts</span>
+                <span className="text-xs text-tertiary">Alerts</span>
               </div>
               <div className="text-xl sm:text-2xl font-bold text-white">
                 {summary?.criticalAlerts || 0}
               </div>
-              <div className="text-sm text-gray-400 mt-1">Critical Alerts</div>
+              <div className="text-sm text-tertiary mt-1">Critical Alerts</div>
             </div>
           </div>
 
           {/* Main Chart */}
-          <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 mb-8">
+          <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6 mb-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-white">Cash Flow Projection</h2>
               <div className="flex items-center gap-4">
@@ -333,7 +333,7 @@ export default function CashFlowPage() {
                     }}
                     className="mr-2"
                   />
-                  <span className="text-sm text-gray-400">Show Scenarios</span>
+                  <span className="text-sm text-tertiary">Show Scenarios</span>
                 </label>
                 <div className="flex gap-2">
                   {['daily', 'weekly', 'monthly'].map((mode) => (
@@ -343,7 +343,7 @@ export default function CashFlowPage() {
                       className={`px-3 py-1 rounded-lg text-sm ${
                         viewMode === mode
                           ? 'bg-cyan-600 text-white'
-                          : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
+                          : 'bg-tertiary text-tertiary hover:bg-elevated'
                       }`}
                     >
                       {mode.charAt(0).toUpperCase() + mode.slice(1)}
@@ -357,8 +357,8 @@ export default function CashFlowPage() {
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="var(--brand-blue)" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="var(--brand-blue)" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -370,12 +370,12 @@ export default function CashFlowPage() {
                   formatter={(value: number) => formatCurrency(value)}
                 />
                 <Legend />
-                <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="5 5" />
+                <ReferenceLine y={0} stroke="var(--brand-red)" strokeDasharray="5 5" />
                 
                 <Area
                   type="monotone"
                   dataKey="balance"
-                  stroke="#06b6d4"
+                  stroke="var(--brand-blue)"
                   fillOpacity={1}
                   fill="url(#colorBalance)"
                   name="Cash Balance"
@@ -386,7 +386,7 @@ export default function CashFlowPage() {
                     <Line
                       type="monotone"
                       dataKey="bestCase"
-                      stroke="#10b981"
+                      stroke="var(--brand-emerald)"
                       strokeDasharray="5 5"
                       dot={false}
                       name="Best Case"
@@ -394,7 +394,7 @@ export default function CashFlowPage() {
                     <Line
                       type="monotone"
                       dataKey="worstCase"
-                      stroke="#ef4444"
+                      stroke="var(--brand-red)"
                       strokeDasharray="5 5"
                       dot={false}
                       name="Worst Case"
@@ -408,7 +408,7 @@ export default function CashFlowPage() {
           {/* Cash Flow Details */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {/* Inflows/Outflows Chart */}
-            <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Daily Cash Movements</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={chartData.slice(0, 30)}>
@@ -421,14 +421,14 @@ export default function CashFlowPage() {
                     formatter={(value: number) => formatCurrency(Math.abs(value))}
                   />
                   <Legend />
-                  <Bar dataKey="inflows" fill="#10b981" name="Inflows" />
-                  <Bar dataKey="outflows" fill="#ef4444" name="Outflows" />
+                  <Bar dataKey="inflows" fill="var(--brand-emerald)" name="Inflows" />
+                  <Bar dataKey="outflows" fill="var(--brand-red)" name="Outflows" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
 
             {/* Alerts & Actions */}
-            <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Alerts & Actions</h3>
               <div className="space-y-3 max-h-[300px] overflow-y-auto">
                 {forecast
@@ -440,18 +440,18 @@ export default function CashFlowPage() {
                       key={index}
                       className={`p-3 rounded-lg border ${
                         alert.severity === 'critical'
-                          ? 'bg-red-500/10 border-red-500/50'
-                          : 'bg-amber-500/10 border-amber-500/50'
+                          ? 'bg-brand-red border-brand-red'
+                          : 'bg-brand-amber border-brand-amber'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
                           <AlertTriangle className={`h-4 w-4 mr-2 ${
-                            alert.severity === 'critical' ? 'text-red-400' : 'text-amber-400'
+                            alert.severity === 'critical' ? 'text-brand-red' : 'text-brand-amber'
                           }`} />
                           <span className="text-sm text-white">{alert.message}</span>
                         </div>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-tertiary">
                           {format(new Date(alert.date), 'MMM dd')}
                         </span>
                       </div>
@@ -462,18 +462,18 @@ export default function CashFlowPage() {
           </div>
 
           {/* Budget Management */}
-          <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+          <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-white">Budget Management</h3>
               <div className="flex items-center gap-4">
                 <button
                   onClick={downloadBudgetTemplate}
-                  className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors flex items-center"
+                  className="px-4 py-2 bg-tertiary text-white rounded-lg hover:bg-elevated transition-colors flex items-center"
                 >
                   <FileDown className="h-4 w-4 mr-2" />
                   Download Template
                 </button>
-                <label className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors flex items-center cursor-pointer">
+                <label className="px-4 py-2 bg-brand-blue text-white rounded-lg hover:bg-brand-blue-dark transition-colors flex items-center cursor-pointer">
                   <FileUp className="h-4 w-4 mr-2" />
                   Import Budget
                   <input
@@ -485,7 +485,7 @@ export default function CashFlowPage() {
                 </label>
                 <button
                   onClick={exportBudget}
-                  className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors flex items-center"
+                  className="px-4 py-2 bg-tertiary text-white rounded-lg hover:bg-elevated transition-colors flex items-center"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export Budget
@@ -494,20 +494,20 @@ export default function CashFlowPage() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-slate-900/50 rounded-lg">
-                <div className="text-sm text-gray-400 mb-1">Budget Status</div>
+              <div className="p-4 bg-primary rounded-lg">
+                <div className="text-sm text-tertiary mb-1">Budget Status</div>
                 <div className="text-lg font-medium text-white">Active</div>
                 <div className="text-xs text-gray-500">12 months loaded</div>
               </div>
-              <div className="p-4 bg-slate-900/50 rounded-lg">
-                <div className="text-sm text-gray-400 mb-1">Import Options</div>
+              <div className="p-4 bg-primary rounded-lg">
+                <div className="text-sm text-tertiary mb-1">Import Options</div>
                 <div className="text-xs text-gray-300">
                   • Manual budget entry (Excel/CSV)<br />
                   • Xero Budget Manager export
                 </div>
               </div>
-              <div className="p-4 bg-slate-900/50 rounded-lg">
-                <div className="text-sm text-gray-400 mb-1">Last Import</div>
+              <div className="p-4 bg-primary rounded-lg">
+                <div className="text-sm text-tertiary mb-1">Last Import</div>
                 <div className="text-lg font-medium text-white">
                   {format(new Date(), 'MMM dd, yyyy')}
                 </div>

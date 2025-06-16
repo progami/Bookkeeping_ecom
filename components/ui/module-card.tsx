@@ -17,34 +17,34 @@ interface ModuleCardProps {
 
 const variantStyles = {
   default: {
-    border: 'border-slate-700/50 hover:border-slate-500/50',
-    icon: 'bg-slate-600/20',
-    iconColor: 'text-slate-400',
-    tag: 'bg-slate-600/20 text-slate-400'
+    border: 'border-default hover:border-light',
+    icon: 'bg-tertiary',
+    iconColor: 'text-tertiary',
+    tag: 'bg-tertiary text-tertiary'
   },
   success: {
-    border: 'border-emerald-700/50 hover:border-emerald-500/50',
-    icon: 'bg-emerald-600/20',
-    iconColor: 'text-emerald-400',
-    tag: 'bg-emerald-600/20 text-emerald-400'
+    border: 'border-brand-emerald hover:border-brand-emerald-light',
+    icon: 'bg-brand-emerald',
+    iconColor: 'text-brand-emerald',
+    tag: 'bg-brand-emerald text-brand-emerald'
   },
   warning: {
-    border: 'border-amber-700/50 hover:border-amber-500/50',
-    icon: 'bg-amber-600/20',
-    iconColor: 'text-amber-400',
-    tag: 'bg-amber-600/20 text-amber-400'
+    border: 'border-brand-amber hover:border-brand-amber-light',
+    icon: 'bg-brand-amber',
+    iconColor: 'text-brand-amber',
+    tag: 'bg-brand-amber text-brand-amber'
   },
   danger: {
-    border: 'border-red-700/50 hover:border-red-500/50',
-    icon: 'bg-red-600/20',
-    iconColor: 'text-red-400',
-    tag: 'bg-red-600/20 text-red-400'
+    border: 'border-brand-red hover:border-brand-red-light',
+    icon: 'bg-brand-red',
+    iconColor: 'text-brand-red',
+    tag: 'bg-brand-red text-brand-red'
   },
   info: {
-    border: 'border-blue-700/50 hover:border-blue-500/50',
-    icon: 'bg-blue-600/20',
-    iconColor: 'text-blue-400',
-    tag: 'bg-blue-600/20 text-blue-400'
+    border: 'border-brand-blue hover:border-brand-blue-light',
+    icon: 'bg-brand-blue',
+    iconColor: 'text-brand-blue',
+    tag: 'bg-brand-blue text-brand-blue'
   }
 }
 
@@ -61,7 +61,7 @@ export function ModuleCard({
   
   return (
     <div 
-      className={`group relative bg-slate-800/50 backdrop-blur-sm border ${styles.border} rounded-2xl p-6 hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1`}
+      className={`group relative bg-secondary backdrop-blur-sm border ${styles.border} rounded-2xl p-6 hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1`}
       onClick={onClick}
     >
       <div className="relative z-10">
@@ -72,10 +72,10 @@ export function ModuleCard({
             </div>
             <div>
               <h3 className="text-xl font-semibold text-white">{title}</h3>
-              <p className="text-sm text-gray-400">{subtitle}</p>
+              <p className="text-sm text-tertiary">{subtitle}</p>
             </div>
           </div>
-          <ArrowUpRight className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
+          <ArrowUpRight className="h-5 w-5 text-tertiary group-hover:text-primary transition-colors" />
         </div>
         
         {stats && (
@@ -87,9 +87,9 @@ export function ModuleCard({
             'grid-cols-2'
           } gap-3 mb-4`}>
             {stats.map((stat, index) => (
-              <div key={index} className="bg-slate-900/50 rounded-lg p-3">
-                <div className="text-sm font-medium text-white">{stat.value}</div>
-                <div className="text-xs text-gray-400">{stat.label}</div>
+              <div key={index} className="bg-primary rounded-lg p-3">
+                <div className="text-sm font-medium text-primary">{stat.value}</div>
+                <div className="text-xs text-tertiary">{stat.label}</div>
               </div>
             ))}
           </div>

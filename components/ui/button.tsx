@@ -15,12 +15,12 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles = {
-  primary: 'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500 border-transparent',
-  secondary: 'bg-slate-800/50 text-white hover:bg-slate-800/70 border-slate-700 focus:ring-slate-500',
-  success: 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border-emerald-600/30 focus:ring-emerald-500',
-  danger: 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border-red-600/30 focus:ring-red-500',
-  warning: 'bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 border-amber-600/30 focus:ring-amber-500',
-  ghost: 'text-gray-400 hover:text-white hover:bg-slate-800/30 border-transparent focus:ring-slate-500'
+  primary: 'bg-brand-emerald text-white hover:bg-brand-emerald-dark focus:ring-brand-emerald border-transparent',
+  secondary: 'bg-secondary text-white hover:bg-tertiary border-default focus:ring-border-light',
+  success: 'bg-brand-emerald text-brand-emerald hover:bg-brand-emerald/20 border-brand-emerald focus:ring-brand-emerald',
+  danger: 'bg-brand-red text-brand-red hover:bg-brand-red/20 border-brand-red focus:ring-brand-red',
+  warning: 'bg-brand-amber text-brand-amber hover:bg-brand-amber/20 border-brand-amber focus:ring-brand-amber',
+  ghost: 'text-tertiary hover:text-primary hover:bg-tertiary border-transparent focus:ring-border-light'
 }
 
 const sizeStyles = {
@@ -86,7 +86,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           className={cn(
             'relative overflow-hidden inline-flex items-center justify-center font-medium',
             'rounded-lg transition-all duration-200 transform border',
-            'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900',
+            'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-primary',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             'active:scale-95',
             variantStyles[variant],

@@ -1,38 +1,60 @@
 import crypto from 'crypto';
 import { structuredLogger } from './logger';
+import { redis } from './redis';
 
-// In-memory store for idempotency keys
-// In production, use Redis with TTL
-const idempotencyStore = new Map<string, {
+// Enhanced idempotency store with Redis support
+const inMemoryStore = new Map<string, {
   response: any;
   timestamp: number;
 }>();
 
 const IDEMPOTENCY_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const IDEMPOTENCY_TTL_SECONDS = 24 * 60 * 60; // 24 hours in seconds for Redis
 const MAX_KEYS = 10000;
+let useRedis = false;
 
-// Cleanup old keys
+// Check Redis availability
+async function checkRedisAvailability() {
+  try {
+    await redis.ping();
+    useRedis = true;
+    structuredLogger.info('Idempotency using Redis');
+  } catch (error) {
+    useRedis = false;
+    structuredLogger.warn('Idempotency falling back to in-memory store', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+// Initialize Redis check
+checkRedisAvailability();
+
+// Cleanup old keys (only for in-memory store)
 function cleanupIdempotencyKeys() {
-  const now = Date.now();
-  const entries = Array.from(idempotencyStore.entries());
-  
-  // Remove expired keys
-  for (const [key, data] of entries) {
-    if (now - data.timestamp > IDEMPOTENCY_TTL) {
-      idempotencyStore.delete(key);
-    }
-  }
-  
-  // Enforce size limit
-  if (idempotencyStore.size > MAX_KEYS) {
-    const sortedEntries = Array.from(idempotencyStore.entries())
-      .sort((a, b) => a[1].timestamp - b[1].timestamp);
+  if (!useRedis) {
+    const now = Date.now();
+    const entries = Array.from(inMemoryStore.entries());
     
-    const toRemove = sortedEntries.slice(0, idempotencyStore.size - MAX_KEYS);
-    for (const [key] of toRemove) {
-      idempotencyStore.delete(key);
+    // Remove expired keys
+    for (const [key, data] of entries) {
+      if (now - data.timestamp > IDEMPOTENCY_TTL) {
+        inMemoryStore.delete(key);
+      }
+    }
+    
+    // Enforce size limit
+    if (inMemoryStore.size > MAX_KEYS) {
+      const sortedEntries = Array.from(inMemoryStore.entries())
+        .sort((a, b) => a[1].timestamp - b[1].timestamp);
+      
+      const toRemove = sortedEntries.slice(0, inMemoryStore.size - MAX_KEYS);
+      for (const [key] of toRemove) {
+        inMemoryStore.delete(key);
+      }
     }
   }
+  // Redis handles TTL automatically
 }
 
 // Generate idempotency key from request data
@@ -42,12 +64,34 @@ export function generateIdempotencyKey(data: any): string {
 }
 
 // Check if we have a cached response for this idempotency key
-export function getIdempotentResponse(key: string): any | null {
+export async function getIdempotentResponse(key: string): Promise<any | null> {
+  const redisKey = `idempotency:${key}`;
+  
+  if (useRedis) {
+    try {
+      const cached = await redis.get(redisKey);
+      if (cached) {
+        structuredLogger.info('Idempotent request detected (Redis), returning cached response', {
+          component: 'idempotency',
+          key
+        });
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      structuredLogger.error('Redis idempotency read error', error, {
+        component: 'idempotency',
+        key
+      });
+      useRedis = false;
+    }
+  }
+  
+  // In-memory fallback
   cleanupIdempotencyKeys();
   
-  const cached = idempotencyStore.get(key);
+  const cached = inMemoryStore.get(key);
   if (cached && Date.now() - cached.timestamp < IDEMPOTENCY_TTL) {
-    structuredLogger.info('Idempotent request detected, returning cached response', {
+    structuredLogger.info('Idempotent request detected (in-memory), returning cached response', {
       component: 'idempotency',
       key
     });
@@ -58,13 +102,32 @@ export function getIdempotentResponse(key: string): any | null {
 }
 
 // Store response for idempotency
-export function storeIdempotentResponse(key: string, response: any): void {
-  idempotencyStore.set(key, {
+export async function storeIdempotentResponse(key: string, response: any): Promise<void> {
+  const redisKey = `idempotency:${key}`;
+  
+  if (useRedis) {
+    try {
+      await redis.setex(redisKey, IDEMPOTENCY_TTL_SECONDS, JSON.stringify(response));
+      structuredLogger.debug('Stored idempotent response in Redis', {
+        component: 'idempotency',
+        key
+      });
+    } catch (error) {
+      structuredLogger.error('Redis idempotency write error', error, {
+        component: 'idempotency',
+        key
+      });
+      useRedis = false;
+    }
+  }
+  
+  // Always store in memory as fallback
+  inMemoryStore.set(key, {
     response,
     timestamp: Date.now()
   });
   
-  structuredLogger.debug('Stored idempotent response', {
+  structuredLogger.debug('Stored idempotent response in memory', {
     component: 'idempotency',
     key
   });
@@ -78,7 +141,7 @@ export async function withIdempotency<T>(
   const key = generateIdempotencyKey(keyData);
   
   // Check for cached response
-  const cached = getIdempotentResponse(key);
+  const cached = await getIdempotentResponse(key);
   if (cached) {
     return cached;
   }
@@ -87,7 +150,7 @@ export async function withIdempotency<T>(
   const result = await operation();
   
   // Store result
-  storeIdempotentResponse(key, result);
+  await storeIdempotentResponse(key, result);
   
   return result;
 }

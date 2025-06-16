@@ -170,7 +170,7 @@ export const GET = withAdminAuth(async (
       hasMore: offset + limit < total
     });
   } catch (error: any) {
-    console.error(`Error fetching ${params} data:`, error);
+    console.error(`Error fetching ${tableName} data:`, error);
     return NextResponse.json({
       error: 'Failed to fetch table data',
       message: error.message

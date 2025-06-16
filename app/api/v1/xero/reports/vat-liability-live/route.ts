@@ -35,15 +35,15 @@ export const GET = withErrorHandling(
             xero.accountingApi.getAccounts(
               tenantId,
               undefined,
-              'Status=="ACTIVE"'
+              'Status=="ACTIVE"' as any
             )
           );
 
-          const allAccounts = allAccountsResponse.body.accounts || [];
+          const allAccounts = (allAccountsResponse as any).body.accounts || [];
           
           // Filter for tax/VAT related accounts based on account type
           // Tax accounts typically have Type "CURRLIAB" (Current Liability) and are tax-related
-          const vatAccounts = allAccounts.filter(account => {
+          const vatAccounts = allAccounts.filter((account: any) => {
             // Check if it's a tax account by type and name
             const isTaxType = account.type === AccountType.CURRLIAB || account.type === AccountType.LIABILITY;
             const isTaxName = account.name?.toLowerCase().includes('vat') || 
@@ -66,16 +66,16 @@ export const GET = withErrorHandling(
                 const trialBalanceResponse = await executeXeroAPICall(() =>
                   xero.accountingApi.getReportTrialBalance(
                     tenantId,
-                    new Date().toISOString().split('T')[0] // Today's date
+                    new Date().toISOString().split('T')[0] as any // Today's date
                   )
                 );
                 
-                const report = trialBalanceResponse.body.reports?.[0];
+                const report = (trialBalanceResponse as any).body.reports?.[0];
                 if (report && report.rows) {
                   // Find this account in the trial balance
                   for (const section of report.rows) {
                     if (section.rows) {
-                      const accountRow = section.rows.find(row => 
+                      const accountRow = section.rows.find((row: any) => 
                         row.cells?.[0]?.value === account.code || 
                         row.cells?.[1]?.value === account.name
                       );
@@ -108,17 +108,17 @@ export const GET = withErrorHandling(
               xero.accountingApi.getBankTransactions(
                 tenantId,
                 undefined,
-                `Date>DateTime(${startDate.toISOString()})`,
+                `Date>DateTime(${startDate.toISOString()})` as any,
                 undefined,
-                100
+                100 as any
               )
             );
 
-            const bankTransactions = recentTransactions.body.bankTransactions || [];
+            const bankTransactions = (recentTransactions as any).body.bankTransactions || [];
             
-            bankTransactions.forEach(tx => {
+            bankTransactions.forEach((tx: any) => {
               if (tx.lineItems) {
-                tx.lineItems.forEach(item => {
+                tx.lineItems.forEach((item: any) => {
                   if (item.taxAmount) {
                     if (tx.type === BankTransaction.TypeEnum.RECEIVE) {
                       vatOnSales += item.taxAmount;
@@ -140,7 +140,7 @@ export const GET = withErrorHandling(
             vatCollected: vatOnSales,
             vatPaid: vatOnPurchases,
             netAmount: totalVatLiability || netVat,
-            vatAccounts: vatAccounts.map(acc => ({
+            vatAccounts: vatAccounts.map((acc: any) => ({
               name: acc.name,
               code: acc.code,
               accountID: acc.accountID

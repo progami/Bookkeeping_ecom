@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { structuredLogger } from '@/lib/logger';
 import { executeXeroAPICall, paginatedXeroAPICall } from '@/lib/xero-client-with-rate-limit';
 import { Bottleneck } from '@/lib/rate-limiter';
+import { redis } from '@/lib/redis';
 
 /**
  * Cache key types for different Xero data
@@ -36,12 +37,13 @@ interface CacheEntry<T> {
  */
 export class XeroDataCache {
   private static instance: XeroDataCache;
-  private cache: Map<string, CacheEntry<any>>;
+  private inMemoryCache: Map<string, CacheEntry<any>>;
   private refreshInProgress: Map<string, Promise<any>>;
   private limiter: Bottleneck;
+  private useRedis: boolean = false;
 
   private constructor() {
-    this.cache = new Map();
+    this.inMemoryCache = new Map();
     this.refreshInProgress = new Map();
     
     // Rate limiter for cache operations
@@ -52,6 +54,22 @@ export class XeroDataCache {
     
     // Clear cache periodically (every hour)
     setInterval(() => this.cleanupExpiredEntries(), 60 * 60 * 1000);
+    
+    // Check Redis availability
+    this.checkRedisAvailability();
+  }
+
+  private async checkRedisAvailability() {
+    try {
+      await redis.ping();
+      this.useRedis = true;
+      structuredLogger.info('Xero cache using Redis');
+    } catch (error) {
+      this.useRedis = false;
+      structuredLogger.warn('Xero cache falling back to in-memory store', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
   }
 
   /**
@@ -93,10 +111,36 @@ export class XeroDataCache {
   ): Promise<T> {
     const cacheKey = this.getCacheKey(key, tenantId, userId, params);
     
-    // Check if data exists in cache
-    const cached = this.cache.get(cacheKey);
+    // Try Redis first if available
+    if (this.useRedis) {
+      try {
+        const redisData = await redis.get(cacheKey);
+        if (redisData) {
+          const cached: CacheEntry<T> = JSON.parse(redisData);
+          if (this.isValidEntry(cached, maxAge)) {
+            structuredLogger.debug('Redis cache hit', {
+              component: 'xero-data-cache',
+              key,
+              tenantId,
+              userId
+            });
+            return cached.data;
+          }
+        }
+      } catch (error) {
+        structuredLogger.error('Redis cache error', error, {
+          component: 'xero-data-cache',
+          key
+        });
+        // Fall back to in-memory
+        this.useRedis = false;
+      }
+    }
+    
+    // Check in-memory cache
+    const cached = this.inMemoryCache.get(cacheKey);
     if (cached && this.isValidEntry(cached, maxAge)) {
-      structuredLogger.debug('Cache hit', {
+      structuredLogger.debug('In-memory cache hit', {
         component: 'xero-data-cache',
         key,
         tenantId,
@@ -129,13 +173,28 @@ export class XeroDataCache {
         
         const data = await fetcher();
         
-        // Store in cache
-        this.cache.set(cacheKey, {
+        const cacheEntry: CacheEntry<T> = {
           data,
           timestamp: Date.now(),
           tenantId,
           userId
-        });
+        };
+        
+        // Store in both Redis and in-memory
+        if (this.useRedis) {
+          try {
+            const ttlSeconds = Math.floor((maxAge || 30 * 60 * 1000) / 1000);
+            await redis.setex(cacheKey, ttlSeconds, JSON.stringify(cacheEntry));
+          } catch (error) {
+            structuredLogger.error('Redis cache write error', error, {
+              component: 'xero-data-cache',
+              key
+            });
+          }
+        }
+        
+        // Always store in memory as fallback
+        this.inMemoryCache.set(cacheKey, cacheEntry);
         
         return data;
       } catch (error) {
@@ -161,10 +220,20 @@ export class XeroDataCache {
   /**
    * Invalidate cache entries
    */
-  public invalidate(key?: CacheKey, tenantId?: string, userId?: string): void {
+  public async invalidate(key?: CacheKey, tenantId?: string, userId?: string): Promise<void> {
     if (!key) {
       // Clear entire cache
-      this.cache.clear();
+      if (this.useRedis) {
+        try {
+          const keys = await redis.keys('bookkeeping:*');
+          if (keys.length > 0) {
+            await redis.del(...keys);
+          }
+        } catch (error) {
+          structuredLogger.error('Redis cache clear error', error);
+        }
+      }
+      this.inMemoryCache.clear();
       structuredLogger.info('Cleared entire cache', {
         component: 'xero-data-cache'
       });
@@ -175,13 +244,23 @@ export class XeroDataCache {
     const pattern = this.getCacheKey(key, tenantId || '*', userId || '*');
     const keysToDelete: string[] = [];
     
-    for (const [cacheKey] of this.cache) {
+    // Clear from in-memory
+    for (const [cacheKey] of this.inMemoryCache) {
       if (this.matchesPattern(cacheKey, pattern)) {
         keysToDelete.push(cacheKey);
       }
     }
     
-    keysToDelete.forEach(k => this.cache.delete(k));
+    keysToDelete.forEach(k => this.inMemoryCache.delete(k));
+    
+    // Clear from Redis
+    if (this.useRedis && keysToDelete.length > 0) {
+      try {
+        await redis.del(...keysToDelete.map(k => `bookkeeping:${k}`));
+      } catch (error) {
+        structuredLogger.error('Redis cache delete error', error);
+      }
+    }
     
     structuredLogger.info('Invalidated cache entries', {
       component: 'xero-data-cache',
@@ -214,8 +293,8 @@ export class XeroDataCache {
             xero.accountingApi.getReportProfitAndLoss(
               tenantId,
               undefined,
-              3,
-              'MONTH'
+              3 as any,
+              'MONTH' as any
             )
           );
           return report.body;
@@ -228,8 +307,8 @@ export class XeroDataCache {
             xero.accountingApi.getReportBalanceSheet(
               tenantId,
               undefined,
-              3,
-              'MONTH'
+              3 as any,
+              'MONTH' as any
             )
           );
           return report.body;
@@ -283,9 +362,9 @@ export class XeroDataCache {
     const maxAge = 60 * 60 * 1000; // 1 hour
     let removed = 0;
     
-    for (const [key, entry] of this.cache) {
+    for (const [key, entry] of this.inMemoryCache) {
       if (now - entry.timestamp > maxAge) {
-        this.cache.delete(key);
+        this.inMemoryCache.delete(key);
         removed++;
       }
     }
@@ -316,13 +395,13 @@ export class XeroDataCache {
     entries: Array<{ key: string; age: number }>;
   } {
     const now = Date.now();
-    const entries = Array.from(this.cache.entries()).map(([key, entry]) => ({
+    const entries = Array.from(this.inMemoryCache.entries()).map(([key, entry]) => ({
       key,
       age: now - entry.timestamp
     }));
     
     return {
-      size: this.cache.size,
+      size: this.inMemoryCache.size,
       entries
     };
   }

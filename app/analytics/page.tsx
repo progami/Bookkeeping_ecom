@@ -224,7 +224,15 @@ export default function BusinessAnalytics() {
     window.URL.revokeObjectURL(url)
   }
 
-  const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444']
+  const COLORS = [
+    'var(--brand-blue)', 
+    'var(--brand-purple)', 
+    'var(--brand-red)', 
+    'var(--brand-amber)', 
+    'var(--brand-emerald)',
+    'var(--brand-blue-light)',
+    'var(--brand-red-light)'
+  ]
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -240,7 +248,7 @@ export default function BusinessAnalytics() {
           vendors.length > 0 && (
             <button
               onClick={exportData}
-              className="px-4 py-2 bg-indigo-600/20 text-indigo-400 rounded-lg hover:bg-indigo-600/30 transition-colors flex items-center gap-2 border border-indigo-500/30"
+              className="px-4 py-2 bg-brand-blue text-brand-blue rounded-lg hover:bg-brand-blue/20 transition-colors flex items-center gap-2 border border-brand-blue"
             >
               <Download className="h-4 w-4" />
               Export
@@ -261,7 +269,7 @@ export default function BusinessAnalytics() {
               <SkeletonChart />
               <SkeletonChart />
             </div>
-            <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6">
+            <div className="bg-secondary border border-default rounded-2xl p-6">
               <SkeletonTable />
             </div>
           </>
@@ -273,17 +281,17 @@ export default function BusinessAnalytics() {
             illustration="analytics"
             steps={[
               {
-                icon: <Building2 className="h-5 w-5 text-indigo-400" />,
+                icon: <Building2 className="h-5 w-5 text-brand-blue" />,
                 title: "Vendor Analysis",
                 description: "Track spending patterns across all suppliers"
               },
               {
-                icon: <TrendingUp className="h-5 w-5 text-emerald-400" />,
+                icon: <TrendingUp className="h-5 w-5 text-brand-emerald" />,
                 title: "Growth Metrics",
                 description: "Monitor expense trends and growth rates"
               },
               {
-                icon: <PieChart className="h-5 w-5 text-purple-400" />,
+                icon: <PieChart className="h-5 w-5 text-brand-purple" />,
                 title: "Category Insights",
                 description: "Understand spending distribution by category"
               }
@@ -293,74 +301,74 @@ export default function BusinessAnalytics() {
           <>
             {/* Enhanced Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-indigo-500/20 rounded-xl">
-                    <DollarSign className="h-6 w-6 text-indigo-400" />
+                  <div className="p-3 bg-brand-blue rounded-xl">
+                    <DollarSign className="h-6 w-6 text-brand-blue" />
                   </div>
-                  <span className={`text-xs font-medium ${growthRate >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <span className={`text-xs font-medium ${growthRate >= 0 ? 'text-brand-emerald' : 'text-brand-red'}`}>
                     {growthRate >= 0 ? '+' : ''}{growthRate.toFixed(1)}%
                   </span>
                 </div>
                 <div className="text-3xl font-bold text-white">
                   {formatCurrency(totalSpend)}
                 </div>
-                <div className="text-sm text-gray-400 mt-1">Total Spend</div>
+                <div className="text-sm text-tertiary mt-1">Total Spend</div>
               </div>
 
-              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-emerald-500/20 rounded-xl">
-                    <Building2 className="h-6 w-6 text-emerald-400" />
+                  <div className="p-3 bg-brand-emerald rounded-xl">
+                    <Building2 className="h-6 w-6 text-brand-emerald" />
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-white">
                   {vendorCount}
                 </div>
-                <div className="text-sm text-gray-400 mt-1">Active Vendors</div>
+                <div className="text-sm text-tertiary mt-1">Active Vendors</div>
               </div>
 
-              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-purple-500/20 rounded-xl">
-                    <BarChart3 className="h-6 w-6 text-purple-400" />
+                  <div className="p-3 bg-brand-purple rounded-xl">
+                    <BarChart3 className="h-6 w-6 text-brand-purple" />
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-white">
                   {topConcentration.toFixed(1)}%
                 </div>
-                <div className="text-sm text-gray-400 mt-1">Top 5 Concentration</div>
+                <div className="text-sm text-tertiary mt-1">Top 5 Concentration</div>
               </div>
 
-              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-cyan-500/20 rounded-xl">
-                    <TrendingUp className="h-6 w-6 text-cyan-400" />
+                  <div className="p-3 bg-brand-blue rounded-xl">
+                    <TrendingUp className="h-6 w-6 text-brand-blue" />
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-white truncate">
                   {vendors[0]?.name || 'N/A'}
                 </div>
-                <div className="text-sm text-gray-400 mt-1">Top Vendor</div>
+                <div className="text-sm text-tertiary mt-1">Top Vendor</div>
               </div>
 
-              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-amber-500/20 rounded-xl">
-                    <Activity className="h-6 w-6 text-amber-400" />
+                  <div className="p-3 bg-brand-amber rounded-xl">
+                    <Activity className="h-6 w-6 text-brand-amber" />
                   </div>
                 </div>
                 <div className="text-2xl font-bold text-white">
                   {formatCurrency(totalSpend / (vendorCount || 1))}
                 </div>
-                <div className="text-sm text-gray-400 mt-1">Avg per Vendor</div>
+                <div className="text-sm text-tertiary mt-1">Avg per Vendor</div>
               </div>
             </div>
 
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               {/* Spend Trend Chart */}
-              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
                 <h2 className="text-xl font-semibold text-white mb-6">Spend Trend</h2>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={spendTrend}>
@@ -392,9 +400,9 @@ export default function BusinessAnalytics() {
                     <Line 
                       type="monotone" 
                       dataKey="amount" 
-                      stroke="#6366f1" 
+                      stroke="var(--brand-blue)" 
                       strokeWidth={2}
-                      dot={{ fill: '#6366f1', r: 4 }}
+                      dot={{ fill: 'var(--brand-blue)', r: 4 }}
                       activeDot={{ r: 6 }}
                     />
                   </LineChart>
@@ -402,7 +410,7 @@ export default function BusinessAnalytics() {
               </div>
 
               {/* Category Breakdown */}
-              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
                 <h2 className="text-xl font-semibold text-white mb-6">Expense Breakdown</h2>
                 <ResponsiveContainer width="100%" height={300}>
                   <RePieChart>
@@ -439,7 +447,7 @@ export default function BusinessAnalytics() {
             </div>
 
             {/* Enhanced Top Vendors Table */}
-            <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
               <h2 className="text-xl font-semibold text-white mb-6">Top Vendors Analysis</h2>
               
               {vendors.length > 0 ? (
@@ -447,17 +455,17 @@ export default function BusinessAnalytics() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-700">
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Rank</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Vendor</th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">Total Spend</th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">Transactions</th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">% of Total</th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">Growth</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-tertiary">Rank</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-tertiary">Vendor</th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-tertiary">Total Spend</th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-tertiary">Transactions</th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-tertiary">% of Total</th>
+                        <th className="text-right py-3 px-4 text-sm font-medium text-tertiary">Growth</th>
                       </tr>
                     </thead>
                     <tbody>
                       {vendors.map((vendor, index) => (
-                        <tr key={index} className="border-b border-slate-700/50 hover:bg-slate-800/50">
+                        <tr key={index} className="border-b border-default hover:bg-slate-800/50">
                           <td className="py-4 px-4">
                             <div className="w-10 h-10 bg-indigo-500/20 rounded-full flex items-center justify-center">
                               <span className="text-indigo-400 font-semibold">{index + 1}</span>
@@ -469,10 +477,10 @@ export default function BusinessAnalytics() {
                           <td className="py-4 px-4 text-right text-white font-medium">
                             {formatCurrency(vendor.totalSpend)}
                           </td>
-                          <td className="py-4 px-4 text-right text-gray-400">
+                          <td className="py-4 px-4 text-right text-tertiary">
                             {vendor.transactionCount}
                           </td>
-                          <td className="py-4 px-4 text-right text-gray-400">
+                          <td className="py-4 px-4 text-right text-tertiary">
                             {totalSpend > 0 ? ((vendor.totalSpend / totalSpend) * 100).toFixed(1) : '0.0'}%
                           </td>
                           <td className="py-4 px-4 text-right">
@@ -489,33 +497,33 @@ export default function BusinessAnalytics() {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <p className="text-gray-400">No vendor data available for this period</p>
+                  <p className="text-tertiary">No vendor data available for this period</p>
                 </div>
               )}
             </div>
 
             {/* Additional Analytics Sections */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
                   <PieChart className="h-5 w-5 mr-2 text-indigo-400" />
                   Vendor Insights
                 </h3>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Average Transaction Size</span>
+                    <span className="text-tertiary">Average Transaction Size</span>
                     <span className="text-white font-medium">
                       {formatCurrency(vendors.reduce((sum, v) => sum + (v.totalSpend / v.transactionCount), 0) / (vendors.length || 1))}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Most Active Vendor</span>
+                    <span className="text-tertiary">Most Active Vendor</span>
                     <span className="text-white font-medium">
                       {vendors.reduce((max, v) => v.transactionCount > (max?.transactionCount || 0) ? v : max, vendors[0])?.name || 'N/A'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Fastest Growing</span>
+                    <span className="text-tertiary">Fastest Growing</span>
                     <span className="text-white font-medium">
                       {vendors.reduce((max, v) => (v.growth || 0) > (max?.growth || 0) ? v : max, vendors[0])?.name || 'N/A'}
                     </span>
@@ -523,26 +531,26 @@ export default function BusinessAnalytics() {
                 </div>
               </div>
 
-              <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+              <div className="bg-secondary backdrop-blur-sm border border-default rounded-2xl p-6">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
                   <Activity className="h-5 w-5 mr-2 text-emerald-400" />
                   Performance Metrics
                 </h3>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Daily Average Spend</span>
+                    <span className="text-tertiary">Daily Average Spend</span>
                     <span className="text-white font-medium">
                       {formatCurrency(totalSpend / (timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '90d' ? 90 : 365))}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Vendor Efficiency</span>
+                    <span className="text-tertiary">Vendor Efficiency</span>
                     <span className="text-white font-medium">
                       {((vendors.filter(v => (v.growth || 0) < 0).length / (vendors.length || 1)) * 100).toFixed(0)}% reducing
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Concentration Risk</span>
+                    <span className="text-tertiary">Concentration Risk</span>
                     <span className={`font-medium ${topConcentration > 70 ? 'text-amber-400' : 'text-green-400'}`}>
                       {topConcentration > 70 ? 'High' : topConcentration > 50 ? 'Medium' : 'Low'}
                     </span>

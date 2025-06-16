@@ -109,7 +109,7 @@
 }
 
 .dark .glass {
-  @apply bg-gray-900/80;
+  @apply bg-primary/80;
 }
 
 /* Gradient backgrounds */
@@ -127,19 +127,19 @@
 }
 
 .badge-success {
-  @apply bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400;
+  @apply bg-brand-emerald text-brand-emerald;
 }
 
 .badge-warning {
-  @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400;
+  @apply bg-brand-amber text-brand-amber;
 }
 
 .badge-error {
-  @apply bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400;
+  @apply bg-brand-red text-brand-red;
 }
 
 .badge-info {
-  @apply bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400;
+  @apply bg-brand-blue text-brand-blue;
 }
 
 /* Print styles */
@@ -159,17 +159,17 @@
 }
 
 .sidebar-content {
-  @apply flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white dark:bg-gray-900 dark:border-gray-800 px-6 pb-4;
+  @apply flex grow flex-col gap-y-5 overflow-y-auto border-r border-default bg-secondary px-6 pb-4;
 }
 
 /* Mobile menu overlay */
 .mobile-menu-overlay {
-  @apply fixed inset-0 z-50 bg-gray-900/80 lg:hidden;
+  @apply fixed inset-0 z-50 bg-primary/80 lg:hidden;
 }
 
 /* Form styles */
 .form-input {
-  @apply block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6;
+  @apply block w-full rounded-md border-0 py-1.5 text-primary shadow-sm ring-1 ring-inset ring-default placeholder:text-tertiary focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6;
 }
 
 /* Button styles */

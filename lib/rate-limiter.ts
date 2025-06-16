@@ -1,53 +1,100 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { structuredLogger } from './logger';
+import { redis } from './redis';
 
-// Simple in-memory rate limiter
-// In production, use Redis for distributed rate limiting
+// Enhanced rate limiter with Redis support
 interface RateLimitEntry {
   count: number;
   resetTime: number;
 }
 
 class RateLimiter {
-  private store: Map<string, RateLimitEntry> = new Map();
+  private inMemoryStore: Map<string, RateLimitEntry> = new Map();
   private cleanupInterval: NodeJS.Timeout;
+  private useRedis: boolean = false;
 
   constructor() {
     // Clean up expired entries every minute
     this.cleanupInterval = setInterval(() => {
       this.cleanup();
     }, 60 * 1000);
+
+    // Check if Redis is available
+    this.checkRedisAvailability();
   }
 
-  private cleanup() {
-    const now = Date.now();
-    for (const [key, entry] of this.store.entries()) {
-      if (entry.resetTime < now) {
-        this.store.delete(key);
-      }
+  private async checkRedisAvailability() {
+    try {
+      await redis.ping();
+      this.useRedis = true;
+      structuredLogger.info('Rate limiter using Redis');
+    } catch (error) {
+      this.useRedis = false;
+      structuredLogger.warn('Rate limiter falling back to in-memory store', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 
-  private getKey(identifier: string, endpoint: string): string {
-    return `${identifier}:${endpoint}`;
+  private cleanup() {
+    if (!this.useRedis) {
+      const now = Date.now();
+      for (const [key, entry] of this.inMemoryStore.entries()) {
+        if (entry.resetTime < now) {
+          this.inMemoryStore.delete(key);
+        }
+      }
+    }
+    // Redis handles TTL automatically
   }
 
-  check(
+  private getKey(identifier: string, endpoint: string): string {
+    return `ratelimit:${identifier}:${endpoint}`;
+  }
+
+  async check(
     identifier: string,
     endpoint: string,
     limit: number,
     windowMs: number
-  ): { allowed: boolean; remaining: number; resetTime: number } {
+  ): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
     const key = this.getKey(identifier, endpoint);
     const now = Date.now();
-    const resetTime = now + windowMs;
+    const window = Math.floor(now / windowMs);
+    const resetTime = (window + 1) * windowMs;
 
-    let entry = this.store.get(key);
+    if (this.useRedis) {
+      try {
+        // Use Redis with sliding window approach
+        const redisKey = `${key}:${window}`;
+        const ttl = Math.ceil(windowMs / 1000);
+
+        // Increment counter
+        const count = await redis.incr(redisKey);
+        
+        // Set expiry on first increment
+        if (count === 1) {
+          await redis.expire(redisKey, ttl);
+        }
+
+        const allowed = count <= limit;
+        const remaining = Math.max(0, limit - count);
+
+        return { allowed, remaining, resetTime };
+      } catch (error) {
+        // Fallback to in-memory on Redis error
+        structuredLogger.error('Redis rate limit error, falling back to in-memory', error);
+        this.useRedis = false;
+      }
+    }
+
+    // In-memory fallback
+    let entry = this.inMemoryStore.get(key);
 
     if (!entry || entry.resetTime < now) {
       // Create new entry
       entry = { count: 0, resetTime };
-      this.store.set(key, entry);
+      this.inMemoryStore.set(key, entry);
     }
 
     entry.count++;
@@ -130,7 +177,7 @@ export function withRateLimit(
     const windowMs = options.windowMs || config.windowMs;
 
     // Check rate limit
-    const result = rateLimiter.check(identifier, pathname, limit, windowMs);
+    const result = await rateLimiter.check(identifier, pathname, limit, windowMs);
 
     // Add rate limit headers
     const headers = new Headers();

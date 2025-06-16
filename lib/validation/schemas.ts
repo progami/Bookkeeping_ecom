@@ -276,6 +276,9 @@ export const tableNameParamSchema = z.object({
 export const transactionUpdateSchema = z.object({
   transactionId: z.string().uuid(),
   updates: z.object({
+    accountCode: z.string().optional(),
+    taxType: z.string().optional(),
+    description: z.string().optional(),
     reference: z.string().max(255).optional(),
     isReconciled: z.boolean().optional(),
     category: z.string().optional(),
