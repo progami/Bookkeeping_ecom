@@ -10,6 +10,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// User model for Xero-based authentication
+model User {
+  id              String   @id @default(cuid())
+  xeroUserId      String   @unique
+  email           String   @unique
+  firstName       String?
+  lastName        String?
+  fullName        String?
+  tenantId        String
+  tenantName      String
+  tenantType      String?
+  xeroAccessToken String?  // Encrypted in production
+  xeroRefreshToken String? // Encrypted in production
+  tokenExpiresAt  DateTime?
+  lastLoginAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([email])
+  @@index([xeroUserId])
+}
+
 model BankAccount {
   id                 String    @id @default(cuid())
   xeroAccountId      String    @unique
@@ -303,4 +325,19 @@ model AuditLog {
   @@index([resourceId])
   @@index([timestamp])
   @@index([status])
+}
+
+model CurrencyRate {
+  id            String   @id @default(cuid())
+  fromCurrency  String
+  toCurrency    String
+  rate          Decimal
+  source        String   @default("xero") // 'xero', 'xe', 'manual'
+  effectiveDate DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([fromCurrency, toCurrency, effectiveDate])
+  @@index([effectiveDate])
+  @@index([fromCurrency, toCurrency])
 }

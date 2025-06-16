@@ -10,6 +10,7 @@ import { xeroSyncSchema } from '@/lib/validation/schemas';
 import { withRateLimit } from '@/lib/rate-limiter';
 import { withLock, LOCK_RESOURCES } from '@/lib/sync-lock';
 import { auditLogger, AuditAction, AuditResource } from '@/lib/audit-logger';
+import { CurrencyService } from '@/lib/currency-service';
 
 export const POST = withRateLimit(
   withValidation(
@@ -518,6 +519,46 @@ async function performSync(tx: any, syncLog: any, modifiedSince?: Date) {
       }
     } catch (invoiceError) {
       structuredLogger.error('Error syncing invoices', invoiceError, { component: 'xero-sync' });
+    }
+
+    // Step 5: Sync currency rates for all active currencies
+    try {
+      structuredLogger.info('Syncing currency rates', { component: 'xero-sync' });
+      
+      // Collect all unique currencies from bank accounts and transactions
+      const currencies = new Set<string>();
+      
+      // Add currencies from bank accounts
+      for (const account of bankAccounts) {
+        if (account.currencyCode) {
+          currencies.add(account.currencyCode.toString());
+        }
+      }
+      
+      // Add currencies from invoices
+      const allInvoices = await tx.syncedInvoice.findMany({
+        select: { currencyCode: true },
+        distinct: ['currencyCode']
+      });
+      
+      for (const invoice of allInvoices) {
+        if (invoice.currencyCode) {
+          currencies.add(invoice.currencyCode);
+        }
+      }
+      
+      // Sync rates for all currencies
+      await CurrencyService.syncCurrencyRates(Array.from(currencies));
+      
+      structuredLogger.info('Currency rates synced', { 
+        component: 'xero-sync',
+        currencies: Array.from(currencies)
+      });
+    } catch (currencyError) {
+      structuredLogger.error('Error syncing currency rates', currencyError, { 
+        component: 'xero-sync' 
+      });
+      // Don't fail the entire sync for currency errors
     }
 
     structuredLogger.info('Sync completed successfully', {

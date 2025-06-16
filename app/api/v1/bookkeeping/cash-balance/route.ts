@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { CurrencyService } from '@/lib/currency-service';
+import { structuredLogger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('Fetching bank account balances from database...');
+    structuredLogger.info('Fetching bank account balances', {
+      component: 'cash-balance-api'
+    });
     
     // Fetch all bank accounts from database
     const bankAccounts = await prisma.bankAccount.findMany({
@@ -20,38 +24,64 @@ export async function GET(request: NextRequest) {
     // Calculate total balance in GBP
     let totalBalance = 0;
     const accountsWithBalance: any[] = [];
+    const baseCurrency = 'GBP';
     
-    // Currency conversion rates (simplified - in real app, these would be fetched)
-    const conversionRates: Record<string, number> = {
-      'GBP': 1,
-      'USD': 0.79, // Example rate
-      'EUR': 0.86, // Example rate
-      'PKR': 0.0028, // Example rate
-      'SEK': 0.074 // Example rate
-    };
-    
-    bankAccounts.forEach((account) => {
-      const rate = conversionRates[account.currencyCode || 'GBP'] || 1;
-      const balanceInGBP = account.balance.toNumber() * rate;
-      totalBalance += balanceInGBP;
+    // Process each account and convert to base currency
+    for (const account of bankAccounts) {
+      const accountCurrency = account.currencyCode || baseCurrency;
       
-      accountsWithBalance.push({
-        id: account.id,
-        name: account.name,
-        code: account.code || '',
-        balance: account.balance,
-        balanceInGBP: balanceInGBP,
-        currency: account.currencyCode || 'GBP',
-        type: 'BANK',
-        lastUpdated: account.balanceLastUpdated || account.updatedAt
-      });
-    });
+      try {
+        // Get exchange rate using currency service
+        const balanceInGBP = await CurrencyService.convert(
+          account.balance,
+          accountCurrency,
+          baseCurrency,
+          account.balanceLastUpdated || undefined
+        );
+        
+        totalBalance += balanceInGBP;
+        
+        accountsWithBalance.push({
+          id: account.id,
+          name: account.name,
+          code: account.code || '',
+          balance: account.balance,
+          balanceInGBP: balanceInGBP,
+          currency: accountCurrency,
+          type: 'BANK',
+          lastUpdated: account.balanceLastUpdated || account.updatedAt
+        });
+      } catch (error) {
+        structuredLogger.error('Failed to convert currency for account', error, {
+          component: 'cash-balance-api',
+          accountId: account.id,
+          currency: accountCurrency
+        });
+        
+        // Include account with unconverted balance
+        accountsWithBalance.push({
+          id: account.id,
+          name: account.name,
+          code: account.code || '',
+          balance: account.balance,
+          balanceInGBP: 0, // Unable to convert
+          currency: accountCurrency,
+          type: 'BANK',
+          lastUpdated: account.balanceLastUpdated || account.updatedAt,
+          conversionError: true
+        });
+      }
+    }
     
-    console.log('Successfully fetched balance from database:', totalBalance);
+    structuredLogger.info('Successfully calculated cash balance', {
+      component: 'cash-balance-api',
+      totalBalance,
+      accountCount: accountsWithBalance.length
+    });
     
     return NextResponse.json({
       totalBalance: totalBalance,
-      currency: 'GBP',
+      currency: baseCurrency,
       accounts: accountsWithBalance,
       count: accountsWithBalance.length,
       lastUpdated: bankAccounts.length > 0 
@@ -63,7 +93,10 @@ export async function GET(request: NextRequest) {
     });
     
   } catch (error: any) {
-    console.error('Cash balance error:', error);
+    structuredLogger.error('Cash balance API error', error, {
+      component: 'cash-balance-api'
+    });
+    
     return NextResponse.json({
       error: 'Failed to fetch cash balance',
       details: error.message

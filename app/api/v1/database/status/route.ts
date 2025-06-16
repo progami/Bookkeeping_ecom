@@ -16,7 +16,7 @@ export async function GET() {
       prisma.syncLog.findFirst({
         where: { 
           status: 'success',
-          syncType: 'full_sync'
+          syncType: { in: ['full_sync', 'incremental_sync'] }
         },
         orderBy: { completedAt: 'desc' }
       })
