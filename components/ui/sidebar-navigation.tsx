@@ -79,7 +79,7 @@ export function SidebarNavigation() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-[100] p-3 bg-slate-800 border border-slate-700 rounded-xl shadow-lg hover:bg-slate-700 transition-colors"
+        className="lg:hidden fixed top-4 left-4 z-[100] p-3 bg-slate-800/95 backdrop-blur-sm border border-slate-600 rounded-xl shadow-xl hover:bg-slate-700 hover:border-slate-500 transition-all"
         aria-label="Toggle navigation menu"
       >
         {isMobileOpen ? (
@@ -113,7 +113,7 @@ export function SidebarNavigation() {
             )}
             <button
               onClick={toggleCollapsed}
-              className="hidden lg:flex p-1.5 hover:bg-slate-800 rounded-lg transition-colors"
+              className="hidden lg:flex p-2 hover:bg-slate-800 rounded-lg transition-colors"
               aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {isCollapsed ? (

@@ -11,11 +11,13 @@ import { withRateLimit } from '@/lib/rate-limiter';
 import { withLock, LOCK_RESOURCES } from '@/lib/sync-lock';
 import { auditLogger, AuditAction, AuditResource } from '@/lib/audit-logger';
 import { CurrencyService } from '@/lib/currency-service';
+import { withAuthValidation } from '@/lib/auth/auth-wrapper';
+import { ValidationLevel } from '@/lib/auth/session-validation';
 
 export const POST = withRateLimit(
-  withValidation(
-    { bodySchema: xeroSyncSchema },
-    async (request, { body }) => {
+  withAuthValidation(
+    { bodySchema: xeroSyncSchema, authLevel: ValidationLevel.XERO },
+    async (request, { body, session }) => {
     let syncLog: any;
 
     try {

@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { measurePageLoad } from '@/lib/performance-utils'
 import { UnifiedPageHeader } from '@/components/ui/unified-page-header'
 import { EmptyState } from '@/components/ui/empty-state'
+import { SkeletonMetricCard, SkeletonTransactionList } from '@/components/ui/skeleton'
 
 interface FinancialOverview {
   cashInBank: number
@@ -251,11 +252,19 @@ export default function BookkeepingDashboard() {
         />
       ) : dataLoading ? (
         /* Loading dashboard data */
-        <div className="flex items-center justify-center h-64">
-          <div className="relative">
-            <div className="w-16 h-16 border-4 border-emerald-500/20 rounded-full animate-pulse" />
-            <div className="absolute inset-0 w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <div className="space-y-8">
+          {/* Financial Overview Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <SkeletonMetricCard key={i} />
+            ))}
           </div>
+          
+          {/* Bank Accounts Skeleton */}
+          <SkeletonTransactionList />
+          
+          {/* Transactions Skeleton */}
+          <SkeletonTransactionList />
         </div>
       ) : (
         <>
@@ -274,7 +283,7 @@ export default function BookkeepingDashboard() {
                   </div>
                   <span className="text-xs text-gray-500 uppercase tracking-wider">Total</span>
                 </div>
-                <div className="text-3xl font-bold text-white">
+                <div className="text-2xl sm:text-3xl font-bold text-white">
                   {formatCurrency(stats?.financial.cashInBank || 0)}
                 </div>
                 <p className="text-sm text-gray-400 mt-2">Cash in Bank</p>
@@ -291,7 +300,7 @@ export default function BookkeepingDashboard() {
                   </div>
                   <span className="text-xs text-gray-500 uppercase tracking-wider">Today</span>
                 </div>
-                <div className="text-3xl font-bold text-white">
+                <div className="text-2xl sm:text-3xl font-bold text-white">
                   {formatCurrency(stats?.financial.balanceSheet.netAssets || 0)}
                 </div>
                 <div className="text-sm text-gray-400 mt-1">Net Assets</div>
@@ -316,7 +325,7 @@ export default function BookkeepingDashboard() {
                     {(stats?.financial.periodComparison.profitChange ?? 0).toFixed(1)}%
                   </span>
                 </div>
-                <div className="text-3xl font-bold text-white">
+                <div className="text-2xl sm:text-3xl font-bold text-white">
                   {formatCurrency(stats?.financial.profitLoss.netProfit || 0)}
                 </div>
                 <div className="text-sm text-gray-400 mt-1">Net Profit ({timeRange})</div>
@@ -336,7 +345,7 @@ export default function BookkeepingDashboard() {
                   </div>
                   <Activity className="h-4 w-4 text-gray-400" />
                 </div>
-                <div className="text-3xl font-bold text-white">
+                <div className="text-2xl sm:text-3xl font-bold text-white">
                   {formatCurrency(stats?.financial.vatLiability || 0)}
                 </div>
                 <div className="text-sm text-gray-400 mt-1">VAT Liability</div>
@@ -349,7 +358,7 @@ export default function BookkeepingDashboard() {
 
           {/* Main Bookkeeping Apps */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-6">Bookkeeping Tools</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-6">Bookkeeping Tools</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* SOP Generator */}
               <button
@@ -575,7 +584,7 @@ export default function BookkeepingDashboard() {
                 
                 <div className="space-y-4">
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-white mb-2">
+                    <div className="text-3xl sm:text-4xl font-bold text-white mb-2">
                       {stats?.reconciliation.totalUnreconciled || 0}
                     </div>
                     <p className="text-sm text-gray-400">Unreconciled Transactions</p>

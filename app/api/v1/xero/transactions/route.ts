@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getXeroClient } from '@/lib/xero-client';
+import { withValidation } from '@/lib/validation/middleware';
+import { transactionsQuerySchema, transactionUpdateSchema } from '@/lib/validation/schemas';
 
-export async function GET(request: NextRequest) {
+export const GET = withValidation(
+  { querySchema: transactionsQuerySchema },
+  async (request, { query }) => {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const page = parseInt(searchParams.get('page') || '1');
-    const requestedPageSize = parseInt(searchParams.get('pageSize') || '100');
-    // Limit page size to prevent performance issues
-    const pageSize = Math.min(requestedPageSize, 10000);
-    const accountId = searchParams.get('accountId');
-    const showReconciled = searchParams.get('showReconciled') === 'true';
+    // Use validated query parameters with defaults
+    const page = query?.page || 1;
+    const pageSize = Math.min(query?.limit || 50, 10000); // Still limit to prevent performance issues
+    const accountId = query?.accountId;
+    const showReconciled = query?.status === 'RECONCILED' || query?.status === undefined;
     
     // Build where clause
     const where: any = {};
@@ -237,11 +239,13 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
-export async function PUT(request: NextRequest) {
+export const PUT = withValidation(
+  { bodySchema: transactionUpdateSchema },
+  async (request, { body }) => {
   try {
-    const { transactionId, updates } = await request.json();
+    const { transactionId, updates } = body!;
     
     if (!transactionId) {
       return NextResponse.json(
@@ -276,4 +280,4 @@ export async function PUT(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

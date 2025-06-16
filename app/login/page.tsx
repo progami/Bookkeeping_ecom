@@ -29,7 +29,7 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-purple-500/5" />
       <Card className="relative w-full max-w-md bg-slate-800/30 backdrop-blur-sm border-slate-700/50">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold text-white">Welcome to Bookkeeping</CardTitle>
+          <CardTitle className="text-2xl sm:text-3xl font-bold text-white">Welcome to Bookkeeping</CardTitle>
           <CardDescription className="text-gray-400">
             Sign in with your Xero account to access your financial data
           </CardDescription>

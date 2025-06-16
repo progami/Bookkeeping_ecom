@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { structuredLogger } from '@/lib/logger';
-import { SESSION_COOKIE_NAME } from '@/lib/cookie-config';
+import { validateSession, ValidationLevel } from '@/lib/auth/session-validation';
 
 export async function GET(request: NextRequest) {
   try {
-    // Check for user session cookie
-    const userSessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
+    // Use the new session validation
+    const session = await validateSession(request, ValidationLevel.NONE);
     
-    if (!userSessionCookie) {
-      structuredLogger.debug('No user session found', {
+    if (!session.isValid || !session.user) {
+      structuredLogger.debug('No valid session found', {
         component: 'auth-session'
       });
       
@@ -18,36 +18,24 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    try {
-      // Parse the user session
-      const userSession = JSON.parse(userSessionCookie.value);
-      
-      structuredLogger.debug('User session found', {
-        component: 'auth-session',
-        userId: userSession.userId,
-        email: userSession.email
-      });
-      
-      // Return authenticated status with user info
-      return NextResponse.json({
-        authenticated: true,
-        user: {
-          userId: userSession.userId,
-          email: userSession.email,
-          tenantId: userSession.tenantId,
-          tenantName: userSession.tenantName
-        }
-      });
-    } catch (parseError) {
-      structuredLogger.error('Failed to parse user session', parseError, {
-        component: 'auth-session'
-      });
-      
-      return NextResponse.json({
-        authenticated: false,
-        user: null
-      });
-    }
+    structuredLogger.debug('Valid session found', {
+      component: 'auth-session',
+      userId: session.user.userId,
+      email: session.user.email
+    });
+    
+    // Return authenticated status with user info
+    return NextResponse.json({
+      authenticated: true,
+      user: {
+        userId: session.user.userId,
+        email: session.user.email,
+        tenantId: session.user.tenantId,
+        tenantName: session.user.tenantName,
+        role: session.user.role,
+        isAdmin: session.isAdmin
+      }
+    });
   } catch (error) {
     structuredLogger.error('Error checking session', error, {
       component: 'auth-session'

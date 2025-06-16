@@ -12,6 +12,7 @@ import toast, { Toaster } from 'react-hot-toast'
 import { measurePageLoad } from '@/lib/performance-utils'
 import { UnifiedPageHeader } from '@/components/ui/unified-page-header'
 import { EmptyState } from '@/components/ui/empty-state'
+import { SkeletonChart, SkeletonMetricCard } from '@/components/ui/skeleton'
 
 // Import recharts components
 import { 
@@ -229,10 +230,21 @@ export default function CashFlowPage() {
       />
 
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="relative">
-            <div className="w-16 h-16 border-4 border-cyan-500/20 rounded-full animate-pulse" />
-            <div className="absolute inset-0 w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+        <div className="space-y-8">
+          {/* Summary Cards Skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <SkeletonMetricCard key={i} />
+            ))}
+          </div>
+          
+          {/* Cash Flow Chart Skeleton */}
+          <SkeletonChart height={400} />
+          
+          {/* Additional Charts Skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <SkeletonChart height={300} />
+            <SkeletonChart height={300} />
           </div>
         </div>
       ) : !forecast || forecast.length === 0 ? (
@@ -256,7 +268,7 @@ export default function CashFlowPage() {
                 </div>
                 <span className="text-xs text-gray-400">Current</span>
               </div>
-              <div className="text-2xl font-bold text-white">
+              <div className="text-xl sm:text-2xl font-bold text-white">
                 {formatCurrency(forecast[0]?.openingBalance || 0)}
               </div>
               <div className="text-sm text-gray-400 mt-1">Cash Balance</div>
@@ -271,7 +283,7 @@ export default function CashFlowPage() {
                   {summary?.lowestBalanceDate ? format(new Date(summary.lowestBalanceDate), 'MMM dd') : '-'}
                 </span>
               </div>
-              <div className={`text-2xl font-bold ${
+              <div className={`text-xl sm:text-2xl font-bold ${
                 (summary?.lowestBalance || 0) < 0 ? 'text-red-400' : 'text-white'
               }`}>
                 {formatCurrency(summary?.lowestBalance || 0)}
@@ -286,7 +298,7 @@ export default function CashFlowPage() {
                 </div>
                 <span className="text-xs text-gray-400">{forecastDays} days</span>
               </div>
-              <div className="text-2xl font-bold text-white">
+              <div className="text-xl sm:text-2xl font-bold text-white">
                 {formatCurrency(summary?.totalInflows || 0)}
               </div>
               <div className="text-sm text-gray-400 mt-1">Total Inflows</div>
@@ -299,7 +311,7 @@ export default function CashFlowPage() {
                 </div>
                 <span className="text-xs text-gray-400">Alerts</span>
               </div>
-              <div className="text-2xl font-bold text-white">
+              <div className="text-xl sm:text-2xl font-bold text-white">
                 {summary?.criticalAlerts || 0}
               </div>
               <div className="text-sm text-gray-400 mt-1">Critical Alerts</div>

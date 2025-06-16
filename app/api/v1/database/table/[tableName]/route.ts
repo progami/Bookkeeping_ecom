@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withAdminAuth } from '@/lib/auth/auth-wrapper';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { tableName: string } }
-) {
+export const GET = withAdminAuth(async (
+  request,
+  session
+) => {
   try {
-    const { tableName } = params;
+    const tableName = request.nextUrl.pathname.split('/').pop() || '';
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = parseInt(searchParams.get('offset') || '0');
@@ -169,10 +170,10 @@ export async function GET(
       hasMore: offset + limit < total
     });
   } catch (error: any) {
-    console.error(`Error fetching ${params.tableName} data:`, error);
+    console.error(`Error fetching ${params} data:`, error);
     return NextResponse.json({
       error: 'Failed to fetch table data',
       message: error.message
     }, { status: 500 });
   }
-}
+});

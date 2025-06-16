@@ -198,7 +198,7 @@ export function sanitizeInput(input: string): string {
   // Remove HTML tags
   let sanitized = input.replace(/<[^>]*>/g, '');
   
-  // Escape special characters
+  // Escape special characters for HTML
   sanitized = sanitized
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -206,6 +206,12 @@ export function sanitizeInput(input: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;')
     .replace(/\//g, '&#x2F;');
+  
+  // Remove SQL special characters to prevent SQL injection
+  sanitized = sanitized.replace(/[;\\]/g, '');
+  
+  // Remove null bytes
+  sanitized = sanitized.replace(/\0/g, '');
   
   // Trim whitespace
   sanitized = sanitized.trim();

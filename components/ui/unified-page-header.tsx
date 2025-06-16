@@ -160,10 +160,10 @@ export function UnifiedPageHeader({
                   
                   <button
                     onClick={disconnectFromXero}
-                    className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors"
+                    className="p-3 sm:p-1.5 hover:bg-slate-800 rounded-lg transition-colors"
                     title="Disconnect from Xero"
                   >
-                    <LogOut className="h-4 w-4 text-gray-400" />
+                    <LogOut className="h-5 w-5 sm:h-4 sm:w-4 text-gray-400" />
                   </button>
                 </div>
               ) : (

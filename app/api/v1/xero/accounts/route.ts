@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getXeroClient } from '@/lib/xero-client';
 import { RowType } from 'xero-node';
+import { withValidation } from '@/lib/validation/middleware';
+import { accountsQuerySchema } from '@/lib/validation/schemas';
 
-export async function GET(request: NextRequest) {
+export const GET = withValidation(
+  { querySchema: accountsQuerySchema },
+  async (request, { query }) => {
   try {
     const xero = await getXeroClient();
     if (!xero) {
@@ -201,4 +205,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

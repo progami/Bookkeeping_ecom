@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { structuredLogger } from '@/lib/logger';
 import { AUTH_COOKIE_OPTIONS, SESSION_COOKIE_NAME, TOKEN_COOKIE_NAME } from '@/lib/cookie-config';
+import { withValidation } from '@/lib/validation/middleware';
+import { signoutSchema } from '@/lib/validation/schemas';
 
-export async function POST(request: NextRequest) {
+export const POST = withValidation(
+  { bodySchema: signoutSchema },
+  async (request, { body }) => {
   try {
     structuredLogger.info('User signing out', {
       component: 'auth-signout'
@@ -41,4 +45,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

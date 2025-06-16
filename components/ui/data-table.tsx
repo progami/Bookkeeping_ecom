@@ -219,7 +219,7 @@ export function DataTable<T extends { id: string }>({
                       type="checkbox"
                       checked={selectedRows.size === data.length && data.length > 0}
                       onChange={handleSelectAll}
-                      className="w-4 h-4 bg-slate-700 border-slate-600 rounded text-blue-600 focus:ring-2 focus:ring-blue-500/20"
+                      className="w-6 h-6 sm:w-4 sm:h-4 bg-slate-700 border-slate-600 rounded text-blue-600 focus:ring-2 focus:ring-blue-500/20"
                       ref={(el) => {
                         if (el) {
                           el.indeterminate = selectedRows.size > 0 && selectedRows.size < data.length
@@ -284,7 +284,7 @@ export function DataTable<T extends { id: string }>({
                           checked={selectedRows.has(row.id)}
                           onChange={() => handleSelectRow(row.id)}
                           onClick={(e) => e.stopPropagation()}
-                          className="w-4 h-4 bg-slate-700 border-slate-600 rounded text-blue-600 focus:ring-2 focus:ring-blue-500/20"
+                          className="w-6 h-6 sm:w-4 sm:h-4 bg-slate-700 border-slate-600 rounded text-blue-600 focus:ring-2 focus:ring-blue-500/20"
                         />
                       </td>
                     )}

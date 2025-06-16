@@ -133,3 +133,170 @@ export type XeroWebhookPayload = z.infer<typeof xeroWebhookSchema>;
 export type ReportQuery = z.infer<typeof reportQuerySchema>;
 export type TaxObligationInput = z.infer<typeof taxObligationSchema>;
 export type DatabaseQuery = z.infer<typeof databaseQuerySchema>;
+
+// Additional schemas for unprotected routes
+
+// Auth schemas
+export const signoutSchema = z.object({
+  sessionId: z.string().optional(),
+  allDevices: z.boolean().default(false)
+});
+
+// SOP Import schema
+export const sopImportSchema = z.object({
+  data: z.array(z.object({
+    year: yearSchema,
+    chartOfAccount: z.string().min(1).max(100),
+    serviceType: z.string().min(1).max(50),
+    amount: z.coerce.number(),
+    status: z.enum(['pending', 'approved', 'rejected']).optional()
+  })),
+  overwrite: z.boolean().default(false)
+});
+
+// Cashflow reconcile schema
+export const cashflowReconcileSchema = z.object({
+  accountId: z.string().uuid(),
+  transactionIds: z.array(z.string().uuid()),
+  reconcileDate: dateSchema,
+  notes: z.string().max(500).optional()
+});
+
+// Webhook signature validation
+export const webhookSignatureSchema = z.object({
+  signature: z.string(),
+  payload: z.string()
+});
+
+// Bank account query schema
+export const bankAccountQuerySchema = z.object({
+  includeBalance: z.coerce.boolean().default(true),
+  active: z.coerce.boolean().optional()
+});
+
+// Insights query schema
+export const insightsQuerySchema = z.object({
+  startDate: dateSchema.optional(),
+  endDate: dateSchema.optional(),
+  metric: z.enum(['revenue', 'expenses', 'profit', 'cashflow']).optional()
+});
+
+// Stats query schema
+export const statsQuerySchema = z.object({
+  period: z.enum(['day', 'week', 'month', 'quarter', 'year']).default('month'),
+  compare: z.coerce.boolean().default(false)
+});
+
+// Table data query schema
+export const tableDataQuerySchema = z.object({
+  table: z.string().min(1).max(50),
+  limit: z.coerce.number().int().min(1).max(1000).default(100),
+  offset: z.coerce.number().int().min(0).default(0),
+  orderBy: z.string().optional(),
+  orderDirection: z.enum(['asc', 'desc']).default('asc'),
+  filters: z.string().optional() // JSON string of filters
+});
+
+// Account transactions query schema
+export const accountTransactionsQuerySchema = z.object({
+  accountCode: z.string().optional(),
+  year: yearSchema.optional(),
+  includeJournals: z.coerce.boolean().default(true)
+});
+
+// Accounts query schema
+export const accountsQuerySchema = z.object({
+  type: z.enum(['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE']).optional(),
+  class: z.enum(['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE']).optional(),
+  systemAccount: z.coerce.boolean().optional(),
+  showInactive: z.coerce.boolean().default(false)
+});
+
+// Bills query schema
+export const billsQuerySchema = z.object({
+  status: z.enum(['DRAFT', 'SUBMITTED', 'AUTHORISED', 'PAID', 'VOIDED']).optional(),
+  vendorId: z.string().uuid().optional(),
+  startDate: dateSchema.optional(),
+  endDate: dateSchema.optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20)
+});
+
+// Transactions query schema
+export const transactionsQuerySchema = z.object({
+  accountId: z.string().uuid().optional(),
+  type: z.enum(['SPEND', 'RECEIVE']).optional(),
+  status: z.enum(['RECONCILED', 'UNRECONCILED']).optional(),
+  startDate: dateSchema.optional(),
+  endDate: dateSchema.optional(),
+  search: z.string().optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50)
+});
+
+// Trial balance query schema
+export const trialBalanceQuerySchema = z.object({
+  date: dateSchema.optional(),
+  paymentsOnly: z.coerce.boolean().default(false),
+  includeInactive: z.coerce.boolean().default(false)
+});
+
+// Vendor query schema
+export const vendorQuerySchema = z.object({
+  search: z.string().optional(),
+  active: z.coerce.boolean().optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20)
+});
+
+// VAT liability query schema
+export const vatLiabilityQuerySchema = z.object({
+  fromDate: dateSchema.optional(),
+  toDate: dateSchema.optional(),
+  reportType: z.enum(['summary', 'detailed']).default('summary')
+});
+
+// File import schema
+export const fileImportSchema = z.object({
+  fileName: z.string().min(1).max(255),
+  fileType: z.enum(['csv', 'xlsx', 'xls']),
+  mapping: z.record(z.string(), z.string()).optional()
+});
+
+// Dynamic route param schemas
+export const idParamSchema = z.object({
+  id: z.string().uuid()
+});
+
+export const tableNameParamSchema = z.object({
+  tableName: z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, 'Invalid table name')
+});
+
+// Transaction update schema
+export const transactionUpdateSchema = z.object({
+  transactionId: z.string().uuid(),
+  updates: z.object({
+    reference: z.string().max(255).optional(),
+    isReconciled: z.boolean().optional(),
+    category: z.string().optional(),
+    notes: z.string().max(1000).optional()
+  })
+});
+
+// Export additional type inference helpers
+export type SignoutInput = z.infer<typeof signoutSchema>;
+export type TransactionUpdateInput = z.infer<typeof transactionUpdateSchema>;
+export type SOPImportInput = z.infer<typeof sopImportSchema>;
+export type CashflowReconcileInput = z.infer<typeof cashflowReconcileSchema>;
+export type BankAccountQuery = z.infer<typeof bankAccountQuerySchema>;
+export type InsightsQuery = z.infer<typeof insightsQuerySchema>;
+export type StatsQuery = z.infer<typeof statsQuerySchema>;
+export type TableDataQuery = z.infer<typeof tableDataQuerySchema>;
+export type AccountTransactionsQuery = z.infer<typeof accountTransactionsQuerySchema>;
+export type AccountsQuery = z.infer<typeof accountsQuerySchema>;
+export type BillsQuery = z.infer<typeof billsQuerySchema>;
+export type TransactionsQuery = z.infer<typeof transactionsQuerySchema>;
+export type TrialBalanceQuery = z.infer<typeof trialBalanceQuerySchema>;
+export type VendorQuery = z.infer<typeof vendorQuerySchema>;
+export type VATLiabilityQuery = z.infer<typeof vatLiabilityQuerySchema>;
+export type FileImportInput = z.infer<typeof fileImportSchema>;

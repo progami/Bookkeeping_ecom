@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withAdminAuth } from '@/lib/auth/auth-wrapper';
 
-export async function GET(request: NextRequest) {
+export const GET = withAdminAuth(async (request, session) => {
   try {
     // Get record counts for each table
     const [
@@ -269,4 +270,4 @@ export async function GET(request: NextRequest) {
       message: error.message
     }, { status: 500 });
   }
-}
+});
