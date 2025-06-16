@@ -201,14 +201,14 @@ export class XeroDataManager {
       ]);
       
       const dataSet: XeroDataSet = {
-        accounts: accounts?.accounts || [],
-        transactions: transactions?.bankTransactions || [],
-        invoices: invoices?.invoices || [],
-        contacts: contacts?.contacts || [],
+        accounts: accounts?.body?.accounts || [],
+        transactions: transactions?.body?.bankTransactions || [],
+        invoices: invoices?.body?.invoices || [],
+        contacts: contacts?.body?.contacts || [],
         reports: {
-          profitLoss,
-          balanceSheet,
-          vatLiability: vatLiability || balanceSheet // Use balance sheet as fallback for VAT
+          profitLoss: profitLoss || undefined,
+          balanceSheet: balanceSheet || undefined,
+          vatLiability: vatLiability || undefined
         },
         lastFetch: new Date(),
         tenantId
@@ -240,7 +240,7 @@ export class XeroDataManager {
         tenantId,
         (xeroClient) => xeroClient.accountingApi.getReportProfitAndLoss(tenantId)
       );
-      return response?.body?.reports?.[0] || null;
+      return response?.body?.reports?.[0] as XeroReport || null;
     } catch (error) {
       structuredLogger.warn('Failed to fetch P&L report', {
         component: 'xero-data-manager',
@@ -259,7 +259,7 @@ export class XeroDataManager {
         tenantId,
         (xeroClient) => xeroClient.accountingApi.getReportBalanceSheet(tenantId)
       );
-      return response?.body?.reports?.[0] || null;
+      return response?.body?.reports?.[0] as XeroReport || null;
     } catch (error) {
       structuredLogger.warn('Failed to fetch Balance Sheet report', {
         component: 'xero-data-manager',
@@ -281,7 +281,7 @@ export class XeroDataManager {
           new Date().toISOString().split('T')[0] // Today's date
         )
       );
-      return response?.body?.reports?.[0] || null;
+      return response?.body?.reports?.[0] as XeroReport || null;
     } catch (error) {
       structuredLogger.warn('Failed to fetch Trial Balance report', {
         component: 'xero-data-manager',

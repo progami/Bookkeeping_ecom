@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getXeroClientWithTenant } from '@/lib/xero-client';
 import { withAuthValidation } from '@/lib/auth/auth-wrapper';
 import { ValidationLevel } from '@/lib/auth/session-validation';
 import { withErrorHandling, createError } from '@/lib/errors/error-handler';
@@ -15,13 +14,11 @@ export const GET = withErrorHandling(
         'CDN-Cache-Control': 'max-age=600',
       };
 
-      // Get Xero client to verify connection
-      const xeroData = await getXeroClientWithTenant();
-      if (!xeroData) {
-        throw createError.authentication('Not connected to Xero');
+      // Use tenant ID from session
+      const tenantId = session.user.tenantId;
+      if (!tenantId) {
+        throw createError.authentication('No tenant ID in session');
       }
-
-      const { tenantId } = xeroData;
 
       // Get the time range from query params or use defaults
       const searchParams = request.nextUrl.searchParams;

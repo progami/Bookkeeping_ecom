@@ -46,8 +46,8 @@ export const GET = withRateLimit(async (request: NextRequest) => {
 
         // Calculate YTD from cached bank transactions
         const accountTransactions = bankTransactions.filter(
-          tx => tx.bankAccount?.accountID === account.accountID &&
-                new Date(tx.date) >= startOfYear
+          (tx: any) => tx.bankAccount?.accountID === account.accountID &&
+                tx.date && new Date(tx.date) >= startOfYear
         );
         
         ytdAmount = accountTransactions.reduce((sum, tx) => {

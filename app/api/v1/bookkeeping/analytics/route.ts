@@ -43,10 +43,10 @@ export async function GET(request: NextRequest) {
       totalTransactions: transactions.length,
       totalIncome: transactions
         .filter(tx => tx.type === 'RECEIVE')
-        .reduce((sum, tx) => sum + tx.amount?.toNumber() || 0, 0),
+        .reduce((sum, tx) => sum + (tx.amount?.toNumber() || 0), 0),
       totalExpenses: Math.abs(transactions
         .filter(tx => tx.type === 'SPEND')
-        .reduce((sum, tx) => sum + tx.amount?.toNumber() || 0, 0)),
+        .reduce((sum, tx) => sum + (tx.amount?.toNumber() || 0), 0)),
       netAmount: 0,
       periodStart: startDate.toISOString(),
       periodEnd: now.toISOString()
@@ -156,10 +156,10 @@ export async function GET(request: NextRequest) {
     
     const prevIncome = previousTransactions
       .filter(tx => tx.type === 'RECEIVE')
-      .reduce((sum, tx) => sum + tx.amount?.toNumber() || 0, 0);
+      .reduce((sum, tx) => sum + (tx.amount?.toNumber() || 0), 0);
     const prevExpenses = Math.abs(previousTransactions
       .filter(tx => tx.type === 'SPEND')
-      .reduce((sum, tx) => sum + tx.amount?.toNumber() || 0, 0));
+      .reduce((sum, tx) => sum + (tx.amount?.toNumber() || 0), 0));
     
     const trends = {
       incomeGrowth: prevIncome > 0 ? ((summary.totalIncome - prevIncome) / prevIncome) * 100 : 0,

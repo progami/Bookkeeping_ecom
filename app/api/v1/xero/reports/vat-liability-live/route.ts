@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getXeroClientWithTenant } from '@/lib/xero-client';
 import { BankTransaction, AccountType } from 'xero-node';
 import { withAuthValidation } from '@/lib/auth/auth-wrapper';
 import { ValidationLevel } from '@/lib/auth/session-validation';
@@ -10,13 +9,11 @@ export const GET = withErrorHandling(
   withAuthValidation(
     { authLevel: ValidationLevel.XERO },
     async (request, { session }) => {
-      // Get Xero client to verify connection
-      const xeroData = await getXeroClientWithTenant();
-      if (!xeroData) {
-        throw createError.authentication('Not connected to Xero');
+      // Use tenant ID from session
+      const tenantId = session.user.tenantId;
+      if (!tenantId) {
+        throw createError.authentication('No tenant ID in session');
       }
-
-      const { tenantId } = xeroData;
 
       // First, get the VAT return report which shows current VAT liability
       const endDate = new Date();
@@ -53,7 +50,7 @@ export const GET = withErrorHandling(
         for (const section of vatReport.rows) {
           if (section.rows) {
             vatAccounts.forEach((account: any) => {
-              const accountRow = section.rows.find((row: any) => 
+              const accountRow = section.rows?.find((row: any) => 
                 row.cells?.[0]?.value === account.code || 
                 row.cells?.[1]?.value === account.name
               );
