@@ -102,7 +102,7 @@ export default function FinanceDashboard() {
       toast.error(`Failed to connect to Xero: ${error}`)
       window.history.replaceState({}, document.title, '/finance')
     }
-  }, [searchParams, checkAuthStatus, syncData, fetchFinanceData]) // Include stable function refs
+  }, [searchParams]) // Remove function refs to avoid hoisting issues
 
   useEffect(() => {
     // Only fetch data if we're connected
