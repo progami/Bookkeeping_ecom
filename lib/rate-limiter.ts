@@ -119,24 +119,32 @@ class RateLimiter {
 const rateLimiter = new RateLimiter();
 
 // Rate limit configurations per endpoint
+// Based on Xero API limits:
+// - 60 calls per minute (rolling window)
+// - 5,000 calls per day (rolling 24-hour window, resets at midnight UTC)
+// - 5 concurrent requests maximum
+// - 10,000 calls per minute across all tenants (app-wide limit)
+// 
+// We use conservative limits (30-50% of Xero's limit) to ensure we never hit 429 errors
 const RATE_LIMITS = {
-  // Authentication endpoints - strict limits
+  // Authentication endpoints - strict limits to prevent abuse
   '/api/v1/xero/auth': { limit: 5, windowMs: 15 * 60 * 1000 }, // 5 per 15 minutes
   '/api/v1/xero/auth/callback': { limit: 10, windowMs: 15 * 60 * 1000 }, // 10 per 15 minutes
   '/api/v1/xero/disconnect': { limit: 5, windowMs: 15 * 60 * 1000 }, // 5 per 15 minutes
 
-  // Sync endpoints - reasonable limits for development
-  '/api/v1/xero/sync': { limit: 10, windowMs: 5 * 60 * 1000 }, // 10 per 5 minutes
-  '/api/v1/xero/sync/full': { limit: 5, windowMs: 15 * 60 * 1000 }, // 5 per 15 minutes
+  // Xero API endpoints - must respect Xero's 60/minute limit
+  // We use lower limits to leave headroom for concurrent requests
+  '/api/v1/xero/sync': { limit: 30, windowMs: 60 * 1000 }, // 30 per minute (50% of Xero limit)
+  '/api/v1/xero/sync/full': { limit: 20, windowMs: 60 * 1000 }, // 20 per minute
+  '/api/v1/xero/reports': { limit: 20, windowMs: 60 * 1000 }, // 20 per minute
+  '/api/v1/xero/status': { limit: 30, windowMs: 60 * 1000 }, // 30 per minute
+  '/api/v1/xero/invoices': { limit: 20, windowMs: 60 * 1000 }, // 20 per minute
+  '/api/v1/xero/transactions': { limit: 20, windowMs: 60 * 1000 }, // 20 per minute
 
-  // Status endpoints - moderate limits
-  '/api/v1/xero/status': { limit: 60, windowMs: 60 * 1000 }, // 60 per minute
+  // Local endpoints - can have higher limits
   '/api/v1/database/status': { limit: 60, windowMs: 60 * 1000 }, // 60 per minute
-
-  // Report endpoints - reasonable limits
-  '/api/v1/xero/reports': { limit: 30, windowMs: 60 * 1000 }, // 30 per minute
-  '/api/v1/bookkeeping': { limit: 30, windowMs: 60 * 1000 }, // 30 per minute
-  '/api/v1/analytics': { limit: 30, windowMs: 60 * 1000 }, // 30 per minute
+  '/api/v1/bookkeeping': { limit: 60, windowMs: 60 * 1000 }, // 60 per minute (local DB queries)
+  '/api/v1/analytics': { limit: 60, windowMs: 60 * 1000 }, // 60 per minute (local DB queries)
 
   // Default for all other endpoints
   default: { limit: 100, windowMs: 60 * 1000 } // 100 per minute
