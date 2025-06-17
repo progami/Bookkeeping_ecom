@@ -23,6 +23,8 @@ import { HelpTooltip, ContextualHelp } from '@/components/ui/tooltip'
 import { responsiveText } from '@/lib/responsive-utils'
 import { cn } from '@/lib/utils'
 import { gridLayouts } from '@/lib/grid-utils'
+import { RequireXeroConnection } from '@/components/auth/require-xero-connection'
+import { pageConfigs } from '@/lib/page-configs'
 
 interface FinanceMetrics {
   totalRevenue: number
@@ -203,47 +205,25 @@ export default function FinanceDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <Toaster position="top-right" />
-      <div className="container mx-auto px-4 py-6 sm:py-8">
-        
-        {/* Enhanced Header */}
-        <UnifiedPageHeader 
-          title="Financial Overview"
-          description="Real-time financial intelligence powered by Xero"
-          showBackButton={false}
-          showAuthStatus={true}
-          showTimeRangeSelector={true}
-          timeRange={timeRange}
-          onTimeRangeChange={setTimeRange}
-        />
-
-        {loading && hasActiveToken ? (
-          <SkeletonDashboard />
-        ) : !hasActiveToken ? (
-          <EmptyState 
-            title="Welcome to Your Financial Hub"
-            description="Connect your Xero account to unlock real-time financial insights, automated bookkeeping, and powerful analytics."
-            actionLabel="Get Started with Xero"
-            steps={[
-              {
-                icon: <Shield className="h-5 w-5 text-brand-emerald" />,
-                title: "Secure Connection",
-                description: "OAuth 2.0 authentication with bank-level security"
-              },
-              {
-                icon: <Activity className="h-5 w-5 text-brand-blue" />,
-                title: "Real-time Sync",
-                description: "Automatic data synchronization every 30 minutes"
-              },
-              {
-                icon: <BarChart3 className="h-5 w-5 text-purple-400" />,
-                title: "Instant Insights",
-                description: "Financial analytics and reporting at your fingertips"
-              }
-            ]}
+    <RequireXeroConnection pageConfig={pageConfigs.finance}>
+      <div className="min-h-screen bg-slate-950">
+        <Toaster position="top-right" />
+        <div className="container mx-auto px-4 py-6 sm:py-8">
+          
+          {/* Enhanced Header */}
+          <UnifiedPageHeader 
+            title="Financial Overview"
+            description="Real-time financial intelligence powered by Xero"
+            showBackButton={false}
+            showAuthStatus={true}
+            showTimeRangeSelector={true}
+            timeRange={timeRange}
+            onTimeRangeChange={setTimeRange}
           />
-        ) : (
+
+          {loading && hasActiveToken ? (
+            <SkeletonDashboard />
+          ) : (
           <>
             {/* Remove the warning since we now show empty state when not connected */}
             
@@ -574,7 +554,8 @@ export default function FinanceDashboard() {
 
           </>
         )}
+        </div>
       </div>
-    </div>
+    </RequireXeroConnection>
   )
 }

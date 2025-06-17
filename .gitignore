@@ -18,6 +18,11 @@
 
 # misc
 .DS_Store
+
+# database
+/data/
+*.db
+*.db-journal
 *.pem
 certificates/
 

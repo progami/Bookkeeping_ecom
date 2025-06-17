@@ -3,7 +3,6 @@ import { TokenSet } from 'xero-node';
 import { cookies } from 'next/headers';
 import { serialize, parse } from 'cookie';
 import { XeroSession, XeroTokenSet } from './xero-session';
-import { tokenRefreshLock } from './token-refresh-lock';
 import { structuredLogger } from './logger';
 import { withLock, LOCK_RESOURCES } from './sync-lock';
 
@@ -223,9 +222,9 @@ export async function getAuthUrl(state?: string, codeChallenge?: string): Promis
     url.searchParams.set('code_challenge', codeChallenge);
     url.searchParams.set('code_challenge_method', 'S256');
     authUrl = url.toString();
-    console.log('[getAuthUrl] Built auth URL with PKCE:', authUrl);
+    structuredLogger.debug('Built auth URL with PKCE', { component: 'xero-client', url: authUrl });
   } else {
-    console.log('[getAuthUrl] Built auth URL without PKCE:', authUrl);
+    structuredLogger.debug('Built auth URL without PKCE', { component: 'xero-client', url: authUrl });
   }
   
   return authUrl;

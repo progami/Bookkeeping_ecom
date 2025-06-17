@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Production
+.next/
+out/
+build/
+dist/
+
+# Database
+*.db
+*.db-journal
+prisma/migrations/
+
+# Logs
+logs/
+*.log
+
+# Testing
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Certificates
+*.pem
+*.key
+*.crt
+
+# Environment
+.env*
+!.env.example

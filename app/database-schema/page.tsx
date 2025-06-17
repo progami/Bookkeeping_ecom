@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Database, Table, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { DatabaseSchema } from '@/components/ui/database-schema'
 import toast from 'react-hot-toast'
+import { RequireXeroConnection } from '@/components/auth/require-xero-connection'
+import { pageConfigs } from '@/lib/page-configs'
 
 interface TableData {
   data: any[]
@@ -68,35 +70,36 @@ export default function DatabaseSchemaPage() {
   const totalPages = tableData ? Math.ceil(tableData.total / pageSize) : 0
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <div className="container mx-auto px-4 py-6 sm:py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => router.back()}
-            className="text-gray-400 hover:text-white transition-colors mb-4 inline-flex items-center group"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-            Back
-          </button>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2 flex items-center">
-                <Database className="h-10 w-10 mr-4 text-teal-400" />
-                Database Schema
-              </h1>
-              <p className="text-gray-400">
-                SQLite database structure and relationships. Click on any table to view its data.
-              </p>
+    <RequireXeroConnection pageConfig={pageConfigs.database}>
+      <div className="min-h-screen bg-slate-950">
+        <div className="container mx-auto px-4 py-6 sm:py-8">
+          {/* Header */}
+          <div className="mb-8">
+            <button
+              onClick={() => router.back()}
+              className="text-gray-400 hover:text-white transition-colors mb-4 inline-flex items-center group"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+              Back
+            </button>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-bold text-white mb-2 flex items-center">
+                  <Database className="h-10 w-10 mr-4 text-teal-400" />
+                  Database Schema
+                </h1>
+                <p className="text-gray-400">
+                  SQLite database structure and relationships. Click on any table to view its data.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Schema Content */}
-        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
-          <DatabaseSchema onTableClick={handleTableClick} />
-        </div>
+          {/* Schema Content */}
+          <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <DatabaseSchema onTableClick={handleTableClick} />
+          </div>
 
         {/* Table Data Modal */}
         {selectedTable && (
@@ -184,7 +187,8 @@ export default function DatabaseSchemaPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </RequireXeroConnection>
   )
 }

@@ -76,7 +76,13 @@ if (process.env.NODE_ENV !== 'production') {
       format: winston.format.combine(
         winston.format.colorize({ all: true }),
         winston.format.printf(
-          (info) => `${info.timestamp} [${info.level}]: ${info.message}`
+          (info) => {
+            // Use concise format - no timestamp in dev
+            const level = info.level.includes('error') ? '❌' : 
+                         info.level.includes('warn') ? '⚠️ ' : 
+                         info.level.includes('info') ? 'ℹ️ ' : '';
+            return `${level} ${info.message}`;
+          }
         )
       ),
     })
@@ -144,29 +150,26 @@ const logger = createLogger();
 
 // Create request logger middleware
 export function requestLogger(req: any, res: any, next: any) {
+  // Skip logging for static assets and health checks
+  if (req.url.includes('_next') || req.url.includes('/health') || req.url.includes('/favicon')) {
+    return next();
+  }
+  
   const start = Date.now();
-  const requestId = req.headers['x-request-id'] || crypto.randomUUID();
   
-  // Log request
-  logger.http({
-    message: `${req.method} ${req.url}`,
-    method: req.method,
-    url: req.url,
-    ip: req.ip,
-    requestId,
-    userAgent: req.headers['user-agent'],
-  });
-  
-  // Log response on finish
+  // Only log response, not request (reduces noise)
   res.on('finish', () => {
     const duration = Date.now() - start;
+    const status = res.statusCode;
+    const emoji = status >= 500 ? '❌' : status >= 400 ? '⚠️ ' : '✅';
+    
+    // Only log slow requests in success cases
+    if (status < 400 && duration < 500) {
+      return; // Skip fast successful requests
+    }
+    
     logger.http({
-      message: `${req.method} ${req.url} ${res.statusCode} ${duration}ms`,
-      method: req.method,
-      url: req.url,
-      statusCode: res.statusCode,
-      duration,
-      requestId,
+      message: `${emoji} ${req.method} ${req.url} → ${status} (${duration}ms)`,
     });
   });
   

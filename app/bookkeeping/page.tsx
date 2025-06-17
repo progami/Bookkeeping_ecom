@@ -15,6 +15,8 @@ import { measurePageLoad } from '@/lib/performance-utils'
 import { UnifiedPageHeader } from '@/components/ui/unified-page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SkeletonMetricCard, SkeletonTransactionList } from '@/components/ui/skeleton'
+import { RequireXeroConnection } from '@/components/auth/require-xero-connection'
+import { pageConfigs } from '@/lib/page-configs'
 
 interface FinancialOverview {
   cashInBank: number
@@ -219,38 +221,33 @@ export default function BookkeepingDashboard() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 sm:py-8">
-      {/* Header */}
-      <UnifiedPageHeader 
-        title="Bookkeeping Dashboard"
-        description="Manage your financial records and transactions"
-        showAuthStatus={true}
-        showTimeRangeSelector={true}
-        timeRange={timeRange}
-        onTimeRangeChange={setTimeRange}
-      />
+    <RequireXeroConnection pageConfig={pageConfigs.bookkeeping}>
+      <div className="min-h-screen bg-slate-950">
+        <div className="container mx-auto px-4 py-6 sm:py-8">
+        {/* Header */}
+        <UnifiedPageHeader 
+          title="Bookkeeping Dashboard"
+          description="Manage your financial records and transactions"
+          showAuthStatus={true}
+          showTimeRangeSelector={true}
+          timeRange={timeRange}
+          onTimeRangeChange={setTimeRange}
+        />
 
-      {/* Content based on state */}
-      {!hasActiveToken && !hasData ? (
-        <EmptyState 
-          title="Connect to Xero"
-          description="Connect your Xero account to sync bank transactions, manage reconciliations, and automate your bookkeeping workflow."
-          actionLabel="Connect Xero Account"
-          onAction={connectToXero}
-        />
-      ) : !hasData && hasActiveToken ? (
-        <EmptyState 
-          title="Initial Setup Required"
-          description="Your Xero account is connected. Click below to sync your data for the first time."
-          actionLabel={isSyncing ? "Syncing Data..." : "Start Initial Sync"}
-          onAction={syncData}
-          icon={
-            <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
-              <RefreshCw className={`h-10 w-10 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
-            </div>
-          }
-        />
-      ) : dataLoading ? (
+        {/* Content based on state */}
+        {!hasData && hasActiveToken ? (
+          <EmptyState 
+            title="Initial Setup Required"
+            description="Your Xero account is connected. Click below to sync your data for the first time."
+            actionLabel={isSyncing ? "Syncing Data..." : "Start Initial Sync"}
+            onAction={syncData}
+            icon={
+              <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
+                <RefreshCw className={`h-10 w-10 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
+              </div>
+            }
+          />
+        ) : dataLoading ? (
         /* Loading dashboard data */
         <div className="space-y-8">
           {/* Financial Overview Skeleton */}
@@ -620,6 +617,8 @@ export default function BookkeepingDashboard() {
           </div>
         </>
       )}
-    </div>
+        </div>
+      </div>
+    </RequireXeroConnection>
   )
 }

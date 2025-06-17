@@ -1,6 +1,15 @@
 # Bookkeeping Automation Platform
 
-A comprehensive financial management platform built with Next.js 14, featuring real-time Xero integration, intelligent cash flow forecasting, and advanced analytics. The platform provides a complete suite of tools for modern bookkeeping with a beautiful dark theme UI.
+A comprehensive financial management platform built with Next.js 14, featuring real-time Xero integration, intelligent cash flow forecasting, and advanced analytics.
+
+## 📋 Table of Contents
+- [Quick Start](#-quick-start)
+- [Project Overview](#-project-overview)
+- [Frontend Architecture](#-frontend-architecture)
+- [Backend Architecture](#-backend-architecture)
+- [Development Guidelines](#-development-guidelines)
+- [Project Structure](#-project-structure)
+- [Contributing](#-contributing)
 
 ## 🚀 Quick Start
 
@@ -14,352 +23,388 @@ npm install
 
 # Set up environment variables
 cp .env.example .env
+# Edit .env to add your Xero credentials and configure logging
 
-# Generate Prisma client and run migrations
+# Set up the database
 npm run prisma:generate
 npm run prisma:migrate
 
-# Start the HTTPS development server
+# Start development server
 npm run dev
 
 # Open https://localhost:3003
 ```
 
-## 🏗️ Architecture Overview
+## 🎯 Project Overview
 
-### Database-First Design
-The application follows a **database-first architecture** where:
-- All data is synced from Xero to a local SQLite database
-- No direct API calls during normal operations
-- Improved performance and reduced API rate limits
-- Offline capability for most features
+### What is this?
+A full-stack bookkeeping automation platform that integrates with Xero to provide real-time financial insights, automated reconciliation, and intelligent forecasting for UK businesses.
+
+### Key Features
+- **Real-time Xero Integration** - OAuth 2.0 + PKCE secure authentication
+- **Database-First Architecture** - All data synced locally for performance
+- **90-Day Cash Flow Forecasting** - AI-powered predictions with scenarios
+- **Vendor Analytics** - Spending patterns and vendor intelligence
+- **Automated Reconciliation** - Smart transaction matching
+- **UK Tax Calculations** - VAT, Corporation Tax, PAYE support
 
 ### Tech Stack
-
-- **Frontend**: Next.js 14 (App Router), React 18, TypeScript
-- **Styling**: Tailwind CSS with custom dark theme
-- **Database**: SQLite with Prisma ORM
-- **Authentication**: Xero OAuth2 with secure cookie storage
-- **State Management**: React Context API + TanStack Query
-- **Charts**: Recharts for data visualization
+- **Frontend**: Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes, Prisma ORM, SQLite/PostgreSQL
+- **Authentication**: JWT with secure HTTP-only cookies
+- **External APIs**: Xero Accounting API
 - **Testing**: Playwright (E2E), Vitest (Unit)
 
-## 📦 Core Modules
+## 🎨 Frontend Architecture
 
-### 1. 🏠 Finance Dashboard (`/finance`)
-**Purpose**: Executive overview of financial health
+### UI/UX Design System
 
-**Features**:
-- Real-time financial metrics (revenue, expenses, profit)
-- Cash balance monitoring
-- Financial health score (0-100)
-- Quick ratio and profit margin calculations
-- Module status indicators
-- Direct navigation to sub-modules
+#### Component Structure
+```
+components/
+├── ui/                     # Base UI components (buttons, cards, etc.)
+├── layouts/                # Page layouts and navigation
+├── dashboard/              # Dashboard-specific components
+├── bookkeeping/            # Bookkeeping module components
+├── analytics/              # Analytics visualizations
+└── shared/                 # Shared/common components
+```
 
-**Key Components**:
-- `app/finance/page.tsx` - Main dashboard
-- `app/api/v1/xero/reports/*` - Financial report endpoints
-- `app/api/v1/bookkeeping/cash-balance` - Cash tracking
+#### Design Principles
+- **Dark Theme First** - Slate background (#0f172a) with high contrast
+- **Glassmorphism** - Backdrop blur effects for depth
+- **Color System**:
+  - Primary: Emerald (#10b981) - Success states
+  - Secondary: Cyan (#06b6d4) - Information
+  - Accent: Indigo (#6366f1) - Special features
+  - Warning: Amber (#f59e0b)
+  - Error: Red (#ef4444)
 
-### 2. 📚 Bookkeeping Module (`/bookkeeping`)
-**Purpose**: Core accounting operations and reconciliation
+#### Key Frontend Features
 
-**Features**:
-- Bank transaction management
-- Account reconciliation
-- Chart of accounts management
-- SOP (Standard Operating Procedures) generator
-- Excel import/export functionality
-- Real-time sync with Xero
+1. **Finance Dashboard** (`/finance`)
+   - Real-time metrics cards
+   - Financial health score visualization
+   - Module status indicators
+   - Quick navigation grid
 
-**Sub-modules**:
-- **Transactions** (`/bookkeeping/transactions`)
-  - View and filter bank transactions
-  - Reconciliation status tracking
-  - Account code assignment
-  - GL account mapping
-  
-- **Chart of Accounts** (`/bookkeeping/chart-of-accounts`)
-  - Hierarchical account structure
-  - Account balances
-  - Tax rate configuration
-  - System account management
+2. **Bookkeeping Module** (`/bookkeeping`)
+   - Transaction data tables with filtering
+   - Chart of Accounts tree view
+   - SOP generator with Excel export
+   - Reconciliation interface
 
-- **SOP Generator** (`/bookkeeping/sop-generator`)
-  - AI-powered procedure generation
-  - Task breakdown by job function
-  - Export to Excel format
-  - Customizable templates
+3. **Cash Flow Forecasting** (`/cashflow`)
+   - Interactive 90-day forecast chart
+   - Scenario modeling (Conservative/Base/Optimistic)
+   - Tax obligations timeline
+   - Budget comparison views
 
-**Key APIs**:
-- `app/api/v1/bookkeeping/bank-transactions` - Transaction CRUD
-- `app/api/v1/xero/sync` - Full data synchronization
-- `app/api/v1/bookkeeping/sops` - SOP management
+4. **Analytics Dashboard** (`/analytics`)
+   - Spending trend charts (Recharts)
+   - Vendor ranking tables
+   - Category breakdown pie charts
+   - Export functionality
 
-### 3. 💰 Cash Flow Module (`/cashflow`)
-**Purpose**: 90-day cash flow forecasting and scenario planning
+### State Management
+- **React Context** for global state (auth, user preferences)
+- **TanStack Query** for server state and caching
+- **Local State** for component-specific data
 
-**Features**:
-- Interactive 90-day forecast chart
-- Multiple scenario modeling:
-  - Conservative (80% revenue)
-  - Base case (100%)
-  - Optimistic (120%)
-- Tax obligation tracking (VAT, Corporation Tax, PAYE)
-- Budget vs actual comparison
-- Critical date alerts
-- Excel budget import/export
+### Performance Optimizations
+- Dynamic imports for code splitting
+- Image optimization with Next.js Image
+- Prefetching on hover
+- Optimistic UI updates
+- Virtualized lists for large datasets
 
-**Advanced Features**:
-- Pattern-based predictions from historical data
-- Repeating transaction detection
-- Seasonal adjustment factors
-- Working capital optimization
+## 🔧 Backend Architecture
 
-**Key Components**:
-- `lib/cashflow-engine.ts` - Core forecasting engine
-- `lib/uk-tax-calculator.ts` - UK tax calculations
-- `app/api/v1/cashflow/forecast` - Forecast API
-- `app/api/v1/cashflow/budget/*` - Budget management
+### API Structure
 
-### 4. 📊 Analytics Module (`/analytics`)
-**Purpose**: Business intelligence and vendor analytics
+#### RESTful Endpoints
+```
+/api/
+├── v1/
+│   ├── auth/               # Authentication endpoints
+│   ├── bookkeeping/        # Core bookkeeping operations
+│   ├── analytics/          # Analytics and reporting
+│   ├── cashflow/           # Forecasting endpoints
+│   ├── xero/               # Xero integration
+│   └── setup/              # User onboarding
+├── health/                 # Health check endpoint
+└── metrics/                # Prometheus metrics
+```
 
-**Features**:
-- **Spend Analysis**:
-  - 30/90/365-day trend charts
-  - Daily/weekly/monthly grouping
-  - Growth rate calculations
-  
-- **Vendor Intelligence**:
-  - Top 5 vendors by spend
-  - Vendor growth tracking
-  - Transaction frequency analysis
-  - Average transaction size
-  
-- **Category Breakdown**:
-  - Expense categorization
-  - Automatic GL code mapping
-  - Visual pie charts
-  - Percentage of total spend
+#### Database Schema (Prisma)
 
-- **Export Capabilities**:
-  - CSV export with full data
-  - Customizable date ranges
-  - Formatted reports
-
-**Key APIs**:
-- `app/api/v1/analytics/top-vendors` - Vendor rankings
-- `app/api/v1/analytics/spend-trend` - Spending patterns
-- `app/api/v1/analytics/category-breakdown` - Expense categories
-
-### 5. 🗄️ Database Schema Viewer (`/database-schema`)
-**Purpose**: Visual database structure exploration
-
-**Features**:
-- Interactive table browser
-- Real-time data preview
-- Record counts
-- Table relationships
-- Search functionality
-- Developer-friendly interface
-
-## 🔐 Security & Authentication
-
-### Xero OAuth2 Integration
-- Secure token storage in HTTP-only cookies
-- Automatic token refresh
-- Session management with 30-day expiry
-- CSRF protection
-- Rate limiting with Bottleneck
-
-### Security Features
-- Input validation with Zod schemas
-- SQL injection prevention via Prisma
-- XSS protection (React default)
-- HTTPS-only in production
-- Secure cookie configuration
-
-## 📊 Data Models
-
-### Core Entities
-
+**Core Models**:
 ```prisma
-// Bank Transactions
-BankTransaction {
-  id                String
-  xeroTransactionId String   @unique
-  bankAccountId     String
+// User authentication
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  password          String
+  hasCompletedSetup Boolean   @default(false)
+  // ... Xero integration fields
+}
+
+// Financial data
+model BankTransaction {
+  id                String    @id @default(cuid())
+  xeroTransactionId String    @unique
   date              DateTime
-  amount            Float
-  type              String   // SPEND or RECEIVE
-  status            String
-  contactName       String?  // Vendor/Customer
-  accountCode       String?  // GL Account
+  amount            Decimal
+  type              String    // SPEND or RECEIVE
   isReconciled      Boolean
+  accountCode       String?   // GL Account mapping
+  // ... additional fields
 }
 
-// GL Accounts (Chart of Accounts)
-GLAccount {
-  id          String
-  xeroId      String  @unique
-  code        String
-  name        String
-  type        String
-  taxType     String?
-  status      String
-  systemAccount String?
-}
-
-// Cash Flow Forecasts
-CashFlowForecast {
-  date           DateTime
-  openingBalance Float
-  fromInvoices   Float
-  toBills        Float
-  toTaxes        Float
-  closingBalance Float
+// Chart of Accounts
+model GLAccount {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  name          String
+  type          String
+  status        String
+  // ... hierarchy fields
 }
 ```
 
-## 🛠️ Development
+### Key Backend Features
 
-### Available Scripts
+1. **Authentication & Security**
+   - JWT tokens with refresh mechanism
+   - Secure HTTP-only cookies
+   - Session validation middleware
+   - Rate limiting with Bottleneck
+   - Input validation with Zod schemas
+
+2. **Xero Integration**
+   - OAuth 2.0 + PKCE flow
+   - Webhook support for real-time updates
+   - Batch sync operations
+   - Error retry with exponential backoff
+   - Token refresh automation
+
+3. **Data Processing**
+   - Database-first architecture
+   - Transaction reconciliation engine
+   - GL account mapping
+   - Currency conversion service
+   - Tax calculation utilities
+
+4. **Performance Features**
+   - Redis caching (optional)
+   - Database query optimization
+   - Parallel processing
+   - Response compression
+   - Connection pooling
+
+### Background Jobs
+- Xero data synchronization
+- Report generation
+- Email notifications
+- Data cleanup tasks
+
+## 📐 Development Guidelines
+
+### Logging Configuration
+
+The application uses a concise logging system to reduce noise and improve debugging:
 
 ```bash
-# Development
-npm run dev              # Start HTTPS dev server
-npm run build           # Build for production
-npm run start           # Start production server
-
-# Database
-npm run prisma:studio   # Open Prisma Studio
-npm run prisma:migrate # Run migrations
-npm run prisma:generate # Generate Prisma client
-
-# Testing
-npm run test           # Run all tests
-npm run test:unit      # Unit tests only
-npm run test:e2e       # E2E tests only
-npm run type-check     # TypeScript validation
-
-# Utilities
-npm run lint           # Run ESLint
-npm run lint:fix       # Fix linting issues
+# Environment variables for logging control
+LOG_LEVEL=info               # Global level: error, warn, info, debug
+LOG_AUTH=false              # Authentication flow logs
+LOG_API=false               # API request/response logs
+LOG_DB=false                # Database query logs
+LOG_XERO=false              # Xero API call logs
+LOG_PERF=false              # Performance metrics
+LOG_CACHE=false             # Cache operation logs
+LOG_RATE_LIMIT=false        # Rate limiting logs
 ```
 
-### Environment Variables
+**Key Features:**
+- Emoji indicators: ❌ (error), ⚠️ (warning), ✅ (success), ℹ️ (info)
+- Automatic filtering of fast successful requests
+- Context-aware logging with feature flags
+- Production-ready with minimal noise
 
-```env
-# Database
-DATABASE_URL="file:./bookkeeping.db"
+### Code Standards
 
-# Xero OAuth
-XERO_CLIENT_ID="your_client_id"
-XERO_CLIENT_SECRET="your_client_secret"
+#### TypeScript
+```typescript
+// ✅ DO: Use proper types
+interface TransactionData {
+  id: string;
+  amount: Decimal;
+  date: Date;
+}
 
-# Redis (optional, for caching)
-REDIS_URL="redis://localhost:6379"
+// ❌ DON'T: Use any
+const processData = (data: any) => { ... }
 
-# Application
-NEXT_PUBLIC_APP_URL="https://localhost:3003"
-NODE_ENV="development"
+// ✅ DO: Use enums for constants
+enum TransactionType {
+  SPEND = 'SPEND',
+  RECEIVE = 'RECEIVE'
+}
 ```
 
-### Testing Strategy
+#### React Components
+```tsx
+// ✅ DO: Functional components with proper typing
+interface DashboardCardProps {
+  title: string;
+  value: number;
+  trend?: 'up' | 'down';
+}
 
-1. **Unit Tests** (`/tests/unit/`)
-   - Business logic validation
-   - API endpoint testing
-   - Component testing
+export function DashboardCard({ title, value, trend }: DashboardCardProps) {
+  return (
+    <Card className="p-6">
+      {/* Component content */}
+    </Card>
+  );
+}
 
-2. **E2E Tests** (`/tests/e2e/`)
-   - Full user flows
-   - Xero integration testing
-   - Multi-module workflows
+// ❌ DON'T: Class components or untyped props
+```
 
-3. **Performance Tests**
-   - Database query optimization
-   - API response times
-   - Frontend rendering metrics
+#### API Routes
+```typescript
+// ✅ DO: Validate inputs and handle errors
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const validated = schema.parse(body);
+    
+    // Process request
+    
+    return NextResponse.json({ success: true, data });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: error.errors },
+        { status: 400 }
+      );
+    }
+    // Handle other errors
+  }
+}
+```
 
-## 🎨 UI/UX Design System
+### Testing Requirements
 
-### Color Palette
-- **Primary**: Emerald (#10b981) - Success, primary actions
-- **Secondary**: Cyan (#06b6d4) - Info, secondary actions
-- **Accent**: Indigo (#6366f1) - Special features
-- **Warning**: Amber (#f59e0b) - Warnings
-- **Error**: Red (#ef4444) - Errors, destructive actions
-- **Background**: Slate (#0f172a) - Dark theme base
+1. **Unit Tests** - Business logic and utilities
+2. **Integration Tests** - API endpoints
+3. **E2E Tests** - Critical user flows
+4. **Performance Tests** - Load testing for APIs
 
-### Component Patterns
-- Glassmorphism effects with backdrop blur
-- Gradient overlays for hover states
-- Consistent border radius (rounded-2xl)
-- Subtle animations and transitions
-- Responsive grid layouts
+### Git Workflow
 
-## 📈 Performance Optimizations
+```bash
+# Feature development
+git checkout -b feature/description
+git commit -m "feat: add new feature"
 
-1. **Database**
-   - Indexed queries on frequently accessed fields
-   - Efficient pagination
-   - Query result caching
+# Bug fixes
+git checkout -b fix/description
+git commit -m "fix: resolve issue"
 
-2. **Frontend**
-   - Dynamic imports for code splitting
-   - Image optimization
-   - Prefetching on hover
-   - Optimistic UI updates
+# Documentation
+git commit -m "docs: update README"
+```
 
-3. **API**
-   - Response caching with proper headers
-   - Rate limiting to prevent abuse
-   - Batch operations where possible
+## 📁 Project Structure
+
+```
+bookkeeping/
+├── .github/                # GitHub templates and workflows
+├── app/                    # Next.js app directory
+│   ├── (auth)/            # Auth pages (login, register)
+│   ├── (dashboard)/       # Main app pages
+│   ├── api/               # API routes
+│   └── layout.tsx         # Root layout
+├── components/            # React components
+│   ├── ui/               # Base UI components
+│   └── [feature]/        # Feature-specific components
+├── contexts/             # React contexts
+├── data/                 # Database files (gitignored)
+├── docs/                 # Documentation
+│   ├── api/             # API documentation
+│   ├── development/     # Dev guides
+│   └── guides/          # User guides
+├── lib/                  # Utilities and services
+│   ├── auth/            # Authentication utilities
+│   ├── xero/            # Xero integration
+│   └── utils/           # General utilities
+├── prisma/              # Database schema and migrations
+├── public/              # Static assets
+├── scripts/             # Utility scripts
+│   └── maintenance/     # DB maintenance scripts
+├── tests/               # Test suites
+│   ├── unit/           # Unit tests
+│   ├── integration/    # Integration tests
+│   └── e2e/            # End-to-end tests
+└── types/               # TypeScript type definitions
+```
+
+### Important Files
+- `middleware.ts` - Next.js middleware for auth
+- `CLAUDE.md` - AI assistant guidelines
+- `.env.example` - Environment variable template
+- `prisma/schema.prisma` - Database schema
 
 ## 🚀 Deployment
 
-### Production Checklist
-- [ ] Set production environment variables
-- [ ] Configure production database (PostgreSQL recommended)
-- [ ] Set up SSL certificates
-- [ ] Configure Xero production app
-- [ ] Set up monitoring and logging
-- [ ] Configure backup strategy
+### Environment Variables
+```env
+# Database
+DATABASE_URL="postgresql://..."  # Production DB
 
-### Recommended Hosting
-- **Vercel**: Optimal for Next.js applications
-- **Railway**: Easy PostgreSQL deployment
-- **Cloudflare**: CDN and DDoS protection
+# Xero OAuth
+XERO_CLIENT_ID="..."
+XERO_CLIENT_SECRET="..."
+XERO_WEBHOOK_KEY="..."
+
+# Security
+JWT_SECRET="..."
+NEXTAUTH_SECRET="..."
+
+# Application
+NEXT_PUBLIC_APP_URL="https://app.domain.com"
+NODE_ENV="production"
+
+# Optional Services
+REDIS_URL="redis://..."
+SENTRY_DSN="..."
+```
+
+### Production Checklist
+- [ ] Environment variables configured
+- [ ] Database migrations run
+- [ ] SSL certificates installed
+- [ ] Monitoring configured
+- [ ] Backup strategy implemented
+- [ ] Rate limiting configured
+- [ ] Error tracking enabled
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Please read our [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) before submitting PRs.
 
-### Development Guidelines
-- Follow the existing code style
-- Add tests for new features
-- Update documentation
-- Use conventional commits
-- Run `npm run type-check` before committing
+### Quick Links
+- [API Documentation](docs/api/API_DOCUMENTATION.md)
+- [Frontend Guide](docs/guides/FRONTEND_QUICK_REFERENCE.md)
+- [Development Guide](docs/development/CLAUDE.md)
+- [Security Policy](SECURITY.md)
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [Next.js](https://nextjs.org/) - The React framework
-- [Xero](https://www.xero.com/) - Accounting API
-- [Prisma](https://www.prisma.io/) - Database ORM
-- [Tailwind CSS](https://tailwindcss.com/) - Styling framework
-- [Recharts](https://recharts.org/) - Chart library
 
 ---
 

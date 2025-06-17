@@ -13,6 +13,8 @@ import { measurePageLoad } from '@/lib/performance-utils'
 import { UnifiedPageHeader } from '@/components/ui/unified-page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SkeletonChart, SkeletonMetricCard } from '@/components/ui/skeleton'
+import { RequireXeroConnection } from '@/components/auth/require-xero-connection'
+import { useAuth } from '@/contexts/AuthContext'
 
 // Import recharts components
 import { 
@@ -205,8 +207,32 @@ export default function CashFlowPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 sm:py-8">
-      <Toaster position="top-right" />
+    <RequireXeroConnection
+      pageConfig={{
+        title: "Cash Flow Forecasting",
+        description: "Get AI-powered 90-day cash flow predictions based on your historical data and payment patterns",
+        features: [
+          {
+            icon: <TrendingUp className="h-6 w-6 text-brand-emerald" />,
+            title: "90-Day Predictions",
+            description: "AI analyzes payment patterns to forecast your cash position"
+          },
+          {
+            icon: <AlertTriangle className="h-6 w-6 text-yellow-500" />,
+            title: "Early Warning System",
+            description: "Get alerts before potential cash shortfalls"
+          },
+          {
+            icon: <Activity className="h-6 w-6 text-brand-blue" />,
+            title: "Scenario Planning",
+            description: "Model best and worst case scenarios for better planning"
+          }
+        ]
+      }}
+    >
+      <div className="min-h-screen bg-slate-950">
+        <div className="container mx-auto px-4 py-6 sm:py-8">
+          <Toaster position="top-right" />
       
       {/* Header */}
       <UnifiedPageHeader 
@@ -517,6 +543,8 @@ export default function CashFlowPage() {
           </div>
         </>
       )}
-    </div>
+        </div>
+      </div>
+    </RequireXeroConnection>
   )
 }

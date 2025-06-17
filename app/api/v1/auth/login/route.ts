@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import { prisma } from '@/lib/prisma'
 import { SESSION_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from '@/lib/cookie-config'
-import { cookies } from 'next/headers'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -37,25 +35,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { 
-        userId: user.id,
-        email: user.email,
-        name: user.name
-      },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
-    )
-
-    // Set cookie
-    cookies().set('auth-token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 // 24 hours
-    })
-
     // Update last login
     await prisma.user.update({
       where: { id: user.id },
@@ -64,6 +43,11 @@ export async function POST(request: NextRequest) {
 
     // Create session data
     const sessionData = {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name
+      },
       userId: user.id,
       email: user.email,
       tenantId: user.tenantId || '',
@@ -80,7 +64,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Set session cookie
+    // Set session cookie with proper configuration
     response.cookies.set(SESSION_COOKIE_NAME, JSON.stringify(sessionData), AUTH_COOKIE_OPTIONS)
 
     return response

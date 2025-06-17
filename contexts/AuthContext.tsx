@@ -3,6 +3,9 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { ConciseLogger } from '@/lib/config/logging.config'
+
+const logger = new ConciseLogger('Auth')
 
 interface Organization {
   tenantId: string
@@ -66,14 +69,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const checkAuthStatus = async () => {
-    console.log('[AuthContext] Checking auth status...')
+    logger.feature('authContext', 'Checking auth status...')
     try {
       // Check user session first
       const sessionRes = await fetch('/api/v1/auth/session', { credentials: 'include' })
       const sessionData = await sessionRes.json()
       
       if (!sessionData.authenticated) {
-        console.log('[AuthContext] No user session found')
+        logger.feature('authContext', 'No user session found')
         setAuthState(prev => ({
           ...prev,
           isAuthenticated: false,
@@ -92,10 +95,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const dbStatus = await dbStatusRes.json()
       const xeroStatus = await xeroStatusRes.json()
       
-      console.log('[AuthContext] Status check results:', {
-        session: sessionData,
-        dbStatus: { hasData: dbStatus.hasData, lastSync: dbStatus.lastSync },
-        xeroStatus: { connected: xeroStatus.connected, organization: xeroStatus.organization }
+      logger.feature('authContext', 'Status check complete', {
+        hasSession: true,
+        hasData: dbStatus.hasData,
+        xeroConnected: xeroStatus.connected
       })
 
       setAuthState(prev => ({
@@ -111,11 +114,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Auto-sync on first launch if connected but no data
       if (xeroStatus.connected && !dbStatus.hasData && !authState.isSyncing) {
-        console.log('First time setup - initiating auto sync...')
+        logger.info('First time setup - initiating auto sync...')
         await syncData()
       }
     } catch (error) {
-      console.error('Error checking auth status:', error)
+      logger.error('Failed to check auth status', error)
       setAuthState(prev => ({ ...prev, isLoading: false }))
     }
   }
@@ -151,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         toast.error('Failed to sign out')
       }
     } catch (error) {
-      console.error('Error signing out:', error)
+      logger.error('Failed to sign out', error)
       toast.error('Error signing out')
     }
   }
@@ -174,7 +177,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[AuthContext] Disconnect successful, updating state...');
         // Immediately update local state to show disconnected
         setAuthState(prev => {
-          console.log('[AuthContext] Previous state:', prev);
           const newState = {
             ...prev,
             hasActiveToken: false,
@@ -182,7 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Keep hasData true as we still have data in the database
             hasData: prev.hasData
           };
-          console.log('[AuthContext] New state:', newState);
+          logger.feature('authContext', 'Xero disconnected', { hasData: newState.hasData });
           return newState;
         })
         
@@ -194,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         toast.error('Failed to disconnect from Xero')
       }
     } catch (error) {
-      console.error('[AuthContext] Error disconnecting from Xero:', error)
+      logger.error('Failed to disconnect from Xero', error)
       toast.error('Error disconnecting from Xero')
     }
   }
@@ -238,12 +240,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthState(prev => ({ ...prev, hasActiveToken: false }))
       } else {
         const errorData = await response.json().catch(() => ({}))
-        console.error('Sync failed:', errorData)
+        logger.error('Sync failed', errorData)
         toast.dismiss('sync-toast')
         toast.error(errorData.message || 'Sync failed. Please try again.')
       }
     } catch (error) {
-      console.error('Sync error:', error)
+      logger.error('Sync error', error)
       toast.dismiss('sync-toast')
       toast.error('Failed to sync data')
     } finally {

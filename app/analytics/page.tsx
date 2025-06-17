@@ -12,6 +12,8 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatNumber } from '@/lib/design-tokens'
 import { SkeletonCard, SkeletonChart, SkeletonTable } from '@/components/ui/skeleton'
+import { RequireXeroConnection } from '@/components/auth/require-xero-connection'
+import { pageConfigs } from '@/lib/page-configs'
 import {
   LineChart, Line, BarChart, Bar, PieChart as RePieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -235,27 +237,29 @@ export default function BusinessAnalytics() {
   ]
 
   return (
-    <div className="container mx-auto px-4 py-6 sm:py-8">
-      {/* Header */}
-      <UnifiedPageHeader 
-        title="Business Analytics"
-        description="Comprehensive insights into your business performance"
-        showAuthStatus={true}
-        showTimeRangeSelector={true}
-        timeRange={timeRange}
-        onTimeRangeChange={setTimeRange}
-        actions={
-          vendors.length > 0 && (
-            <button
-              onClick={exportData}
-              className="px-4 py-2 bg-brand-blue text-brand-blue rounded-lg hover:bg-brand-blue/20 transition-colors flex items-center gap-2 border border-brand-blue"
-            >
-              <Download className="h-4 w-4" />
-              Export
-            </button>
-          )
-        }
-      />
+    <RequireXeroConnection pageConfig={pageConfigs.analytics}>
+      <div className="min-h-screen bg-slate-950">
+        <div className="container mx-auto px-4 py-6 sm:py-8">
+        {/* Header */}
+        <UnifiedPageHeader 
+          title="Business Analytics"
+          description="Comprehensive insights into your business performance"
+          showAuthStatus={true}
+          showTimeRangeSelector={true}
+          timeRange={timeRange}
+          onTimeRangeChange={setTimeRange}
+          actions={
+            vendors.length > 0 && (
+              <button
+                onClick={exportData}
+                className="px-4 py-2 bg-brand-blue text-brand-blue rounded-lg hover:bg-brand-blue/20 transition-colors flex items-center gap-2 border border-brand-blue"
+              >
+                <Download className="h-4 w-4" />
+                Export
+              </button>
+            )
+          }
+        />
 
         {loading || authLoading ? (
           <>
@@ -273,30 +277,6 @@ export default function BusinessAnalytics() {
               <SkeletonTable />
             </div>
           </>
-        ) : !hasActiveToken ? (
-          <EmptyState 
-            title="Unlock Business Intelligence"
-            description="Connect your Xero account to analyze vendor spending patterns, identify cost-saving opportunities, and make data-driven decisions."
-            actionLabel="Connect to Xero"
-            illustration="analytics"
-            steps={[
-              {
-                icon: <Building2 className="h-5 w-5 text-brand-blue" />,
-                title: "Vendor Analysis",
-                description: "Track spending patterns across all suppliers"
-              },
-              {
-                icon: <TrendingUp className="h-5 w-5 text-brand-emerald" />,
-                title: "Growth Metrics",
-                description: "Monitor expense trends and growth rates"
-              },
-              {
-                icon: <PieChart className="h-5 w-5 text-brand-purple" />,
-                title: "Category Insights",
-                description: "Understand spending distribution by category"
-              }
-            ]}
-          />
         ) : (
           <>
             {/* Enhanced Key Metrics */}
@@ -560,6 +540,8 @@ export default function BusinessAnalytics() {
             </div>
           </>
         )}
-    </div>
+        </div>
+      </div>
+    </RequireXeroConnection>
   )
 }

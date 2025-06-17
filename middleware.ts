@@ -29,6 +29,8 @@ const PUBLIC_ROUTES = [
   '/api/v1/auth/session',
   '/api/v1/auth/login',
   '/api/v1/auth/register',
+  '/api/v1/auth/signout',
+  '/api/health',
   '/_next',
   '/favicon.ico',
   '/public'
@@ -42,8 +44,10 @@ const PROTECTED_ROUTES = [
   '/analytics',
   '/cashflow',
   '/database',
+  '/database-schema',
   '/connect',
-  '/setup'
+  '/setup',
+  '/api-docs'
 ]
 
 export function middleware(request: NextRequest) {
@@ -52,27 +56,65 @@ export function middleware(request: NextRequest) {
   // Clone the request headers
   const requestHeaders = new Headers(request.headers);
   
-  // Check if route requires authentication
-  const isProtectedRoute = PROTECTED_ROUTES.some(route => 
-    pathname === route || pathname.startsWith(route + '/')
-  );
+  // Check if this is a public route
+  const isPublicRoute = PUBLIC_ROUTES.some(route => {
+    if (route.startsWith('/_next') || route.startsWith('/api/')) {
+      return pathname.startsWith(route);
+    }
+    return pathname === route;
+  });
   
-  const isPublicRoute = PUBLIC_ROUTES.some(route => 
-    pathname === route || pathname.startsWith(route)
-  );
-  
-  // If it's a protected route and not public, check authentication
-  if (isProtectedRoute && !isPublicRoute) {
+  // If it's not a public route, it requires authentication
+  if (!isPublicRoute) {
     // Check for user_session cookie
     const userSession = request.cookies.get('user_session');
     
     // Check for authentication
-    if (!userSession) {
-      console.log(`[Middleware] No user session found for ${pathname}, redirecting to login`);
+    if (!userSession || !userSession.value) {
+      // For API routes, return 401 instead of redirecting
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Unauthorized', message: 'Authentication required' },
+          { status: 401 }
+        );
+      }
+      
       const url = request.nextUrl.clone();
       url.pathname = '/login';
       // Store the original URL to redirect back after login
-      url.searchParams.set('returnUrl', pathname);
+      if (pathname !== '/' && pathname !== '/login') {
+        url.searchParams.set('returnUrl', pathname);
+      }
+      return NextResponse.redirect(url);
+    }
+    
+    // Try to validate the session
+    try {
+      const sessionData = JSON.parse(userSession.value);
+      if (!sessionData.user || !sessionData.user.id) {
+        // For API routes, return 401 instead of redirecting
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json(
+            { error: 'Unauthorized', message: 'Invalid session' },
+            { status: 401 }
+          );
+        }
+        
+        const url = request.nextUrl.clone();
+        url.pathname = '/login';
+        return NextResponse.redirect(url);
+      }
+    } catch (e) {
+      // For API routes, return 401 instead of redirecting
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Unauthorized', message: 'Invalid session format' },
+          { status: 401 }
+        );
+      }
+      
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
       return NextResponse.redirect(url);
     }
   }
@@ -135,10 +177,9 @@ export function middleware(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/api/v1/xero/')) {
     // Log cookie debugging info for Xero routes
     const cookies = request.cookies.getAll();
-    // Log in development mode only (edge runtime compatible)
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[Middleware] ${request.method} ${request.nextUrl.pathname} [${requestId}]`);
-      console.log('[Middleware] Cookies:', cookies.map(c => c.name));
+    // Only log problematic requests (edge runtime compatible)
+    if (process.env.NODE_ENV === 'development' && !cookies.some(c => c.name === 'xero_token_set')) {
+      console.log(`⚠️  No Xero token for ${request.method} ${request.nextUrl.pathname}`);
     }
   }
   
