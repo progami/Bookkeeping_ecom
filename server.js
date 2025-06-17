@@ -1,5 +1,4 @@
 const { createServer } = require('https');
-const { parse } = require('url');
 const next = require('next');
 const fs = require('fs');
 const path = require('path');
@@ -21,8 +20,17 @@ const httpsOptions = {
 app.prepare().then(() => {
   createServer(httpsOptions, async (req, res) => {
     try {
-      const parsedUrl = parse(req.url, true);
-      await handle(req, res, parsedUrl);
+      // Use WHATWG URL API instead of deprecated url.parse()
+      const baseURL = `https://${hostname}:${port}`;
+      const parsedUrl = new URL(req.url, baseURL);
+      
+      // Convert to Next.js expected format
+      const urlObject = {
+        pathname: parsedUrl.pathname,
+        query: Object.fromEntries(parsedUrl.searchParams)
+      };
+      
+      await handle(req, res, urlObject);
     } catch (err) {
       console.error('Error occurred handling', req.url, err);
       res.statusCode = 500;
