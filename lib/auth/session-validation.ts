@@ -45,10 +45,27 @@ function validateSessionToken(token: string): SessionUser | null {
   try {
     // For now, parse the session data directly (migrate to JWT in production)
     const sessionData = JSON.parse(token);
+    
+    // Check for userId field (expected format)
     if (sessionData.userId && sessionData.email) {
       return sessionData as SessionUser;
     }
-  } catch {
+    
+    // Also check for legacy format with nested user object
+    if (sessionData.user && sessionData.user.id && sessionData.email) {
+      return {
+        userId: sessionData.user.id,
+        email: sessionData.email,
+        tenantId: sessionData.tenantId || '',
+        tenantName: sessionData.tenantName || '',
+        role: sessionData.role || 'user'
+      };
+    }
+  } catch (error) {
+    structuredLogger.warn('Failed to parse session token', {
+      component: 'session-validation',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
     return null;
   }
   return null;
