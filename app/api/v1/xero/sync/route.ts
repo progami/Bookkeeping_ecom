@@ -107,20 +107,30 @@ export const POST = withRateLimit(
     
     // Update sync log if it was created
     if (syncLog?.id) {
-      await prisma.syncLog.update({
-        where: { id: syncLog.id },
-        data: {
-          status: 'failed',
-          completedAt: new Date(),
-          errorMessage: error.message
-        }
-      });
+      try {
+        await prisma.syncLog.update({
+          where: { id: syncLog.id },
+          data: {
+            status: 'failed',
+            completedAt: new Date(),
+            errorMessage: error.message
+          }
+        });
+      } catch (updateError) {
+        // Log but don't fail if we can't update the sync log
+        structuredLogger.error('Failed to update sync log', updateError, { 
+          component: 'xero-sync',
+          syncLogId: syncLog.id 
+        });
+      }
     }
     
-    return NextResponse.json({
-      error: 'Sync failed',
-      message: error.message
-    }, { status: 500 });
+    // Use proper error handling
+    const { ApiErrorHandler } = await import('@/lib/api-error-handler');
+    return ApiErrorHandler.handle(error, {
+      endpoint: '/api/v1/xero/sync',
+      operation: 'sync'
+    });
   }
   }
   )
