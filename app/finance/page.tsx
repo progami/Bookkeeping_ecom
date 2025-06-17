@@ -17,6 +17,8 @@ import { BackButton } from '@/components/ui/back-button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
+import { useSync } from '@/contexts/SyncContext'
+import { useXeroData } from '@/hooks/use-xero-data'
 import { UnifiedPageHeader } from '@/components/ui/unified-page-header'
 import { formatNumber } from '@/lib/design-tokens'
 import { HelpTooltip, ContextualHelp } from '@/components/ui/tooltip'
@@ -25,6 +27,7 @@ import { cn } from '@/lib/utils'
 import { gridLayouts } from '@/lib/grid-utils'
 import { RequireXeroConnection } from '@/components/auth/require-xero-connection'
 import { pageConfigs } from '@/lib/page-configs'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 interface FinanceMetrics {
   totalRevenue: number
@@ -73,6 +76,15 @@ export default function FinanceDashboard() {
     disconnectFromXero,
     checkAuthStatus 
   } = useAuth()
+  const { syncStatus, canUseXeroData } = useSync()
+  const { fetchXeroData, hasError } = useXeroData({
+    onSyncRequired: () => {
+      toast.info('Loading your financial data...')
+    },
+    onSyncFailed: (error) => {
+      toast.error(error?.message || 'Unable to load financial data')
+    }
+  })
   const [metrics, setMetrics] = useState<FinanceMetrics | null>(null)
   const [moduleStatus, setModuleStatus] = useState<ModuleStatus | null>(null)
   const [loading, setLoading] = useState(true)
@@ -107,39 +119,58 @@ export default function FinanceDashboard() {
   }, [searchParams]) // Remove function refs to avoid hoisting issues
 
   useEffect(() => {
-    // Only fetch data if we're connected
-    if (hasActiveToken) {
+    // Only fetch data if we're connected and synced
+    if (hasActiveToken && canUseXeroData) {
       fetchFinanceData()
     } else {
-      // Clear loading state if not connected
+      // Clear loading state if not connected or sync failed
       setLoading(false)
     }
-  }, [timeRange, hasActiveToken])
+  }, [timeRange, hasActiveToken, canUseXeroData])
 
   const fetchFinanceData = async () => {
+    // Don't fetch if we can't use Xero data
+    if (!canUseXeroData) {
+      setLoading(false)
+      return
+    }
+    
     try {
       setLoading(true)
       
-      // Fetch real data from Xero APIs with caching headers
-      const [balanceSheetRes, plRes, cashBalanceRes, vendorsRes] = await Promise.all([
-        fetch('/api/v1/xero/reports/balance-sheet', {
-          headers: { 'Cache-Control': 'max-age=300' } // 5 min cache
-        }),
-        fetch('/api/v1/xero/reports/profit-loss', {
-          headers: { 'Cache-Control': 'max-age=300' } // 5 min cache
-        }),
-        fetch('/api/v1/bookkeeping/cash-balance', {
-          headers: { 'Cache-Control': 'max-age=60' } // 1 min cache
-        }),
-        fetch('/api/v1/analytics/top-vendors', {
-          headers: { 'Cache-Control': 'max-age=600' } // 10 min cache
-        })
-      ])
+      // Use fetchXeroData wrapper to respect sync status
+      const data = await fetchXeroData(async () => {
+        // Fetch real data from Xero APIs with caching headers
+        const [balanceSheetRes, plRes, cashBalanceRes, vendorsRes] = await Promise.all([
+          fetch('/api/v1/xero/reports/balance-sheet', {
+            headers: { 'Cache-Control': 'max-age=300' } // 5 min cache
+          }),
+          fetch('/api/v1/xero/reports/profit-loss', {
+            headers: { 'Cache-Control': 'max-age=300' } // 5 min cache
+          }),
+          fetch('/api/v1/bookkeeping/cash-balance', {
+            headers: { 'Cache-Control': 'max-age=60' } // 1 min cache
+          }),
+          fetch('/api/v1/analytics/top-vendors', {
+            headers: { 'Cache-Control': 'max-age=600' } // 10 min cache
+          })
+        ])
 
-      const balanceSheet = balanceSheetRes.ok ? await balanceSheetRes.json() : null
-      const profitLoss = plRes.ok ? await plRes.json() : null
-      const cashBalance = cashBalanceRes.ok ? await cashBalanceRes.json() : null
-      const vendorsData = vendorsRes.ok ? await vendorsRes.json() : null
+        const balanceSheet = balanceSheetRes.ok ? await balanceSheetRes.json() : null
+        const profitLoss = plRes.ok ? await plRes.json() : null
+        const cashBalance = cashBalanceRes.ok ? await cashBalanceRes.json() : null
+        const vendorsData = vendorsRes.ok ? await vendorsRes.json() : null
+        
+        return { balanceSheet, profitLoss, cashBalance, vendorsData }
+      })
+      
+      if (!data) {
+        // Sync failed or not ready
+        setMetrics(null)
+        return
+      }
+      
+      const { balanceSheet, profitLoss, cashBalance, vendorsData } = data
 
       // Extract real financial metrics
       const revenue = profitLoss?.totalRevenue || 0
@@ -221,7 +252,27 @@ export default function FinanceDashboard() {
             onTimeRangeChange={setTimeRange}
           />
 
-          {loading && hasActiveToken ? (
+          {/* Show sync error if sync failed */}
+          {syncStatus.status === 'failed' && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Unable to load data from Xero. {syncStatus.error?.message}
+                {syncStatus.error?.retryable && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => router.push('/sync')}
+                    className="ml-2"
+                  >
+                    Retry Sync
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {loading && hasActiveToken && syncStatus.status !== 'failed' ? (
             <SkeletonDashboard />
           ) : (
           <>

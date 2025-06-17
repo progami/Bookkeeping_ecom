@@ -41,10 +41,9 @@ export default function LoginPage() {
       
       if (!setupStatus.hasXeroConnection) {
         router.push('/connect')
-      } else if (!setupStatus.hasData) {
-        router.push('/setup')
       } else {
-        router.push('/finance')
+        // Always go to sync page after login to ensure data is fresh
+        router.push('/sync')
       }
     } catch (err: any) {
       setError(err.message)
