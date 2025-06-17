@@ -185,20 +185,13 @@ export async function validateSession(
           };
         }
         
-        // Verify Xero client can be initialized
-        const xeroClient = await getXeroClient();
-        if (!xeroClient || !xeroClient.tenants || xeroClient.tenants.length === 0) {
-          structuredLogger.warn('Xero client initialization failed', {
-            component: 'session-validation',
-            userId: user.userId
-          });
-          return {
-            user,
-            xeroToken,
-            isAdmin,
-            isValid: false
-          };
-        }
+        // Skip Xero client verification here to avoid circular dependency
+        // The actual API routes will handle client initialization
+        structuredLogger.debug('Xero token validated', {
+          component: 'session-validation',
+          userId: user.userId,
+          tokenExpiry: new Date(expiresAt).toISOString()
+        });
       } catch (error) {
         structuredLogger.error('Error validating Xero token', error, {
           component: 'session-validation',

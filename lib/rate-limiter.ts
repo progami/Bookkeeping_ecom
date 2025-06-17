@@ -125,9 +125,9 @@ const RATE_LIMITS = {
   '/api/v1/xero/auth/callback': { limit: 10, windowMs: 15 * 60 * 1000 }, // 10 per 15 minutes
   '/api/v1/xero/disconnect': { limit: 5, windowMs: 15 * 60 * 1000 }, // 5 per 15 minutes
 
-  // Sync endpoints - very limited
-  '/api/v1/xero/sync': { limit: 2, windowMs: 60 * 60 * 1000 }, // 2 per hour
-  '/api/v1/xero/sync/full': { limit: 1, windowMs: 60 * 60 * 1000 }, // 1 per hour
+  // Sync endpoints - reasonable limits for development
+  '/api/v1/xero/sync': { limit: 10, windowMs: 5 * 60 * 1000 }, // 10 per 5 minutes
+  '/api/v1/xero/sync/full': { limit: 5, windowMs: 15 * 60 * 1000 }, // 5 per 15 minutes
 
   // Status endpoints - moderate limits
   '/api/v1/xero/status': { limit: 60, windowMs: 60 * 1000 }, // 60 per minute

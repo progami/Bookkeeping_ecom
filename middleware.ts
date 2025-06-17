@@ -178,7 +178,7 @@ export function middleware(request: NextRequest) {
     // Log cookie debugging info for Xero routes
     const cookies = request.cookies.getAll();
     // Only log problematic requests (edge runtime compatible)
-    if (process.env.NODE_ENV === 'development' && !cookies.some(c => c.name === 'xero_token_set')) {
+    if (process.env.NODE_ENV === 'development' && !cookies.some(c => c.name === 'xero_token')) {
       console.log(`⚠️  No Xero token for ${request.method} ${request.nextUrl.pathname}`);
     }
   }
