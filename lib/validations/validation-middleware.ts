@@ -169,15 +169,19 @@ export const transactionFiltersSchema = paginationSchema.extend({
   isReconciled: z.string().transform(str => str === 'true').optional(),
   bankAccountId: z.string().optional(),
   contactId: z.string().optional(),
-  search: z.string().optional()
-}).merge(dateRangeSchema);
+  search: z.string().optional(),
+  startDate: z.string().transform(str => new Date(str)).optional(),
+  endDate: z.string().transform(str => new Date(str)).optional()
+});
 
 export const invoiceFiltersSchema = paginationSchema.extend({
   type: z.enum(['ACCREC', 'ACCPAY']).optional(),
   status: z.string().optional(),
   contactId: z.string().optional(),
-  search: z.string().optional()
-}).merge(dateRangeSchema);
+  search: z.string().optional(),
+  startDate: z.string().transform(str => new Date(str)).optional(),
+  endDate: z.string().transform(str => new Date(str)).optional()
+});
 
 // Helper to validate and sanitize input
 export function sanitizeInput(input: string): string {

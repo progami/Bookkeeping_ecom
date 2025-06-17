@@ -179,7 +179,7 @@ export default function SetupPage() {
                 Welcome to {organization?.tenantName || 'Your Financial Hub'}
               </h2>
               <p className="text-gray-400">
-                Let's get your financial data set up. This will only take a few minutes.
+                Let&apos;s get your financial data set up. This will only take a few minutes.
               </p>
             </div>
             <div className="grid gap-4 text-left max-w-md mx-auto">
@@ -365,7 +365,7 @@ export default function SetupPage() {
               </p>
             </div>
             <div className="bg-slate-800 rounded-lg p-6 text-left max-w-md mx-auto">
-              <h3 className="font-medium text-white mb-3">What's Next?</h3>
+              <h3 className="font-medium text-white mb-3">What&apos;s Next?</h3>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li className="flex items-start gap-2">
                   <Check className="h-4 w-4 text-brand-emerald mt-0.5" />

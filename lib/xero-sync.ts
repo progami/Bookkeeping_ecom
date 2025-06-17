@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getXeroClient } from '@/lib/xero-client'
+import { getXeroClientWithTenant } from '@/lib/xero-client'
 import { structuredLogger } from '@/lib/logger'
 
 interface SyncOptions {
@@ -10,7 +10,6 @@ interface SyncOptions {
 }
 
 export async function syncXeroData(
-  tenantId: string,
   userId: string,
   options: SyncOptions = { syncType: 'full_sync' }
 ) {
@@ -19,15 +18,15 @@ export async function syncXeroData(
       data: {
         syncType: options.syncType,
         status: 'in_progress',
-        userId,
         startedAt: new Date()
       }
     })
 
-    const xeroClient = await getXeroClient(tenantId)
-    if (!xeroClient) {
+    const xeroData = await getXeroClientWithTenant()
+    if (!xeroData) {
       throw new Error('Failed to get Xero client')
     }
+    const { client: xeroClient, tenantId: xeroTenantId } = xeroData
 
     let recordsCreated = 0
     let recordsUpdated = 0
@@ -39,26 +38,25 @@ export async function syncXeroData(
       switch (entity) {
         case 'accounts':
           // Sync GL accounts
-          const accounts = await xeroClient.accountingApi.getAccounts(tenantId)
+          const accounts = await xeroClient.accountingApi.getAccounts(xeroTenantId)
           if (accounts.body?.accounts) {
             for (const account of accounts.body.accounts) {
               const existing = await prisma.gLAccount.findUnique({
-                where: { xeroAccountId: account.accountID || '' }
+                where: { code: account.code || '' }
               })
               
               if (existing) {
                 await prisma.gLAccount.update({
-                  where: { xeroAccountId: account.accountID || '' },
+                  where: { code: account.code || '' },
                   data: {
                     name: account.name || '',
-                    code: account.code,
-                    type: account.type,
-                    status: account.status,
+                    code: account.code || '',
+                    type: account.type?.toString() || '',
+                    status: account.status?.toString() || '',
                     description: account.description,
-                    systemAccount: account.systemAccount,
-                    enablePaymentsToAccount: account.enablePaymentsToAccount,
-                    showInExpenseClaims: account.showInExpenseClaims,
-                    bankAccountType: account.bankAccountType,
+                    systemAccount: !!account.systemAccount,
+                    enablePaymentsToAccount: account.enablePaymentsToAccount || false,
+                    showInExpenseClaims: account.showInExpenseClaims || false,
                     updatedAt: new Date()
                   }
                 })
@@ -66,16 +64,14 @@ export async function syncXeroData(
               } else {
                 await prisma.gLAccount.create({
                   data: {
-                    xeroAccountId: account.accountID || '',
                     name: account.name || '',
-                    code: account.code,
-                    type: account.type,
-                    status: account.status,
+                    code: account.code || '',
+                    type: account.type?.toString() || '',
+                    status: account.status?.toString() || '',
                     description: account.description,
-                    systemAccount: account.systemAccount,
-                    enablePaymentsToAccount: account.enablePaymentsToAccount,
-                    showInExpenseClaims: account.showInExpenseClaims,
-                    bankAccountType: account.bankAccountType
+                    systemAccount: !!account.systemAccount,
+                    enablePaymentsToAccount: account.enablePaymentsToAccount || false,
+                    showInExpenseClaims: account.showInExpenseClaims || false
                   }
                 })
                 recordsCreated++
@@ -91,7 +87,7 @@ export async function syncXeroData(
           } : undefined
           
           const transactions = await xeroClient.accountingApi.getBankTransactions(
-            tenantId,
+            xeroTenantId,
             undefined,
             whereClause?.where
           )
@@ -141,7 +137,6 @@ export async function syncXeroData(
   } catch (error: any) {
     structuredLogger.error('Xero sync failed', error, {
       component: 'xero-sync',
-      tenantId,
       userId
     })
     

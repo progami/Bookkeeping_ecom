@@ -48,8 +48,8 @@ async function fixAllGLAccounts() {
         lineItemID: `auto-${tx.id}`,
         description: tx.description || 'Transaction',
         quantity: 1,
-        unitAmount: Math.abs(tx.amount.toNumber()),
-        lineAmount: Math.abs(tx.amount.toNumber()),
+        unitAmount: Math.abs(tx.amount?.toNumber() || 0),
+        lineAmount: Math.abs(tx.amount?.toNumber() || 0),
         accountCode: glAccount.code,
         taxType: 'NONE'
       };

@@ -201,10 +201,10 @@ export class XeroDataManager {
       ]);
       
       const dataSet: XeroDataSet = {
-        accounts: accounts?.body?.accounts || [],
-        transactions: transactions?.body?.bankTransactions || [],
-        invoices: invoices?.body?.invoices || [],
-        contacts: contacts?.body?.contacts || [],
+        accounts: (accounts?.body?.accounts as any[]) || [],
+        transactions: (transactions?.body?.bankTransactions as any[]) || [],
+        invoices: (invoices?.body?.invoices as any[]) || [],
+        contacts: (contacts?.body?.contacts as any[]) || [],
         reports: {
           profitLoss: profitLoss || undefined,
           balanceSheet: balanceSheet || undefined,
@@ -240,7 +240,7 @@ export class XeroDataManager {
         tenantId,
         (xeroClient) => xeroClient.accountingApi.getReportProfitAndLoss(tenantId)
       );
-      return response?.body?.reports?.[0] as XeroReport || null;
+      return (response?.body?.reports?.[0] as unknown as XeroReport) || null;
     } catch (error) {
       structuredLogger.warn('Failed to fetch P&L report', {
         component: 'xero-data-manager',
@@ -259,7 +259,7 @@ export class XeroDataManager {
         tenantId,
         (xeroClient) => xeroClient.accountingApi.getReportBalanceSheet(tenantId)
       );
-      return response?.body?.reports?.[0] as XeroReport || null;
+      return (response?.body?.reports?.[0] as unknown as XeroReport) || null;
     } catch (error) {
       structuredLogger.warn('Failed to fetch Balance Sheet report', {
         component: 'xero-data-manager',
@@ -281,7 +281,7 @@ export class XeroDataManager {
           new Date().toISOString().split('T')[0] // Today's date
         )
       );
-      return response?.body?.reports?.[0] as XeroReport || null;
+      return (response?.body?.reports?.[0] as unknown as XeroReport) || null;
     } catch (error) {
       structuredLogger.warn('Failed to fetch Trial Balance report', {
         component: 'xero-data-manager',

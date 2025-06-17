@@ -1,5 +1,5 @@
 import * as winston from 'winston';
-import * as DailyRotateFile from 'winston-daily-rotate-file';
+import DailyRotateFile from 'winston-daily-rotate-file';
 import * as crypto from 'crypto';
 import { sanitizeObject, sanitizeString } from './log-sanitizer';
 import * as fs from 'fs';

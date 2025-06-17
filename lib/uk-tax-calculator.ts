@@ -271,7 +271,7 @@ export class UKTaxCalculator {
 
       return Math.abs(
         transactions.reduce((sum, t) => 
-          sum + (t.type === 'SPEND' ? -t.amount.toNumber() : t.amount.toNumber()), 0
+          sum + (t.type === 'SPEND' ? -(t.amount?.toNumber() || 0) : (t.amount?.toNumber() || 0)), 0
         )
       );
     }
@@ -286,7 +286,7 @@ export class UKTaxCalculator {
 
     const totalSales = recentTransactions
       .filter(t => t.type === 'RECEIVE')
-      .reduce((sum, t) => sum + t.amount.toNumber(), 0);
+      .reduce((sum, t) => sum + (t.amount?.toNumber() || 0), 0);
 
     // Estimate VAT at 20% of sales
     return totalSales * 0.2 / 3; // Monthly average
@@ -317,7 +317,7 @@ export class UKTaxCalculator {
 
       return Math.abs(
         transactions.reduce((sum, t) => 
-          sum + (t.type === 'SPEND' ? -t.amount.toNumber() : t.amount.toNumber()), 0
+          sum + (t.type === 'SPEND' ? -(t.amount?.toNumber() || 0) : (t.amount?.toNumber() || 0)), 0
         )
       );
     }
@@ -336,7 +336,7 @@ export class UKTaxCalculator {
       }
     });
 
-    const totalPayroll = payrollExpenses.reduce((sum, t) => sum + t.amount.toNumber(), 0);
+    const totalPayroll = payrollExpenses.reduce((sum, t) => sum + (t.amount?.toNumber() || 0), 0);
     
     // Estimate PAYE/NI at 30% of gross payroll
     return totalPayroll * 0.3;
@@ -355,11 +355,11 @@ export class UKTaxCalculator {
 
     const revenue = transactions
       .filter(t => t.type === 'RECEIVE')
-      .reduce((sum, t) => sum + t.amount.toNumber(), 0);
+      .reduce((sum, t) => sum + (t.amount?.toNumber() || 0), 0);
 
     const expenses = transactions
       .filter(t => t.type === 'SPEND')
-      .reduce((sum, t) => sum + t.amount.toNumber(), 0);
+      .reduce((sum, t) => sum + (t.amount?.toNumber() || 0), 0);
 
     return Math.max(0, revenue - expenses);
   }

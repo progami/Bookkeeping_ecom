@@ -10,8 +10,9 @@ import { cn } from '@/lib/utils'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  // Auto-fill for testing - remove in production
+  const [email, setEmail] = useState('ajarrar@trademanenterprise.com')
+  const [password, setPassword] = useState('gW2r4*8&wFM.#fZ')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -155,7 +156,7 @@ export default function LoginPage() {
 
           <div className="mt-6 pt-6 border-t border-slate-800">
             <p className="text-center text-gray-400">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/register" className="text-emerald-400 hover:text-emerald-300 font-medium">
                 Sign up
               </Link>

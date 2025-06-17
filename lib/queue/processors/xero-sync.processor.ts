@@ -69,8 +69,8 @@ export function createXeroSyncWorker() {
             data: {
               status: 'success',
               completedAt: new Date(),
-              recordsCreated: result.created,
-              recordsUpdated: result.updated,
+              recordsCreated: (result as any).total?.created || (result as any).created || 0,
+              recordsUpdated: (result as any).total?.updated || (result as any).updated || 0,
               details: JSON.stringify({ ...result, options })
             }
           });

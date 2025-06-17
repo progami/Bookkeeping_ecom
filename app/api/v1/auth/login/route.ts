@@ -3,6 +3,7 @@ import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { prisma } from '@/lib/prisma'
+import { SESSION_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from '@/lib/cookie-config'
 import { cookies } from 'next/headers'
 
 const loginSchema = z.object({
@@ -61,7 +62,16 @@ export async function POST(request: NextRequest) {
       data: { lastLoginAt: new Date() }
     })
 
-    return NextResponse.json({
+    // Create session data
+    const sessionData = {
+      userId: user.id,
+      email: user.email,
+      tenantId: user.tenantId || '',
+      tenantName: user.tenantName || user.name || 'User'
+    }
+
+    // Create response with user data
+    const response = NextResponse.json({
       user: {
         id: user.id,
         email: user.email,
@@ -69,6 +79,11 @@ export async function POST(request: NextRequest) {
         hasCompletedSetup: user.hasCompletedSetup
       }
     })
+
+    // Set session cookie
+    response.cookies.set(SESSION_COOKIE_NAME, JSON.stringify(sessionData), AUTH_COOKIE_OPTIONS)
+
+    return response
   } catch (error: any) {
     console.error('Login error:', error)
     

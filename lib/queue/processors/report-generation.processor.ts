@@ -211,7 +211,7 @@ async function generateCashFlowReport(xero: any, tenantId: string, period: any) 
   };
 
   transactions.forEach(transaction => {
-    const amount = transaction.total;
+    const amount = Number(transaction.total);
     const category = categorizeTransaction(transaction);
     
     if (transaction.type === 'RECEIVE') {
@@ -262,9 +262,9 @@ async function generateTaxSummaryReport(xero: any, tenantId: string, period: any
     });
 
     const taxSummary = {
-      salesTax: invoices.filter(i => i.type === 'ACCREC').reduce((sum, i) => sum + i.totalTax, 0),
-      purchaseTax: invoices.filter(i => i.type === 'ACCPAY').reduce((sum, i) => sum + i.totalTax, 0),
-      transactionTax: transactions.reduce((sum, t) => sum + t.totalTax, 0)
+      salesTax: invoices.filter(i => i.type === 'ACCREC').reduce((sum, i) => sum + Number(i.totalTax), 0),
+      purchaseTax: invoices.filter(i => i.type === 'ACCPAY').reduce((sum, i) => sum + Number(i.totalTax), 0),
+      transactionTax: transactions.reduce((sum, t) => sum + Number(t.totalTax), 0)
     };
 
     return {

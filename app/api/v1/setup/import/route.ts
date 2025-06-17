@@ -52,7 +52,6 @@ export async function POST(request: NextRequest) {
 
     // Trigger the sync with options
     const result = await syncXeroData(
-      session.user.tenantId, 
       session.user.userId,
       {
         syncType: 'full_sync',

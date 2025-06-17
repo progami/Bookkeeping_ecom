@@ -5,7 +5,6 @@ import {
   Home, BookOpen, LineChart, BarChart3, Database, FileCode,
   ChevronLeft, ChevronRight, Menu, X, LogOut, User
 } from 'lucide-react'
-import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/components/layouts/app-layout'
@@ -248,13 +247,6 @@ export function SidebarNavigation() {
                     <span className="font-medium text-sm">Sign Out</span>
                   )}
                 </button>
-              </div>
-            )}
-            
-            {/* Theme Toggle */}
-            {!isCollapsed && (
-              <div className="flex justify-center">
-                <ThemeToggle />
               </div>
             )}
             

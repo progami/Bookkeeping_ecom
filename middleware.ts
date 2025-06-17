@@ -63,13 +63,12 @@ export function middleware(request: NextRequest) {
   
   // If it's a protected route and not public, check authentication
   if (isProtectedRoute && !isPublicRoute) {
-    // Check both old user_session (Xero) and new auth-token (user auth)
+    // Check for user_session cookie
     const userSession = request.cookies.get('user_session');
-    const authToken = request.cookies.get('auth-token');
     
     // Check for authentication
-    if (!authToken) {
-      console.log(`[Middleware] No auth token found for ${pathname}, redirecting to login`);
+    if (!userSession) {
+      console.log(`[Middleware] No user session found for ${pathname}, redirecting to login`);
       const url = request.nextUrl.clone();
       url.pathname = '/login';
       // Store the original URL to redirect back after login

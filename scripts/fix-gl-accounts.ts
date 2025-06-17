@@ -63,8 +63,8 @@ async function fixGLAccounts() {
         lineItemID: `test-${tx.id}`,
         description: tx.description,
         quantity: 1,
-        unitAmount: Math.abs(tx.amount.toNumber()),
-        lineAmount: Math.abs(tx.amount.toNumber()),
+        unitAmount: Math.abs(tx.amount?.toNumber() || 0),
+        lineAmount: Math.abs(tx.amount?.toNumber() || 0),
         accountCode: testAccount.code,
         taxType: 'NONE'
       };
@@ -77,7 +77,7 @@ async function fixGLAccounts() {
         }
       });
       
-      console.log(`Updated ${tx.xeroTransactionId.substring(0, 8)} with account ${testAccount.code} - ${testAccount.name}`);
+      console.log(`Updated ${tx.xeroTransactionId?.substring(0, 8) || 'unknown'} with account ${testAccount.code} - ${testAccount.name}`);
     }
     
     console.log('\n✅ Test GL accounts added to demonstrate functionality');

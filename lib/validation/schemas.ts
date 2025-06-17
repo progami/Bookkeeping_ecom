@@ -59,6 +59,27 @@ export const syncRequestSchema = z.object({
   }).optional()
 });
 
+// Updated Xero sync schema to support selective imports
+export const xeroSyncSchema = z.object({
+  forceSync: z.boolean().optional(),
+  syncOptions: z.object({
+    // What to sync
+    entities: z.array(z.enum(['accounts', 'transactions', 'invoices', 'bills', 'contacts'])).optional(),
+    // Date range for transactions/invoices
+    fromDate: z.string().datetime().optional(),
+    toDate: z.string().datetime().optional(),
+    // Specific account IDs to sync
+    accountIds: z.array(z.string()).optional(),
+    // Max items per entity type
+    limits: z.object({
+      transactions: z.number().min(1).max(10000).optional(),
+      invoices: z.number().min(1).max(5000).optional(),
+      bills: z.number().min(1).max(5000).optional(),
+      contacts: z.number().min(1).max(10000).optional()
+    }).optional()
+  }).optional()
+});
+
 // GL Account schemas
 export const glAccountSyncSchema = z.object({
   includeArchived: z.boolean().default(false)
@@ -182,14 +203,6 @@ export const reportQuerySchema = z.object({
   trackingCategories: z.string().optional()
 });
 
-// Xero sync schema
-export const xeroSyncSchema = z.object({
-  syncType: z.enum(['full', 'incremental', 'specific']).default('incremental'),
-  entities: z.array(z.enum(['accounts', 'transactions', 'invoices', 'contacts', 'reports'])).optional(),
-  fromDate: z.string().datetime().optional(),
-  toDate: z.string().datetime().optional(),
-  forceSync: z.boolean().optional()
-});
 
 // Xero webhook schema
 export const xeroWebhookSchema = z.object({

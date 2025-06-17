@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log('[AuthContext] Checking auth status...')
     try {
       // Check user session first
-      const sessionRes = await fetch('/api/v1/auth/session')
+      const sessionRes = await fetch('/api/v1/auth/session', { credentials: 'include' })
       const sessionData = await sessionRes.json()
       
       if (!sessionData.authenticated) {
@@ -85,8 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // User is authenticated, check database state and Xero connection
       const [dbStatusRes, xeroStatusRes] = await Promise.all([
-        fetch('/api/v1/database/status'),
-        fetch('/api/v1/xero/status')
+        fetch('/api/v1/database/status', { credentials: 'include' }),
+        fetch('/api/v1/xero/status', { credentials: 'include' })
       ])
 
       const dbStatus = await dbStatusRes.json()

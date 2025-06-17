@@ -37,8 +37,8 @@ async function addGLToRecentTransactions() {
         lineItemID: `test-recent-${tx.id}`,
         description: tx.description,
         quantity: 1,
-        unitAmount: Math.abs(tx.amount.toNumber()),
-        lineAmount: Math.abs(tx.amount.toNumber()),
+        unitAmount: Math.abs(tx.amount?.toNumber() || 0),
+        lineAmount: Math.abs(tx.amount?.toNumber() || 0),
         accountCode: glAccount.code,
         taxType: 'NONE'
       };
@@ -51,7 +51,7 @@ async function addGLToRecentTransactions() {
         }
       });
       
-      console.log(`Updated ${tx.xeroTransactionId.substring(0, 8)} (${tx.date.toISOString().split('T')[0]}) with ${glAccount.code} - ${glAccount.name}`);
+      console.log(`Updated ${tx.xeroTransactionId?.substring(0, 8) || 'unknown'} (${tx.date.toISOString().split('T')[0]}) with ${glAccount.code} - ${glAccount.name}`);
     }
     
     console.log('\n✅ GL accounts added to recent transactions');

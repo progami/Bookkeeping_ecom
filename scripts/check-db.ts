@@ -114,9 +114,9 @@ async function checkDatabase() {
         // Calculate revenue and expenses (only for authorized transactions)
         if (transaction.status === 'AUTHORISED') {
           if (transaction.type === 'RECEIVE') {
-            summary.totalRevenue += Math.abs(transaction.amount.toNumber());
+            summary.totalRevenue += Math.abs(transaction.amount?.toNumber() || 0);
           } else if (transaction.type === 'SPEND') {
-            summary.totalExpenses += Math.abs(transaction.amount.toNumber());
+            summary.totalExpenses += Math.abs(transaction.amount?.toNumber() || 0);
           }
         }
       });
@@ -207,9 +207,9 @@ async function checkDatabase() {
 
           accountTransactions.forEach(transaction => {
             if (transaction.type === 'RECEIVE') {
-              accountRevenue += Math.abs(transaction.amount.toNumber());
+              accountRevenue += Math.abs(transaction.amount?.toNumber() || 0);
             } else if (transaction.type === 'SPEND') {
-              accountExpenses += Math.abs(transaction.amount.toNumber());
+              accountExpenses += Math.abs(transaction.amount?.toNumber() || 0);
             }
           });
 
