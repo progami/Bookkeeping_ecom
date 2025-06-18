@@ -433,12 +433,6 @@ export default function FinanceDashboard() {
               <div 
                 className="group relative bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6 hover:border-brand-emerald hover:shadow-lg hover:shadow-brand-emerald/10 transition-all cursor-pointer transform hover:-translate-y-1"
                 onClick={() => router.push('/bookkeeping')}
-                onMouseEnter={() => {
-                  // Prefetch data for bookkeeping module on hover
-                  import('@/lib/performance-utils').then(({ prefetchSubModuleData }) => {
-                    prefetchSubModuleData('bookkeeping');
-                  });
-                }}
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-brand-emerald/10 rounded-full blur-3xl group-hover:bg-brand-emerald/20 transition-all" />
                 
@@ -488,12 +482,6 @@ export default function FinanceDashboard() {
               <div 
                 className="group relative bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
                 onClick={() => router.push('/cashflow')}
-                onMouseEnter={() => {
-                  // Prefetch data for cashflow module on hover
-                  import('@/lib/performance-utils').then(({ prefetchSubModuleData }) => {
-                    prefetchSubModuleData('cashflow');
-                  });
-                }}
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl group-hover:bg-cyan-500/20 transition-all" />
                 
@@ -540,12 +528,6 @@ export default function FinanceDashboard() {
               <div 
                 className="group relative bg-secondary backdrop-blur-sm border border-default rounded-2xl p-4 sm:p-6 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/10 transition-all cursor-pointer transform hover:-translate-y-1"
                 onClick={() => router.push('/analytics')}
-                onMouseEnter={() => {
-                  // Prefetch data for analytics module on hover
-                  import('@/lib/performance-utils').then(({ prefetchSubModuleData }) => {
-                    prefetchSubModuleData('analytics');
-                  });
-                }}
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-all" />
                 

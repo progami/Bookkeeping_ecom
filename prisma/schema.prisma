@@ -130,8 +130,7 @@ model Invoice {
 
 model BankTransaction {
   id                   String   @id @default(cuid())
-  bankTransactionId    String?  @unique // Made optional for existing data
-  xeroTransactionId    String?  @unique // Keep for backward compatibility
+  xeroTransactionId    String   @unique // Now required - the single source of truth
   type                 String   // 'SPEND' or 'RECEIVE'
   contactId            String?
   contactName          String?  // Keep for backward compatibility
@@ -164,7 +163,6 @@ model BankTransaction {
   bankAccount          BankAccount @relation(fields: [bankAccountId], references: [id])
   contact              Contact?    @relation(fields: [contactId], references: [xeroContactId])
   
-  @@index([bankTransactionId])
   @@index([xeroTransactionId])
   @@index([bankAccountId])
   @@index([contactId])

@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuthValidation } from '@/lib/auth/auth-wrapper';
 import { ValidationLevel } from '@/lib/auth/session-validation';
-
-// In-memory store for real-time progress updates
-// In production, use Redis or similar
-const syncProgressStore = new Map<string, any>();
+import { syncProgressStore } from '@/lib/sync-progress-manager';
 
 export const GET = withAuthValidation(
   { authLevel: ValidationLevel.USER },
@@ -64,21 +61,3 @@ export const GET = withAuthValidation(
   }
 );
 
-// Export function to update progress (called from sync route)
-export function updateSyncProgress(syncId: string, progress: any) {
-  syncProgressStore.set(syncId, {
-    ...syncProgressStore.get(syncId),
-    ...progress,
-    lastUpdated: new Date()
-  });
-}
-
-// Clear old progress entries periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [syncId, progress] of syncProgressStore.entries()) {
-    if (progress.lastUpdated && now - progress.lastUpdated.getTime() > 3600000) { // 1 hour
-      syncProgressStore.delete(syncId);
-    }
-  }
-}, 300000); // Every 5 minutes

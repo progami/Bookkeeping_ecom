@@ -92,7 +92,7 @@ class AuditLogger {
       const startTime = Date.now();
       
       // Queue the database write to prevent lock contention
-      auditQueue.enqueue({
+      auditQueue.add({
         userId: entry.userId,
         userEmail: entry.userEmail,
         action: entry.action,

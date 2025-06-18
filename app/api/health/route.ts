@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { redis } from '@/lib/redis';
 import { getXeroClient } from '@/lib/xero-client';
-import { logger } from '@/lib/log-sanitizer';
+import { structuredLogger as logger } from '@/lib/logger';
 
 interface HealthCheckResult {
   status: 'healthy' | 'degraded' | 'unhealthy';

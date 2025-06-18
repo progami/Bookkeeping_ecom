@@ -6,11 +6,8 @@ const isProduction = process.env.NODE_ENV === 'production';
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
 const isHttps = appUrl.startsWith('https://');
 
-// For localhost development, we need to use secure: false
-// even if the URL is https://localhost because browsers handle
-// localhost differently for secure cookies
-const isLocalhost = appUrl.includes('localhost') || appUrl.includes('127.0.0.1');
-const isSecureContext = isProduction || (isHttps && !isLocalhost);
+// Simplified logic: use secure cookies whenever we're in production or using HTTPS
+const isSecureContext = isProduction || isHttps;
 
 export const AUTH_COOKIE_OPTIONS = {
   httpOnly: true,
@@ -27,7 +24,6 @@ logger.info('[CookieConfig] Configuration', {
   isProduction,
   appUrl,
   isHttps,
-  isLocalhost,
   isSecureContext,
   cookieOptions: AUTH_COOKIE_OPTIONS
 });

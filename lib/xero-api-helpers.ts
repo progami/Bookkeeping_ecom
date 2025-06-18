@@ -89,3 +89,65 @@ export async function paginatedXeroAPICall<T>(
   
   return allResults;
 }
+
+/**
+ * Execute paginated Xero API calls with rate limiting as an async generator
+ * Returns results as they are fetched for memory efficiency
+ */
+export async function* paginatedXeroAPICallGenerator<T>(
+  tenantId: string,
+  apiFunction: (client: any, page: number) => Promise<any>,
+  options?: {
+    maxPages?: number;
+    delayBetweenPages?: number;
+  }
+): AsyncGenerator<T[], void, unknown> {
+  let page = 1;
+  let hasMore = true;
+  const maxPages = options?.maxPages || 100;
+  const delayBetweenPages = options?.delayBetweenPages || 500;
+  
+  const xeroClient = await getXeroClient();
+  const rateLimiter = rateLimiterManager.getLimiter(tenantId);
+  
+  while (hasMore && page <= maxPages) {
+    try {
+      const result = await rateLimiter.executeAPICall(async () => {
+        return apiFunction(xeroClient, page);
+      });
+      
+      const items = result.items || [];
+      hasMore = result.hasMore || false;
+      
+      if (items.length > 0) {
+        yield items;
+      }
+      
+      structuredLogger.debug(`[XeroAPI] Generator page ${page}`, {
+        tenantId,
+        itemsInPage: items.length,
+        hasMore
+      });
+      
+      page++;
+      
+      // Delay between pages to respect rate limits
+      if (hasMore && delayBetweenPages > 0) {
+        await new Promise(resolve => setTimeout(resolve, delayBetweenPages));
+      }
+      
+    } catch (error: any) {
+      structuredLogger.error(`[XeroAPI] Generator failed on page ${page}`, error, {
+        tenantId,
+        page,
+        error: error.message
+      });
+      throw error;
+    }
+  }
+  
+  structuredLogger.info(`[XeroAPI] Generator completed`, {
+    tenantId,
+    totalPages: page - 1
+  });
+}

@@ -20,7 +20,7 @@ export const POST = withRateLimit(
         const startTime = Date.now();
         
         // Prevent concurrent refreshes using lock
-        return await withLock(LOCK_RESOURCES.XERO_SYNC, `user-${session.user.userId}`, async () => {
+        return await withLock(LOCK_RESOURCES.XERO_SYNC, 300000, async () => { // 5 minutes
           try {
             structuredLogger.info('Starting global Xero data refresh', {
               component: 'xero-refresh-all',

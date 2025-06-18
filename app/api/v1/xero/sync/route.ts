@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClient } from '@/lib/xero-client';
 import { prisma } from '@/lib/prisma';
 import { BankTransaction } from 'xero-node';
-import { executeXeroAPICall, paginatedXeroAPICall } from '@/lib/xero-api-helpers';
+import { executeXeroAPICall, paginatedXeroAPICall, paginatedXeroAPICallGenerator } from '@/lib/xero-api-helpers';
 import { structuredLogger } from '@/lib/logger';
 import { withIdempotency } from '@/lib/idempotency';
 import { withValidation } from '@/lib/validation/middleware';
@@ -14,7 +14,7 @@ import { CurrencyService } from '@/lib/currency-service';
 import { withAuthValidation } from '@/lib/auth/auth-wrapper';
 import { ValidationLevel } from '@/lib/auth/session-validation';
 import { memoryMonitor } from '@/lib/memory-monitor';
-import { updateSyncProgress } from '@/app/api/v1/sync/progress/route';
+import { updateSyncProgress } from '@/lib/sync-progress-manager';
 
 export const POST = withRateLimit(
   withAuthValidation(
@@ -51,7 +51,7 @@ export const POST = withRateLimit(
     // Wrap the entire sync operation in a lock
     const result = await withLock(
       LOCK_RESOURCES.XERO_SYNC,
-      `sync-${Date.now()}`,
+      600000, // 10 minutes in milliseconds
       async () => {
         return await withIdempotency(idempotencyKey, async () => {
           // Use transaction for entire sync operation
@@ -93,11 +93,6 @@ export const POST = withRateLimit(
           });
           });
         });
-      },
-      {
-        timeout: 10 * 60 * 1000, // 10 minutes lock timeout
-        retries: 2, // Retry twice if lock is held
-        retryDelay: 5000 // Wait 5 seconds between retries
       }
     );
 
@@ -387,8 +382,8 @@ async function performSync(tx: any, syncLog: any, options: {
             whereClause += ` AND Date <= DateTime(${toDate.toISOString().split('T')[0]})`;
           }
           
-          // Use paginated API call with rate limiting
-          const transactionPages = paginatedXeroAPICall(
+          // Use paginated API call generator with rate limiting
+          const transactionPages = paginatedXeroAPICallGenerator(
             tenant.tenantId,
             async (client, pageNum) => {
               structuredLogger.debug('Fetching transaction page', {

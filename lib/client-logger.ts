@@ -69,6 +69,14 @@ class ClientLogger {
       return String(arg);
     }).join(' ');
     
+    // NEW: Add this check to break the logging loop.
+    // If the message already matches our formatted log pattern,
+    // do not send it to the server again. It will still appear
+    // in the browser console for developers.
+    if (/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]/.test(message)) {
+      return;
+    }
+    
     // Skip empty messages
     if (!message.trim()) return;
     

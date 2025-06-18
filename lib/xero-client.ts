@@ -104,7 +104,7 @@ export async function getXeroClient(): Promise<XeroClient | null> {
     structuredLogger.debug('Token retrieval complete', { component: 'xero-client' });
     
     if (!tokenSet) {
-      structuredLogger.info('No token set found - user not authenticated', { component: 'xero-client' });
+      structuredLogger.info('No Xero token found for this session', { component: 'xero-client' });
       return null;
     }
     
@@ -163,7 +163,7 @@ export async function getXeroClient(): Promise<XeroClient | null> {
         
         const newTokenSet = await withLock(
           LOCK_RESOURCES.XERO_TOKEN_REFRESH,
-          refreshKey,
+          30000, // 30 seconds TTL for token refresh
           async () => {
             // Double-check if token still needs refresh (another process might have refreshed it)
             const currentToken = await getStoredTokenSet();
@@ -187,11 +187,6 @@ export async function getXeroClient(): Promise<XeroClient | null> {
             });
             
             return refreshedToken;
-          },
-          {
-            timeout: 30 * 1000, // 30 seconds timeout for token refresh
-            retries: 1, // One retry if lock is held
-            retryDelay: 2000 // 2 seconds delay
           }
         );
         
