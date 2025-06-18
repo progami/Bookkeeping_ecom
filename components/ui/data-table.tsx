@@ -149,11 +149,28 @@ export function DataTable<T extends Record<string, any>>({
       return column.accessor(row)
     }
     
+    let value;
     if (typeof column.key === 'string' && column.key.includes('.')) {
-      return column.key.split('.').reduce((obj: any, key) => obj?.[key], row)
+      value = column.key.split('.').reduce((obj: any, key) => obj?.[key], row)
+    } else {
+      value = (row as any)[column.key]
     }
     
-    return (row as any)[column.key]
+    // Handle object values by converting to string
+    if (value && typeof value === 'object') {
+      // If it's an array, join the values
+      if (Array.isArray(value)) {
+        return value.join(', ')
+      }
+      // If it's an object with a name property, return the name
+      if ('name' in value) {
+        return value.name
+      }
+      // Otherwise, stringify it
+      return JSON.stringify(value)
+    }
+    
+    return value
   }
 
   if (isLoading) {
