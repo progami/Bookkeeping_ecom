@@ -75,7 +75,7 @@ export default function FinanceDashboard() {
     checkAuthStatus 
   } = useAuth()
   const { syncStatus, canUseXeroData } = useSync()
-  const { fetchXeroData, hasError } = useXeroData({
+  const { fetchXeroData, canFetchData, hasError } = useXeroData({
     onSyncRequired: () => {
       toast.info('Loading your financial data...')
     },
@@ -106,22 +106,15 @@ export default function FinanceDashboard() {
   }, [searchParams])
 
   useEffect(() => {
-    // Only fetch data if we're connected and synced
-    if (hasActiveToken && canUseXeroData) {
+    // New, correct logic
+    if (canFetchData) {
       fetchFinanceData()
     } else {
-      // Clear loading state if not connected or sync failed
       setLoading(false)
     }
-  }, [timeRange, hasActiveToken, canUseXeroData])
+  }, [timeRange, canFetchData])
 
   const fetchFinanceData = async () => {
-    // Don't fetch if we can't use Xero data
-    if (!canUseXeroData) {
-      setLoading(false)
-      return
-    }
-    
     try {
       setLoading(true)
       

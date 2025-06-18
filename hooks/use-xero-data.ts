@@ -1,56 +1,46 @@
 'use client';
 
-import { useSync } from '@/contexts/SyncContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useCallback } from 'react';
+import toast from 'react-hot-toast';
 
 interface UseXeroDataOptions {
-  onSyncRequired?: () => void;
-  onSyncFailed?: (error: any) => void;
+  onDataRequired?: () => void;
+  onFetchFailed?: (error: any) => void;
 }
 
 export function useXeroData(options: UseXeroDataOptions = {}) {
-  const { syncStatus, canUseXeroData, syncWithXero } = useSync();
+  const { hasData, isLoading: authIsLoading } = useAuth();
 
-  const fetchXeroData = useCallback(async (
-    fetcher: () => Promise<any>,
-    fallbackData?: any
-  ) => {
-    // If sync hasn't happened or failed, don't make Xero API calls
-    if (!canUseXeroData) {
-      if (syncStatus.status === 'idle') {
-        // Trigger sync if not done yet
-        if (options.onSyncRequired) {
-          options.onSyncRequired();
-        }
-        await syncWithXero();
-        return fallbackData || null;
+  const fetchXeroData = useCallback(async <T>(
+    fetcher: () => Promise<T>,
+    fallbackData?: T
+  ): Promise<T | null> => {
+    // If auth is still loading or if there's no data in the local DB, return the fallback.
+    // The UI component is now responsible for handling the "no data" state.
+    if (authIsLoading || !hasData) {
+      if (!hasData && options.onDataRequired) {
+        options.onDataRequired();
       }
-      
-      if (syncStatus.status === 'failed') {
-        if (options.onSyncFailed) {
-          options.onSyncFailed(syncStatus.error);
-        }
-        return fallbackData || null;
-      }
-
-      // Still syncing
       return fallbackData || null;
     }
 
-    // Sync was successful, proceed with the fetch
+    // If we have data, proceed with fetching it from our internal API.
     try {
       return await fetcher();
     } catch (error) {
-      console.error('Error fetching Xero data:', error);
+      console.error('Error fetching local data:', error);
+      if (options.onFetchFailed) {
+        options.onFetchFailed(error);
+      }
       return fallbackData || null;
     }
-  }, [canUseXeroData, syncStatus, syncWithXero, options]);
+  }, [hasData, authIsLoading, options]);
 
   return {
     fetchXeroData,
-    canUseXeroData,
-    syncStatus,
-    isLoading: syncStatus.status === 'syncing',
-    hasError: syncStatus.status === 'failed'
+    canFetchData: hasData && !authIsLoading,
+    isLoading: authIsLoading,
+    hasError: !hasData && !authIsLoading, // Represents a state where data is expected but missing.
   };
 }
