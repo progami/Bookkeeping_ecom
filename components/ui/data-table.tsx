@@ -27,7 +27,7 @@ export interface BulkAction {
   confirmMessage?: string
 }
 
-interface DataTableProps<T extends { id: string }> {
+interface DataTableProps<T extends Record<string, any>> {
   data: T[]
   columns: Column<T>[]
   bulkActions?: BulkAction[]
@@ -37,9 +37,10 @@ interface DataTableProps<T extends { id: string }> {
   keyboardShortcuts?: boolean
   stickyHeader?: boolean
   className?: string
+  rowKey?: keyof T | string
 }
 
-export function DataTable<T extends { id: string }>({
+export function DataTable<T extends Record<string, any>>({
   data,
   columns,
   bulkActions = [],
@@ -48,7 +49,8 @@ export function DataTable<T extends { id: string }>({
   emptyMessage = 'No data found',
   keyboardShortcuts = true,
   stickyHeader = true,
-  className
+  className,
+  rowKey = 'id'
 }: DataTableProps<T>) {
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null)
@@ -65,7 +67,7 @@ export function DataTable<T extends { id: string }>({
         if (selectedRows.size === data.length) {
           setSelectedRows(new Set())
         } else {
-          setSelectedRows(new Set(data.map(row => row.id)))
+          setSelectedRows(new Set(data.map(row => (row as any)[rowKey])))
         }
       }
       
@@ -78,7 +80,7 @@ export function DataTable<T extends { id: string }>({
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [data, selectedRows, keyboardShortcuts])
+  }, [data, selectedRows, keyboardShortcuts, rowKey])
 
   // Sort data
   const sortedData = [...data].sort((a, b) => {
@@ -117,7 +119,7 @@ export function DataTable<T extends { id: string }>({
     if (selectedRows.size === data.length) {
       setSelectedRows(new Set())
     } else {
-      setSelectedRows(new Set(data.map(row => row.id)))
+      setSelectedRows(new Set(data.map(row => (row as any)[rowKey])))
     }
   }
 
@@ -265,11 +267,11 @@ export function DataTable<T extends { id: string }>({
               ) : (
                 sortedData.map((row, rowIndex) => (
                   <tr
-                    key={row.id}
+                    key={(row as any)[rowKey]}
                     className={cn(
                       'border-t border-slate-700/50 transition-colors',
                       onRowClick && 'cursor-pointer hover:bg-slate-800/30',
-                      selectedRows.has(row.id) && 'bg-blue-600/5'
+                      selectedRows.has((row as any)[rowKey]) && 'bg-blue-600/5'
                     )}
                     onClick={(e) => {
                       if (onRowClick && !(e.target as HTMLElement).closest('input')) {
@@ -281,8 +283,8 @@ export function DataTable<T extends { id: string }>({
                       <td className="w-12 px-4 py-4">
                         <input
                           type="checkbox"
-                          checked={selectedRows.has(row.id)}
-                          onChange={() => handleSelectRow(row.id)}
+                          checked={selectedRows.has((row as any)[rowKey])}
+                          onChange={() => handleSelectRow((row as any)[rowKey])}
                           onClick={(e) => e.stopPropagation()}
                           className="w-6 h-6 sm:w-4 sm:h-4 bg-slate-700 border-slate-600 rounded text-blue-600 focus:ring-2 focus:ring-blue-500/20"
                         />

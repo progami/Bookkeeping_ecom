@@ -74,8 +74,9 @@ export default function DatabaseSchemaPage() {
                   <SkeletonTable rows={5} />
                 ) : tableData && tableData.records.length > 0 ? (
                   <DataTable
-                    data={tableData.records.map((r, i) => ({ ...r, id: r.id || `${selectedTable}-${i}` }))}
+                    data={tableData.records}
                     columns={generateColumns()}
+                    rowKey={selectedTable === 'GLAccount' ? 'code' : 'id'}
                     isLoading={loading}
                     stickyHeader
                   />
