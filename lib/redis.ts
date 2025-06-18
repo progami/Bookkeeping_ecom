@@ -1,7 +1,11 @@
 import Redis from 'ioredis';
+import { structuredLogger as logger } from './logger';
 
 // Create a Redis client instance
-export const redis = new Redis({
+// Support both individual config and URL format
+const redisUrl = process.env.REDIS_URL;
+
+export const redis = redisUrl ? new Redis(redisUrl) : new Redis({
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379'),
   password: process.env.REDIS_PASSWORD,
@@ -21,18 +25,23 @@ export const redis = new Redis({
   keyPrefix: 'bookkeeping:',
 });
 
-// Handle connection events
-redis.on('connect', () => {
-  console.log('Redis connected');
-});
+// Handle connection events - only log once per process
+const globalAny = global as any;
+if (!globalAny.__redisListenersAdded) {
+  globalAny.__redisListenersAdded = true;
+  
+  redis.on('connect', () => {
+    logger.info('Redis connected');
+  });
 
-redis.on('error', (err) => {
-  console.error('Redis error:', err);
-});
+  redis.on('error', (err) => {
+    logger.error('Redis error', err);
+  });
 
-redis.on('close', () => {
-  console.log('Redis connection closed');
-});
+  redis.on('close', () => {
+    logger.info('Redis connection closed');
+  });
+}
 
 // Graceful shutdown
 process.on('SIGINT', async () => {

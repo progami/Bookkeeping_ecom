@@ -3,9 +3,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { ConciseLogger } from '@/lib/config/logging.config'
-
-const logger = new ConciseLogger('Auth')
+// Remove logging for now
+const logger = { info: console.log, error: console.error, warn: console.warn }
 
 interface Organization {
   tenantId: string
@@ -69,14 +68,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const checkAuthStatus = async () => {
-    logger.feature('authContext', 'Checking auth status...')
+    logger.info('Checking auth status...')
     try {
       // Check user session first
       const sessionRes = await fetch('/api/v1/auth/session', { credentials: 'include' })
       const sessionData = await sessionRes.json()
       
       if (!sessionData.authenticated) {
-        logger.feature('authContext', 'No user session found')
+        logger.info('No user session found')
         setAuthState(prev => ({
           ...prev,
           isAuthenticated: false,
@@ -95,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const dbStatus = await dbStatusRes.json()
       const xeroStatus = await xeroStatusRes.json()
       
-      logger.feature('authContext', 'Status check complete', {
+      logger.info('Status check complete', {
         hasSession: true,
         hasData: dbStatus.hasData,
         xeroConnected: xeroStatus.connected
@@ -184,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Keep hasData true as we still have data in the database
             hasData: prev.hasData
           };
-          logger.feature('authContext', 'Xero disconnected', { hasData: newState.hasData });
+          logger.info('Xero disconnected', { hasData: newState.hasData });
           return newState;
         })
         

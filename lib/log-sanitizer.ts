@@ -2,6 +2,9 @@
  * Log sanitizer to remove sensitive data from logs
  */
 
+// Import the structured logger to ensure all logs go to file
+import { structuredLogger } from './logger';
+
 // Patterns to identify sensitive data
 const SENSITIVE_PATTERNS = [
   // OAuth tokens
@@ -113,7 +116,11 @@ export const logger = {
       }
       return arg;
     });
-    console.log(...sanitizedArgs);
+    // Use structuredLogger to ensure logs go to file
+    const message = sanitizedArgs.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+    ).join(' ');
+    structuredLogger.info(message);
   },
   
   error: (...args: any[]) => {
@@ -125,7 +132,10 @@ export const logger = {
       }
       return arg;
     });
-    console.error(...sanitizedArgs);
+    const message = sanitizedArgs.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+    ).join(' ');
+    structuredLogger.error(message);
   },
   
   warn: (...args: any[]) => {
@@ -137,7 +147,10 @@ export const logger = {
       }
       return arg;
     });
-    console.warn(...sanitizedArgs);
+    const message = sanitizedArgs.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+    ).join(' ');
+    structuredLogger.warn(message);
   },
   
   info: (...args: any[]) => {
@@ -149,7 +162,10 @@ export const logger = {
       }
       return arg;
     });
-    console.info(...sanitizedArgs);
+    const message = sanitizedArgs.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+    ).join(' ');
+    structuredLogger.info(message);
   }
 };
 

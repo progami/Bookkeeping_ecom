@@ -4,10 +4,10 @@ import { validateSession, ValidationLevel } from '@/lib/auth/session-validation'
 
 export async function GET(request: NextRequest) {
   try {
-    // Use the new session validation
-    const session = await validateSession(request, ValidationLevel.NONE);
+    // Check for actual user session (not anonymous)
+    const session = await validateSession(request, ValidationLevel.USER);
     
-    if (!session.isValid || !session.user) {
+    if (!session.isValid || !session.user || session.user.userId === 'anonymous') {
       structuredLogger.debug('No valid session found', {
         component: 'auth-session'
       });

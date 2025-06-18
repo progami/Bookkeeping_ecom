@@ -369,7 +369,7 @@ export default function ChartOfAccountsPage() {
         </div>
       ) : accounts.length === 0 ? (
         <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-12 text-center">
-          <BookOpen className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+          <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-white mb-2">No accounts found</h3>
           <p className="text-gray-400 mb-6">
             Go to the bookkeeping dashboard and click &quot;Sync All Data&quot; to import your Chart of Accounts

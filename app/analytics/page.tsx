@@ -12,8 +12,6 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatNumber } from '@/lib/design-tokens'
 import { SkeletonCard, SkeletonChart, SkeletonTable } from '@/components/ui/skeleton'
-import { RequireXeroConnection } from '@/components/auth/require-xero-connection'
-import { pageConfigs } from '@/lib/page-configs'
 import {
   LineChart, Line, BarChart, Bar, PieChart as RePieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -62,7 +60,7 @@ export default function BusinessAnalytics() {
   }, [])
 
   useEffect(() => {
-    console.log('[Analytics] Auth state changed:', { authLoading, hasActiveToken })
+    console.log(`[Analytics] Auth state changed: authLoading=${authLoading}, hasActiveToken=${hasActiveToken}`)
     if (!authLoading && hasActiveToken) {
       fetchVendorData()
       fetchSpendTrend()
@@ -237,9 +235,8 @@ export default function BusinessAnalytics() {
   ]
 
   return (
-    <RequireXeroConnection pageConfig={pageConfigs.analytics}>
-      <div className="min-h-screen bg-slate-950">
-        <div className="container mx-auto px-4 py-6 sm:py-8">
+    <div className="min-h-screen bg-slate-950">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         {/* Header */}
         <UnifiedPageHeader 
           title="Business Analytics"
@@ -540,8 +537,7 @@ export default function BusinessAnalytics() {
             </div>
           </>
         )}
-        </div>
       </div>
-    </RequireXeroConnection>
+    </div>
   )
 }

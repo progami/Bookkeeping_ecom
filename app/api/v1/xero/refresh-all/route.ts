@@ -6,7 +6,7 @@ import { xeroDataCache } from '@/lib/xero-data-cache';
 import { structuredLogger } from '@/lib/logger';
 import { auditLogger, AuditAction, AuditResource } from '@/lib/audit-logger';
 import { withRateLimit } from '@/lib/rate-limiter';
-import { withLock, LOCK_RESOURCES } from '@/lib/sync-lock';
+import { withLock, LOCK_RESOURCES } from '@/lib/redis-lock';
 
 /**
  * Global refresh endpoint - fetches all Xero data and caches it

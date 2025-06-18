@@ -42,6 +42,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# OAuth states
+.oauth-states/
+
 # database
 *.db
 *.db-journal

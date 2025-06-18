@@ -204,7 +204,7 @@ function ToastComponent({ toast, onDismiss }: ToastComponentProps) {
 
       <button
         onClick={handleDismiss}
-        className="flex-shrink-0 p-1 hover:bg-white/10 rounded-lg transition-colors"
+        className="flex-shrink-0 p-1 hover:bg-slate-700/50 rounded-lg transition-colors"
       >
         <X className="h-4 w-4" />
       </button>

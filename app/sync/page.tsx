@@ -15,6 +15,7 @@ export default function SyncPage() {
   const { syncStatus, syncWithXero } = useSync();
   const { hasXeroConnection } = useAuth();
   const [syncStarted, setSyncStarted] = useState(false);
+  const [setupChecked, setSetupChecked] = useState(false);
 
   useEffect(() => {
     // If no Xero connection, redirect to connect page
@@ -29,16 +30,39 @@ export default function SyncPage() {
       syncWithXero();
     }
 
-    // Redirect on successful sync
-    if (syncStatus.status === 'success') {
-      setTimeout(() => {
-        router.push('/finance');
-      }, 1500);
+    // Check setup status after successful sync
+    if (syncStatus.status === 'success' && !setupChecked) {
+      setSetupChecked(true);
+      
+      // Check if user has completed setup
+      fetch('/api/v1/setup/status')
+        .then(res => res.json())
+        .then(data => {
+          if (!data.hasCompletedSetup) {
+            // First time user - go to setup
+            setTimeout(() => {
+              router.push('/setup');
+            }, 1500);
+          } else {
+            // Setup already complete - go to return URL or finance
+            const returnUrl = new URLSearchParams(window.location.search).get('returnUrl');
+            setTimeout(() => {
+              router.push(returnUrl || '/finance');
+            }, 1500);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to check setup status:', err);
+          // On error, default to finance page
+          setTimeout(() => {
+            router.push('/finance');
+          }, 1500);
+        });
     }
-  }, [hasXeroConnection, syncStatus, syncStarted, syncWithXero, router]);
+  }, [hasXeroConnection, syncStatus, syncStarted, syncWithXero, router, setupChecked]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle>
@@ -49,7 +73,7 @@ export default function SyncPage() {
           <CardDescription>
             {syncStatus.status === 'syncing' && 'Loading your financial data from Xero'}
             {syncStatus.status === 'success' && 'Your data is ready'}
-            {syncStatus.status === 'failed' && 'We couldn\'t sync your data'}
+            {syncStatus.status === 'failed' && 'We couldn&apos;t sync your data'}
           </CardDescription>
         </CardHeader>
         <CardContent>

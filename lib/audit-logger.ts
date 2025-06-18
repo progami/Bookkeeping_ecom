@@ -6,6 +6,7 @@
 import { prisma } from './prisma';
 import { structuredLogger as logger } from './logger';
 import { FinancialCalc } from './financial-calculations';
+import { auditQueue } from './audit-queue';
 
 export interface AuditLogEntry {
   userId?: string;
@@ -90,38 +91,38 @@ class AuditLogger {
     try {
       const startTime = Date.now();
       
-      // Store in database
-      await prisma.auditLog.create({
-        data: {
-          userId: entry.userId,
-          userEmail: entry.userEmail,
-          action: entry.action,
-          resource: entry.resource,
-          resourceId: entry.resourceId,
-          metadata: JSON.stringify(entry.metadata || {}),
-          ipAddress: entry.ipAddress,
-          userAgent: entry.userAgent,
-          status: entry.status,
-          errorMessage: entry.errorMessage,
-          duration: entry.duration,
-          timestamp: new Date()
-        }
-      });
-      
-      // Also log to structured logger for immediate visibility
-      const logLevel = entry.status === 'failure' ? 'error' : 'info';
-      logger[logLevel]('Audit log entry', {
+      // Queue the database write to prevent lock contention
+      auditQueue.enqueue({
+        userId: entry.userId,
+        userEmail: entry.userEmail,
         action: entry.action,
         resource: entry.resource,
         resourceId: entry.resourceId,
+        metadata: JSON.stringify(entry.metadata || {}),
+        ipAddress: entry.ipAddress,
+        userAgent: entry.userAgent,
         status: entry.status,
-        userId: entry.userId,
-        duration: Date.now() - startTime
+        errorMessage: entry.errorMessage,
+        duration: entry.duration,
+        timestamp: new Date()
       });
+      
+      // Only log to structured logger in debug mode or for failures
+      if (process.env.LOG_LEVEL === 'debug' || entry.status === 'failure') {
+        const logLevel = entry.status === 'failure' ? 'error' : 'info';
+        logger[logLevel]('Audit log entry', {
+          action: entry.action,
+          resource: entry.resource,
+          resourceId: entry.resourceId,
+          status: entry.status,
+          userId: entry.userId,
+          duration: Date.now() - startTime
+        });
+      }
       
     } catch (error) {
       // Don't let audit logging failures break the application
-      logger.error('Failed to write audit log', error as Error, {
+      logger.error('Failed to queue audit log', error as Error, {
         action: entry.action,
         resource: entry.resource
       });

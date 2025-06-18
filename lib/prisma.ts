@@ -14,25 +14,24 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({
     db: {
       url: process.env.DATABASE_URL || 'file:./dev.db'
     }
-  },
-  // Add timeout configuration to prevent SQLite lockups
-  transactionOptions: {
-    maxWait: 5000, // 5 seconds max wait to acquire a database connection
-    timeout: 30000, // 30 seconds max execution time
-    isolationLevel: 'ReadCommitted'
   }
 })
 
 // Handle connection errors gracefully
-prisma.$on('error', (e) => {
-  structuredLogger.error('Prisma database error', e, {
-    component: 'prisma',
-    target: e.target
-  })
-})
+// Note: Prisma doesn't have a built-in error event handler
+// Errors are handled through the log configuration above
 
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma
+}
+
+// Import and configure database after Prisma is initialized
+if (typeof window === 'undefined') {
+  import('./database-config').then(({ databaseConfig }) => {
+    databaseConfig.configure().catch(error => {
+      structuredLogger.error('Database configuration failed', error);
+    });
+  });
 }
 
 // Graceful shutdown

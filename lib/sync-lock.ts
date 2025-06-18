@@ -82,14 +82,15 @@ class SyncLockManager {
    * Release a lock
    * @param resource The resource identifier
    * @param holder The holder trying to release the lock
-   * @returns true if lock was released, false if holder didn't own the lock
+   * @returns true if lock was released or didn't exist, false if holder didn't own the lock
    */
   async releaseLock(resource: string, holder: string): Promise<boolean> {
     const lock = this.locks.get(resource);
 
     if (!lock) {
-      logger.warn('Attempted to release non-existent lock', { resource, holder });
-      return false;
+      // Lock doesn't exist - this is OK, the desired state (unlocked) is achieved
+      logger.info('Lock already released or never existed', { resource, holder });
+      return true; // Return true as the resource is not locked
     }
 
     if (lock.holder !== holder) {
@@ -98,12 +99,12 @@ class SyncLockManager {
         attemptedBy: holder,
         actualHolder: lock.holder
       });
-      return false;
+      return false; // Still return false if not the owner
     }
 
     this.locks.delete(resource);
     
-    logger.info('Lock released', {
+    logger.info('Lock released successfully', {
       resource,
       holder,
       lockId: lock.id,

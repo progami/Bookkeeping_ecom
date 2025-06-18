@@ -79,6 +79,20 @@ export async function validateSession(
   level: ValidationLevel = ValidationLevel.USER
 ): Promise<ValidatedSession> {
   try {
+    // No validation needed for public endpoints
+    if (level === ValidationLevel.PUBLIC || level === ValidationLevel.NONE) {
+      return {
+        user: {
+          userId: 'anonymous',
+          email: 'anonymous@example.com',
+          tenantId: '',
+          tenantName: 'Anonymous'
+        },
+        isAdmin: false,
+        isValid: true
+      };
+    }
+
     const cookieStore = cookies();
     
     // Check for user session
@@ -205,13 +219,15 @@ export async function validateSession(
       }
     }
 
-    // Log successful validation
-    structuredLogger.info('Session validated successfully', {
-      component: 'session-validation',
-      userId: user.userId,
-      level,
-      isAdmin
-    });
+    // Log successful validation only in debug mode
+    if (process.env.LOG_LEVEL === 'debug') {
+      structuredLogger.info('Session validated successfully', {
+        component: 'session-validation',
+        userId: user.userId,
+        level,
+        isAdmin
+      });
+    }
 
     return {
       user,

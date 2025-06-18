@@ -104,7 +104,8 @@ export function EmptyState({
     if (onAction) {
       onAction()
     } else {
-      window.location.href = '/api/v1/xero/auth'
+      const currentPath = window.location.pathname
+      router.push(`/connect?returnUrl=${encodeURIComponent(currentPath)}`)
     }
   }
   

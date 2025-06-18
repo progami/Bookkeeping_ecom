@@ -165,7 +165,7 @@ export function Tooltip({
           {trigger === 'click' && (
             <button
               onClick={hideTooltip}
-              className="absolute top-1 right-1 p-0.5 hover:bg-white/10 rounded transition-colors"
+              className="absolute top-1 right-1 p-0.5 hover:bg-slate-700/50 rounded transition-colors"
             >
               <X className="h-3 w-3" />
             </button>

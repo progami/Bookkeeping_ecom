@@ -1,11 +1,12 @@
 import { prisma } from '@/lib/prisma';
 import { getXeroClient } from '@/lib/xero-client';
-import { executeXeroAPICall } from '@/lib/xero-client-with-rate-limit';
+import { executeXeroAPICall } from '@/lib/xero-api-helpers';
 import { XeroDataCache } from '@/lib/xero-data-cache';
 import { structuredLogger } from '@/lib/logger';
 import { ValidationLevel } from '@/lib/auth/session-validation';
 import { redis } from '@/lib/redis';
 import { memoryMonitor } from '@/lib/memory-monitor';
+import { XeroReportFetcher } from '@/lib/xero-report-fetcher';
 import type { 
   XeroAccount, 
   XeroBankTransaction, 
@@ -194,10 +195,10 @@ export class XeroDataManager {
           executeXeroAPICall(tenantId, (xeroClient) => xeroClient.accountingApi.getContacts(tenantId))
         ),
         
-        // Reports
-        this.fetchProfitLossReport(tenantId, xeroClient),
-        this.fetchBalanceSheetReport(tenantId, xeroClient),
-        this.fetchTrialBalanceReport(tenantId, xeroClient) // For VAT calculations
+        // Reports - using optimized fetchers
+        this.fetchProfitLossReport(tenantId),
+        this.fetchBalanceSheetReport(tenantId),
+        this.fetchVATLiability(tenantId)
       ]);
       
       const dataSet: XeroDataSet = {
@@ -232,15 +233,61 @@ export class XeroDataManager {
   }
   
   /**
-   * Fetch Profit & Loss report
+   * Fetch Profit & Loss report using optimized fetcher
    */
-  private async fetchProfitLossReport(tenantId: string, xeroClient: any): Promise<XeroReport | null> {
+  private async fetchProfitLossReport(tenantId: string): Promise<XeroReport | null> {
     try {
-      const response = await executeXeroAPICall(
-        tenantId,
-        (xeroClient) => xeroClient.accountingApi.getReportProfitAndLoss(tenantId)
-      );
-      return (response?.body?.reports?.[0] as unknown as XeroReport) || null;
+      const summary = await XeroReportFetcher.fetchProfitLossSummary(tenantId);
+      // Convert to XeroReport format for compatibility
+      return {
+        reportID: 'ProfitAndLoss',
+        reportName: 'Profit and Loss',
+        reportType: 'ProfitAndLoss',
+        reportTitles: ['Profit and Loss'],
+        reportDate: new Date().toISOString(),
+        updatedDateUTC: new Date().toISOString(),
+        rows: [
+          {
+            rowType: 'Section',
+            title: 'Income',
+            rows: [
+              {
+                rowType: 'Row',
+                cells: [
+                  { value: 'Total Income' },
+                  { value: summary.totalRevenue.toString() }
+                ]
+              }
+            ]
+          },
+          {
+            rowType: 'Section',
+            title: 'Expenses',
+            rows: [
+              {
+                rowType: 'Row',
+                cells: [
+                  { value: 'Total Expenses' },
+                  { value: summary.totalExpenses.toString() }
+                ]
+              }
+            ]
+          },
+          {
+            rowType: 'Section',
+            title: 'Net Profit',
+            rows: [
+              {
+                rowType: 'Row',
+                cells: [
+                  { value: 'Net Profit' },
+                  { value: summary.netProfit.toString() }
+                ]
+              }
+            ]
+          }
+        ]
+      } as XeroReport;
     } catch (error) {
       structuredLogger.warn('Failed to fetch P&L report', {
         component: 'xero-data-manager',
@@ -251,15 +298,103 @@ export class XeroDataManager {
   }
 
   /**
-   * Fetch Balance Sheet report
+   * Fetch Balance Sheet report using optimized fetcher
    */
-  private async fetchBalanceSheetReport(tenantId: string, xeroClient: any): Promise<XeroReport | null> {
+  private async fetchBalanceSheetReport(tenantId: string): Promise<XeroReport | null> {
     try {
-      const response = await executeXeroAPICall(
-        tenantId,
-        (xeroClient) => xeroClient.accountingApi.getReportBalanceSheet(tenantId)
-      );
-      return (response?.body?.reports?.[0] as unknown as XeroReport) || null;
+      const summary = await XeroReportFetcher.fetchBalanceSheetSummary(tenantId);
+      // Convert to XeroReport format for compatibility
+      return {
+        reportID: 'BalanceSheet',
+        reportName: 'Balance Sheet',
+        reportType: 'BalanceSheet',
+        reportTitles: ['Balance Sheet'],
+        reportDate: new Date().toISOString(),
+        updatedDateUTC: new Date().toISOString(),
+        rows: [
+          {
+            rowType: 'Section',
+            title: 'Assets',
+            rows: [
+              {
+                rowType: 'Row',
+                cells: [
+                  { value: 'Current Assets' },
+                  { value: summary.currentAssets.toString() }
+                ]
+              },
+              {
+                rowType: 'Row',
+                cells: [
+                  { value: 'Cash' },
+                  { value: summary.cash.toString() }
+                ]
+              },
+              {
+                rowType: 'Row',
+                cells: [
+                  { value: 'Accounts Receivable' },
+                  { value: summary.accountsReceivable.toString() }
+                ]
+              },
+              {
+                rowType: 'Row',
+                cells: [
+                  { value: 'Total Assets' },
+                  { value: summary.totalAssets.toString() }
+                ]
+              }
+            ]
+          },
+          {
+            rowType: 'Section',
+            title: 'Liabilities',
+            rows: [
+              {
+                rowType: 'Row',
+                cells: [
+                  { value: 'Current Liabilities' },
+                  { value: summary.currentLiabilities.toString() }
+                ]
+              },
+              {
+                rowType: 'Row',
+                cells: [
+                  { value: 'Accounts Payable' },
+                  { value: summary.accountsPayable.toString() }
+                ]
+              },
+              {
+                rowType: 'Row',
+                cells: [
+                  { value: 'Total Liabilities' },
+                  { value: summary.totalLiabilities.toString() }
+                ]
+              }
+            ]
+          },
+          {
+            rowType: 'Section',
+            title: 'Equity',
+            rows: [
+              {
+                rowType: 'Row',
+                cells: [
+                  { value: 'Total Equity' },
+                  { value: summary.equity.toString() }
+                ]
+              },
+              {
+                rowType: 'Row',
+                cells: [
+                  { value: 'Net Assets' },
+                  { value: summary.netAssets.toString() }
+                ]
+              }
+            ]
+          }
+        ]
+      } as XeroReport;
     } catch (error) {
       structuredLogger.warn('Failed to fetch Balance Sheet report', {
         component: 'xero-data-manager',
@@ -270,20 +405,37 @@ export class XeroDataManager {
   }
 
   /**
-   * Fetch Trial Balance report (for VAT calculations)
+   * Fetch VAT liability using optimized calculation
    */
-  private async fetchTrialBalanceReport(tenantId: string, xeroClient: any): Promise<XeroReport | null> {
+  private async fetchVATLiability(tenantId: string): Promise<XeroReport | null> {
     try {
-      const response = await executeXeroAPICall(
-        tenantId,
-        (xeroClient) => xeroClient.accountingApi.getReportTrialBalance(
-          tenantId,
-          new Date().toISOString().split('T')[0] // Today's date
-        )
-      );
-      return (response?.body?.reports?.[0] as unknown as XeroReport) || null;
+      const vatLiability = await XeroReportFetcher.calculateVATLiability(tenantId);
+      // Convert to XeroReport format for compatibility
+      return {
+        reportID: 'VATLiability',
+        reportName: 'VAT Liability',
+        reportType: 'Custom',
+        reportTitles: ['VAT Liability'],
+        reportDate: new Date().toISOString(),
+        updatedDateUTC: new Date().toISOString(),
+        rows: [
+          {
+            rowType: 'Section',
+            title: 'VAT Summary',
+            rows: [
+              {
+                rowType: 'Row',
+                cells: [
+                  { value: 'Current VAT Liability' },
+                  { value: vatLiability.toString() }
+                ]
+              }
+            ]
+          }
+        ]
+      } as XeroReport;
     } catch (error) {
-      structuredLogger.warn('Failed to fetch Trial Balance report', {
+      structuredLogger.warn('Failed to calculate VAT liability', {
         component: 'xero-data-manager',
         error
       });

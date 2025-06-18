@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getXeroClient } from '@/lib/xero-client';
+import { Logger } from '@/lib/logger';
+
+const logger = new Logger({ component: 'xero-status' });
 
 // Force dynamic rendering to ensure cookies work properly
 export const dynamic = 'force-dynamic';
@@ -8,16 +11,19 @@ export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('[XeroStatus] ========== STATUS CHECK START ==========');
-    console.log('[XeroStatus] Request headers:', {
-      cookie: request.headers.get('cookie'),
-      host: request.headers.get('host'),
-      referer: request.headers.get('referer')
+    logger.debug('Starting Xero status check', {
+      headers: {
+        hasCookie: !!request.headers.get('cookie'),
+        host: request.headers.get('host'),
+        referer: request.headers.get('referer')
+      }
     });
     
     // Try to get Xero client to check if we're connected
     const xero = await getXeroClient();
-    console.log('[XeroStatus] Xero client retrieved:', !!xero);
+    logger.debug('Xero client retrieval result', {
+      hasClient: !!xero
+    });
     
     // Check last sync status from database
     const lastSync = await prisma.syncLog.findFirst({
@@ -31,11 +37,13 @@ export async function GET(request: NextRequest) {
         completedAt: true
       }
     });
-    console.log('[XeroStatus] Last sync found:', !!lastSync);
+    logger.debug('Last sync status', {
+      hasLastSync: !!lastSync,
+      lastSyncDate: lastSync?.completedAt
+    });
 
     if (!xero) {
-      console.log('[XeroStatus] No Xero client - returning not connected');
-      console.log('[XeroStatus] ========== STATUS CHECK END (NOT CONNECTED) ==========');
+      logger.info('No Xero client available - user not connected');
       return NextResponse.json({
         connected: false,
         organization: null,
@@ -43,7 +51,7 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    console.log('Xero client obtained, checking tenants...');
+    logger.debug('Xero client obtained, checking tenants');
     
     // Get organization info from tenants
     try {
@@ -72,7 +80,7 @@ export async function GET(request: NextRequest) {
         lastSync: lastSync?.completedAt || null
       });
     } catch (error) {
-      console.error('Error fetching tenant info:', error);
+      logger.error('Error fetching tenant info', error);
       // Even if tenant fetch fails, we might still be connected
       return NextResponse.json({
         connected: true,
@@ -85,7 +93,7 @@ export async function GET(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('Error checking Xero status:', error);
+    logger.error('Error checking Xero status', error);
     return NextResponse.json(
       { error: 'Failed to check status' },
       { status: 500 }

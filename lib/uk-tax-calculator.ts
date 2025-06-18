@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { XeroClient, Organisation } from 'xero-node';
+import { structuredLogger } from '@/lib/logger';
 import { 
   addDays, 
   addMonths, 
@@ -99,7 +100,7 @@ export class UKTaxCalculator {
         registrationNumber: org.registrationNumber
       };
     } catch (error) {
-      console.error('Error fetching organization details:', error);
+      structuredLogger.error('Error fetching organization details:', error);
       return this.getDefaultOrganizationDetails();
     }
   }

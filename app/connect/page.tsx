@@ -11,11 +11,16 @@ export default function ConnectXeroPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { hasActiveToken, checkAuthStatus } = useAuth()
-  const returnUrl = searchParams.get('returnUrl') || '/setup'
+  const returnUrl = searchParams.get('returnUrl') || '/finance'
   const connected = searchParams.get('connected') === 'true'
   
   useEffect(() => {
-    // If already connected, redirect to setup
+    // Check auth status on mount
+    checkAuthStatus()
+  }, [])
+  
+  useEffect(() => {
+    // If already connected, redirect to return URL
     if (hasActiveToken || connected) {
       router.push(returnUrl)
     }
@@ -26,14 +31,30 @@ export default function ConnectXeroPage() {
     window.location.href = `/api/v1/xero/auth?returnUrl=${encodeURIComponent(returnUrl)}`
   }
   
+  // Show where we're returning to
+  const getReturnDestination = () => {
+    switch (returnUrl) {
+      case '/finance':
+        return 'Finance Dashboard'
+      case '/bookkeeping':
+        return 'Bookkeeping'
+      case '/cashflow':
+        return 'Cash Flow'
+      case '/analytics':
+        return 'Analytics'
+      default:
+        return 'Dashboard'
+    }
+  }
+
   return (
     <div className="min-h-screen bg-primary flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gradient-to-br from-brand-emerald/5 via-transparent to-brand-purple/5" />
       <Card className="relative w-full max-w-md bg-secondary backdrop-blur-sm border-default">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl sm:text-3xl font-bold text-white">Connect to Xero</CardTitle>
+          <CardTitle className="text-2xl sm:text-3xl font-bold text-white">Connect Your Xero Account</CardTitle>
           <CardDescription className="text-tertiary">
-            Link your Xero account to import your financial data
+            Securely link your accounting data to unlock powerful financial insights
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -88,10 +109,17 @@ export default function ConnectXeroPage() {
             Connect to Xero
           </Button>
           
-          <p className="text-xs text-center text-muted">
-            By signing in, you agree to our terms of service and privacy policy.
-            Your Xero data will be synced securely to provide financial insights.
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-center text-muted">
+              By signing in, you agree to our terms of service and privacy policy.
+              Your Xero data will be synced securely to provide financial insights.
+            </p>
+            {returnUrl !== '/finance' && (
+              <p className="text-xs text-center text-emerald-400">
+                You&apos;ll be returned to {getReturnDestination()} after connecting
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

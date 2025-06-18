@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClient } from '@/lib/xero-client';
 import { prisma } from '@/lib/prisma';
 import { BankTransaction } from 'xero-node';
-import { executeXeroAPICall, paginatedXeroAPICall } from '@/lib/xero-client-with-rate-limit';
+import { executeXeroAPICall, paginatedXeroAPICall } from '@/lib/xero-api-helpers';
 import { structuredLogger } from '@/lib/logger';
 import { withIdempotency } from '@/lib/idempotency';
 import { withValidation } from '@/lib/validation/middleware';
 import { xeroSyncSchema } from '@/lib/validation/schemas';
 import { withRateLimit } from '@/lib/rate-limiter';
-import { withLock, LOCK_RESOURCES } from '@/lib/sync-lock';
+import { withLock, LOCK_RESOURCES } from '@/lib/redis-lock';
 import { auditLogger, AuditAction, AuditResource } from '@/lib/audit-logger';
 import { CurrencyService } from '@/lib/currency-service';
 import { withAuthValidation } from '@/lib/auth/auth-wrapper';
@@ -108,12 +108,15 @@ export const POST = withRateLimit(
     // Update sync log if it was created
     if (syncLog?.id) {
       try {
+        // Handle error properly - might not be an Error object
+        const errorMessage = error instanceof Error ? error.message : String(error) || 'An unknown error occurred during sync.';
+        
         await prisma.syncLog.update({
           where: { id: syncLog.id },
           data: {
             status: 'failed',
             completedAt: new Date(),
-            errorMessage: error.message
+            errorMessage: errorMessage
           }
         });
       } catch (updateError) {
@@ -331,7 +334,10 @@ async function performSync(tx: any, syncLog: any, options: {
         totalAccounts++;
       }
       
-      console.log(`Synced ${totalAccounts} bank accounts`);
+      structuredLogger.info('Bank accounts synced', {
+        component: 'xero-sync',
+        count: totalAccounts
+      });
       
       updateSyncProgress(syncLog.id, {
         currentStep: 'Bank accounts synced',
@@ -358,7 +364,11 @@ async function performSync(tx: any, syncLog: any, options: {
           if (!account.accountID) continue;
           if (transactionsSynced >= maxTransactions) break;
       
-          console.log(`\nFetching transactions for ${account.name} (${account.currencyCode})...`);
+          structuredLogger.info('Fetching transactions for account', {
+            component: 'xero-sync',
+            accountName: account.name,
+            currencyCode: account.currencyCode
+          });
           
           const dbAccount = await tx.bankAccount.findUnique({
             where: { xeroAccountId: account.accountID }
@@ -381,7 +391,11 @@ async function performSync(tx: any, syncLog: any, options: {
           const transactionPages = paginatedXeroAPICall(
             tenant.tenantId,
             async (client, pageNum) => {
-              console.log(`  Fetching page ${pageNum} for ${account.name}...`);
+              structuredLogger.debug('Fetching transaction page', {
+                component: 'xero-sync',
+                accountName: account.name,
+                pageNum
+              });
               const response = await client.accountingApi.getBankTransactions(
                 tenant.tenantId,
                 modifiedSince, // If-Modified-Since for incremental sync
@@ -393,7 +407,11 @@ async function performSync(tx: any, syncLog: any, options: {
               );
               
               const transactions = response.body.bankTransactions || [];
-              console.log(`  Page ${pageNum}: ${transactions.length} transactions`);
+              structuredLogger.debug('Transaction page fetched', {
+                component: 'xero-sync',
+                pageNum,
+                transactionCount: transactions.length
+              });
               
               return {
                 items: transactions,
@@ -905,7 +923,7 @@ async function performSync(tx: any, syncLog: any, options: {
       data: {
         status: 'failed',
         completedAt: new Date(),
-        errorMessage: error.message,
+        errorMessage: error instanceof Error ? error.message : String(error) || 'An unknown error occurred',
         details: JSON.stringify({
           partialData: {
             glAccounts: totalGLAccounts,

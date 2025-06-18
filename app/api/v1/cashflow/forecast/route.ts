@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { withValidation } from '@/lib/validation/middleware';
 import { cashFlowForecastQuerySchema, cashFlowForecastBodySchema } from '@/lib/validation/schemas';
 import { getApiLogger, logApiCall } from '@/lib/api-logger';
+import { validateSession, ValidationLevel } from '@/lib/auth/session-validation';
 
 export const GET = withValidation(
   { querySchema: cashFlowForecastQuerySchema },
@@ -16,14 +17,14 @@ export const GET = withValidation(
       
       logger.info('Generating cashflow forecast', { days, includeScenarios });
       
-      // Get session from cookie
-      const userSessionCookie = request.cookies.get('user_session');
-      if (!userSessionCookie) {
+      // Validate session
+      const session = await validateSession(request, ValidationLevel.USER);
+      
+      if (!session.isValid || !session.user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
       
-      const session = JSON.parse(userSessionCookie.value);
-      const tenantId = session.tenantId;
+      const tenantId = session.user.tenantId;
       
       if (!tenantId) {
         return NextResponse.json({ error: 'No tenant ID in session' }, { status: 401 });

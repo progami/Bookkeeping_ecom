@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { universalLogger } from '@/lib/universal-logger'
 
 type Theme = 'dark' // Force dark mode only
 
@@ -18,7 +19,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false)
 
   const setTheme = (newTheme: Theme) => {
-    console.log('[ThemeContext] Dark mode only - ignoring theme change request')
+    universalLogger.info('[ThemeContext] Dark mode only - ignoring theme change request')
     // Always force dark mode
     setThemeState('dark')
   }
@@ -33,7 +34,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!mounted) return
     
-    console.log('[ThemeContext] Applying dark theme only')
+    universalLogger.info('[ThemeContext] Applying dark theme only')
     
     // Apply theme to both html and body for compatibility
     const root = window.document.documentElement
@@ -52,7 +53,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Save to localStorage
     localStorage.setItem('theme', 'dark')
     
-    console.log('[ThemeContext] Dark theme applied')
+    universalLogger.info('[ThemeContext] Dark theme applied')
   }, [mounted])
 
   // No need to listen for system theme changes - always dark

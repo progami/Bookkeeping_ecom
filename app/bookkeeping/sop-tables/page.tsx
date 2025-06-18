@@ -782,9 +782,9 @@ export default function SOPTablesPage() {
           viewMode === 'table' ? <TableView /> : <CardView />
         ) : (
           <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-12 text-center">
-            <FileText className="h-16 w-16 text-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-400 mb-2">No SOPs Defined</h3>
-            <p className="text-gray-500 mb-6">No Standard Operating Procedures defined for this account in {year}</p>
+            <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">No SOPs Defined</h3>
+            <p className="text-gray-400 mb-6">No Standard Operating Procedures defined for this account in {year}</p>
             <button
               onClick={handleAddNew}
               className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all inline-flex items-center"

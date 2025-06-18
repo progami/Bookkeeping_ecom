@@ -25,8 +25,6 @@ import { HelpTooltip, ContextualHelp } from '@/components/ui/tooltip'
 import { responsiveText } from '@/lib/responsive-utils'
 import { cn } from '@/lib/utils'
 import { gridLayouts } from '@/lib/grid-utils'
-import { RequireXeroConnection } from '@/components/auth/require-xero-connection'
-import { pageConfigs } from '@/lib/page-configs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
 interface FinanceMetrics {
@@ -92,31 +90,20 @@ export default function FinanceDashboard() {
   const [timeRange, setTimeRange] = useState('30d')
 
   useEffect(() => {
-    // Check for OAuth callback params
+    // Check for OAuth callback params - this should no longer happen
+    // as we've updated the flow to go through /sync
     const connected = searchParams.get('connected')
     const error = searchParams.get('error')
     
     if (connected === 'true') {
-      toast.success('Successfully connected to Xero!')
-      // Re-check auth status to update the UI
-      checkAuthStatus().then(() => {
-        // Trigger data sync if we don't have data yet
-        // Check current state in the promise chain
-        setTimeout(() => {
-          // Use a ref or state check here instead of closure values
-          syncData()
-        }, 500)
-        
-        // Fetch finance data after successful connection
-        fetchFinanceData()
-      })
-      // Remove query params from URL
+      // This is legacy behavior - clean it up
       window.history.replaceState({}, document.title, '/finance')
+      // The sync should have already happened via /sync page
     } else if (error) {
       toast.error(`Failed to connect to Xero: ${error}`)
       window.history.replaceState({}, document.title, '/finance')
     }
-  }, [searchParams]) // Remove function refs to avoid hoisting issues
+  }, [searchParams])
 
   useEffect(() => {
     // Only fetch data if we're connected and synced
@@ -236,8 +223,7 @@ export default function FinanceDashboard() {
   }
 
   return (
-    <RequireXeroConnection pageConfig={pageConfigs.finance}>
-      <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-slate-950">
         <Toaster position="top-right" />
         <div className="container mx-auto px-4 py-6 sm:py-8">
           
@@ -606,7 +592,6 @@ export default function FinanceDashboard() {
           </>
         )}
         </div>
-      </div>
-    </RequireXeroConnection>
+    </div>
   )
 }

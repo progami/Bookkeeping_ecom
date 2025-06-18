@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { structuredLogger } from './logger';
 
 export enum ErrorCode {
   RATE_LIMITED = 'RATE_LIMITED',
@@ -20,11 +19,10 @@ export interface ApiError {
 
 export class ApiErrorHandler {
   static handle(error: any, context: { endpoint: string; operation?: string }): NextResponse {
-    structuredLogger.error('API Error', error, {
-      component: 'api-error-handler',
-      endpoint: context.endpoint,
-      operation: context.operation
-    });
+    // Only log on server side
+    if (typeof window === 'undefined') {
+      console.error('API Error:', error, context);
+    }
 
     // Database timeout errors
     if (error.message?.includes('Operations timed out') || error.code === 'P2024') {

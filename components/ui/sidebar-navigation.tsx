@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { 
-  Home, BookOpen, LineChart, BarChart3, Database, FileCode,
+  TrendingUp, BookOpen, LineChart, BarChart3, Database, FileCode,
   ChevronLeft, ChevronRight, Menu, X, LogOut, User
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -22,7 +22,7 @@ const navigation: NavItem[] = [
   {
     title: 'Finance Overview',
     href: '/finance',
-    icon: Home,
+    icon: TrendingUp,
     description: 'Financial dashboard & metrics'
   },
   {
@@ -179,17 +179,22 @@ export function SidebarNavigation() {
                       onFocus={() => setFocusedIndex(index)}
                       onMouseEnter={() => setFocusedIndex(index)}
                       className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group",
+                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group relative",
                         active
-                          ? "bg-emerald-600 text-white"
+                          ? "bg-slate-800 text-white"
                           : "hover:bg-slate-800 text-gray-400 hover:text-white",
-                        isFocused && !active && "bg-slate-800 outline-none ring-2 ring-emerald-500"
+                        isFocused && !active && "outline-none ring-2 ring-emerald-500"
                       )}
                       title={isCollapsed ? item.title : undefined}
                       tabIndex={0}
                       role="menuitem"
                       aria-current={active ? 'page' : undefined}
                     >
+                      {/* Active indicator */}
+                      {active && (
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 rounded-r" />
+                      )}
+                      
                       <Icon className={cn(
                         "h-5 w-5 flex-shrink-0",
                         active ? "text-white" : "text-gray-400 group-hover:text-white"
@@ -200,7 +205,7 @@ export function SidebarNavigation() {
                           <div className="font-medium text-sm">{item.title}</div>
                           <div className={cn(
                             "text-xs",
-                            active ? "text-emerald-100" : "text-gray-500"
+                            active ? "text-gray-300" : "text-gray-500"
                           )}>
                             {item.description}
                           </div>

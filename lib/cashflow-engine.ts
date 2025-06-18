@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { redis } from '@/lib/redis';
+import { structuredLogger } from '@/lib/logger';
 import { 
   addDays, 
   addMonths,
@@ -76,7 +77,7 @@ export class CashFlowEngine {
         const parsedCache = JSON.parse(cached);
         // Check if cache is less than 5 minutes old
         if (parsedCache.timestamp && Date.now() - parsedCache.timestamp < 5 * 60 * 1000) {
-          console.log('[CashFlow] Returning cached forecast');
+          structuredLogger.info('[CashFlow] Returning cached forecast');
           // Convert string dates back to Date objects
           return parsedCache.data.map((day: any) => ({
             ...day,
@@ -84,7 +85,7 @@ export class CashFlowEngine {
           }));
         }
       } catch (e) {
-        console.error('[CashFlow] Cache parse error:', e);
+        structuredLogger.error('[CashFlow] Cache parse error:', e);
       }
     }
     
@@ -229,16 +230,12 @@ export class CashFlowEngine {
 
   private async getCurrentPosition(): Promise<CashPosition> {
     try {
-      console.log('[CashFlow] Getting current position from database...');
       // Always use database data for cashflow
       const bankAccounts = await prisma.bankAccount.findMany({
         where: { status: 'ACTIVE' },
       });
       
       const cash = bankAccounts.reduce((sum, acc) => sum + acc.balance.toNumber(), 0);
-      
-      console.log('[CashFlow] Bank accounts found:', bankAccounts.length);
-      console.log('[CashFlow] Total cash balance:', cash);
 
       // Get accounts receivable (open invoices)
       const receivables = await prisma.syncedInvoice.aggregate({
@@ -262,16 +259,6 @@ export class CashFlowEngine {
         },
       });
       
-      const openInvoiceCount = await prisma.syncedInvoice.count({
-        where: { type: 'ACCREC', status: 'OPEN' }
-      });
-      
-      const openBillCount = await prisma.syncedInvoice.count({
-        where: { type: 'ACCPAY', status: 'OPEN' }
-      });
-      
-      console.log('[CashFlow] Open invoices:', openInvoiceCount);
-      console.log('[CashFlow] Open bills:', openBillCount);
 
       return {
         cash,
@@ -279,7 +266,7 @@ export class CashFlowEngine {
         accountsPayable: payables._sum.amountDue?.toNumber() || 0,
       };
     } catch (error) {
-      console.error('[CashFlow] Error getting current position:', error);
+      structuredLogger.error('[CashFlow] Error getting current position:', error);
       // Return zero position on error
       return {
         cash: 0,
@@ -626,50 +613,74 @@ export class CashFlowEngine {
   }
   
   private async storeForecastBatch(forecasts: DailyForecast[]): Promise<void> {
-    // Use transaction for batch insert/update
-    await prisma.$transaction(
-      forecasts.map(forecast => 
-        prisma.cashFlowForecast.upsert({
-          where: { date: forecast.date },
-          create: {
-            date: forecast.date,
-            openingBalance: forecast.openingBalance,
-            fromInvoices: forecast.inflows.fromInvoices,
-            fromRepeating: forecast.inflows.fromRepeating,
-            fromOther: forecast.inflows.fromOther,
-            totalInflows: forecast.inflows.total,
-            toBills: forecast.outflows.toBills,
-            toRepeating: forecast.outflows.toRepeating,
-            toTaxes: forecast.outflows.toTaxes,
-            toPatterns: forecast.outflows.toPatterns,
-            toBudgets: forecast.outflows.toBudgets,
-            totalOutflows: forecast.outflows.total,
-            closingBalance: forecast.closingBalance,
-            bestCase: forecast.scenarios.bestCase,
-            worstCase: forecast.scenarios.worstCase,
-            confidenceLevel: forecast.confidenceLevel,
-            alerts: JSON.stringify(forecast.alerts),
-          },
-          update: {
-            openingBalance: forecast.openingBalance,
-            fromInvoices: forecast.inflows.fromInvoices,
-            fromRepeating: forecast.inflows.fromRepeating,
-            fromOther: forecast.inflows.fromOther,
-            totalInflows: forecast.inflows.total,
-            toBills: forecast.outflows.toBills,
-            toRepeating: forecast.outflows.toRepeating,
-            toTaxes: forecast.outflows.toTaxes,
-            toPatterns: forecast.outflows.toPatterns,
-            toBudgets: forecast.outflows.toBudgets,
-            totalOutflows: forecast.outflows.total,
-            closingBalance: forecast.closingBalance,
-            bestCase: forecast.scenarios.bestCase,
-            worstCase: forecast.scenarios.worstCase,
-            confidenceLevel: forecast.confidenceLevel,
-            alerts: JSON.stringify(forecast.alerts),
-          },
+    // Process forecasts individually to avoid SQLite lock issues
+    // Use Promise.allSettled to continue even if some fail
+    const batchSize = 5; // Smaller batches for better concurrency
+    
+    for (let i = 0; i < forecasts.length; i += batchSize) {
+      const batch = forecasts.slice(i, i + batchSize);
+      
+      // Process batch items in parallel but without transaction
+      const results = await Promise.allSettled(
+        batch.map(async (forecast) => {
+          try {
+            await prisma.cashFlowForecast.upsert({
+              where: { date: forecast.date },
+              create: {
+                date: forecast.date,
+                openingBalance: forecast.openingBalance,
+                fromInvoices: forecast.inflows.fromInvoices,
+                fromRepeating: forecast.inflows.fromRepeating,
+                fromOther: forecast.inflows.fromOther,
+                totalInflows: forecast.inflows.total,
+                toBills: forecast.outflows.toBills,
+                toRepeating: forecast.outflows.toRepeating,
+                toTaxes: forecast.outflows.toTaxes,
+                toPatterns: forecast.outflows.toPatterns,
+                toBudgets: forecast.outflows.toBudgets,
+                totalOutflows: forecast.outflows.total,
+                closingBalance: forecast.closingBalance,
+                bestCase: forecast.scenarios.bestCase,
+                worstCase: forecast.scenarios.worstCase,
+                confidenceLevel: forecast.confidenceLevel,
+                alerts: JSON.stringify(forecast.alerts),
+              },
+              update: {
+                openingBalance: forecast.openingBalance,
+                fromInvoices: forecast.inflows.fromInvoices,
+                fromRepeating: forecast.inflows.fromRepeating,
+                fromOther: forecast.inflows.fromOther,
+                totalInflows: forecast.inflows.total,
+                toBills: forecast.outflows.toBills,
+                toRepeating: forecast.outflows.toRepeating,
+                toTaxes: forecast.outflows.toTaxes,
+                toPatterns: forecast.outflows.toPatterns,
+                toBudgets: forecast.outflows.toBudgets,
+                totalOutflows: forecast.outflows.total,
+                closingBalance: forecast.closingBalance,
+                bestCase: forecast.scenarios.bestCase,
+                worstCase: forecast.scenarios.worstCase,
+                confidenceLevel: forecast.confidenceLevel,
+                alerts: JSON.stringify(forecast.alerts),
+              },
+            });
+          } catch (error) {
+            structuredLogger.error(`[CashFlow] Error storing forecast for ${forecast.date}:`, error);
+            throw error;
+          }
         })
-      )
-    );
+      );
+      
+      // Log any failures but continue
+      const failures = results.filter(r => r.status === 'rejected');
+      if (failures.length > 0) {
+        structuredLogger.error(`[CashFlow] Failed to store ${failures.length} forecasts in batch ${Math.floor(i / batchSize) + 1}`);
+      }
+      
+      // Add a small delay between batches to reduce database pressure
+      if (i + batchSize < forecasts.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
   }
 }

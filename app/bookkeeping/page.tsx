@@ -15,8 +15,6 @@ import { measurePageLoad } from '@/lib/performance-utils'
 import { UnifiedPageHeader } from '@/components/ui/unified-page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SkeletonMetricCard, SkeletonTransactionList } from '@/components/ui/skeleton'
-import { RequireXeroConnection } from '@/components/auth/require-xero-connection'
-import { pageConfigs } from '@/lib/page-configs'
 
 interface FinancialOverview {
   cashInBank: number
@@ -117,15 +115,15 @@ export default function BookkeepingDashboard() {
       setDataLoading(true)
       
       // Fetch multiple data sources in parallel with cache headers
-      // Use live API endpoints when connected to Xero
+      // Always use local database endpoints
       const [balanceSheetRes, plRes, vatRes, statsResponse, accountsResponse] = await Promise.all([
-        fetch(hasActiveToken ? '/api/v1/xero/reports/balance-sheet-live' : '/api/v1/xero/reports/balance-sheet', {
+        fetch('/api/v1/xero/reports/balance-sheet', {
           headers: { 'Cache-Control': 'max-age=300' }
         }),
-        fetch(hasActiveToken ? `/api/v1/xero/reports/profit-loss-live?timeRange=${timeRange}` : '/api/v1/xero/reports/profit-loss', {
+        fetch(`/api/v1/xero/reports/profit-loss?timeRange=${timeRange}`, {
           headers: { 'Cache-Control': 'max-age=300' }
         }),
-        fetch(hasActiveToken ? '/api/v1/xero/reports/vat-liability-live' : '/api/v1/xero/reports/vat-liability', {
+        fetch('/api/v1/xero/reports/vat-liability', {
           headers: { 'Cache-Control': 'max-age=600' }
         }),
         fetch('/api/v1/bookkeeping/stats', {
@@ -145,8 +143,8 @@ export default function BookkeepingDashboard() {
       // Transform and combine data
       setStats({
         financial: {
-          // Use cash from Xero balance sheet if available (when connected), otherwise calculate from local DB
-          cashInBank: balanceSheetData?.cashInBank || 
+          // Use cash from balance sheet or calculate from bank accounts
+          cashInBank: balanceSheetData?.cash || 
                      accountsData?.accounts?.reduce((sum: number, acc: any) => sum + (acc.balance || 0), 0) || 0,
           balanceSheet: {
             totalAssets: balanceSheetData?.totalAssets || 0,
@@ -221,9 +219,8 @@ export default function BookkeepingDashboard() {
   }
 
   return (
-    <RequireXeroConnection pageConfig={pageConfigs.bookkeeping}>
-      <div className="min-h-screen bg-slate-950">
-        <div className="container mx-auto px-4 py-6 sm:py-8">
+    <div className="min-h-screen bg-slate-950">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         {/* Header */}
         <UnifiedPageHeader 
           title="Bookkeeping Dashboard"
@@ -617,8 +614,7 @@ export default function BookkeepingDashboard() {
           </div>
         </>
       )}
-        </div>
       </div>
-    </RequireXeroConnection>
+    </div>
   )
 }

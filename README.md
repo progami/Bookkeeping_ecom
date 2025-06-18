@@ -71,7 +71,7 @@ components/
 ```
 
 #### Design Principles
-- **Dark Theme First** - Slate background (#0f172a) with high contrast
+- **Dark UI Design** - Slate background (#0f172a) with high contrast
 - **Glassmorphism** - Backdrop blur effects for depth
 - **Color System**:
   - Primary: Emerald (#10b981) - Success states

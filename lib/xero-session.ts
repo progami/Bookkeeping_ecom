@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
-import { logger } from './log-sanitizer';
+// Removed duplicate logger import - using only structuredLogger
+import { structuredLogger } from './logger';
 import { AUTH_COOKIE_OPTIONS, TOKEN_COOKIE_NAME } from './cookie-config';
 
 const COOKIE_NAME = TOKEN_COOKIE_NAME;
@@ -18,35 +19,37 @@ export interface XeroTokenSet {
 export class XeroSession {
   static async getToken(): Promise<XeroTokenSet | null> {
     try {
-      console.log('[XeroSession.getToken] Starting token retrieval...');
+      structuredLogger.debug('[XeroSession.getToken] Starting token retrieval...');
       
       const cookieStore = await cookies();
-      console.log('[XeroSession.getToken] Cookie store obtained');
+      structuredLogger.debug('[XeroSession.getToken] Cookie store obtained');
       
       // Log all cookies for debugging
       const allCookies = cookieStore.getAll();
-      console.log('[XeroSession.getToken] All cookies available:', allCookies.map(c => ({
-        name: c.name,
-        valueLength: c.value?.length || 0
-      })));
+      structuredLogger.debug('[XeroSession.getToken] All cookies available:', {
+        cookies: allCookies.map(c => ({
+          name: c.name,
+          valueLength: c.value?.length || 0
+        }))
+      });
       
       const tokenCookie = cookieStore.get(COOKIE_NAME);
-      console.log('[XeroSession.getToken] Looking for cookie:', COOKIE_NAME);
-      console.log('[XeroSession.getToken] Token cookie found:', !!tokenCookie);
+      structuredLogger.debug('[XeroSession.getToken] Looking for cookie:', { cookieName: COOKIE_NAME });
+      structuredLogger.debug('[XeroSession.getToken] Token cookie found:', { found: !!tokenCookie });
       
       if (!tokenCookie?.value) {
-        console.log('[XeroSession.getToken] No token cookie found or cookie has no value');
+        structuredLogger.debug('[XeroSession.getToken] No token cookie found or cookie has no value');
         return null;
       }
       
-      logger.log('[XeroSession.getToken] Token cookie details:', {
+      structuredLogger.debug('[XeroSession.getToken] Token cookie details:', {
         name: tokenCookie.name,
         valueLength: tokenCookie.value.length
       });
       
       try {
         const token = JSON.parse(tokenCookie.value) as XeroTokenSet;
-        logger.log('[XeroSession.getToken] Token parsed successfully:', {
+        structuredLogger.debug('[XeroSession.getToken] Token parsed successfully:', {
           hasAccessToken: !!token.access_token,
           hasRefreshToken: !!token.refresh_token,
           expiresAt: token.expires_at,
@@ -56,20 +59,21 @@ export class XeroSession {
         });
         return token;
       } catch (parseError) {
-        console.error('[XeroSession.getToken] Failed to parse token JSON:', parseError);
-        console.error('[XeroSession.getToken] Invalid token value:', tokenCookie.value);
+        structuredLogger.error('[XeroSession.getToken] Failed to parse token JSON', parseError as Error, {
+          tokenValue: tokenCookie.value
+        });
         return null;
       }
     } catch (error) {
-      console.error('[XeroSession.getToken] Unexpected error:', error);
+      structuredLogger.error('[XeroSession.getToken] Unexpected error', error as Error);
       return null;
     }
   }
   
   static async setToken(token: XeroTokenSet): Promise<void> {
     try {
-      console.log('[XeroSession.setToken] Starting token storage...');
-      logger.log('[XeroSession.setToken] Token to store:', {
+      structuredLogger.debug('[XeroSession.setToken] Starting token storage...');
+      structuredLogger.info('[XeroSession.setToken] Token to store:', {
         hasAccessToken: !!token.access_token,
         hasRefreshToken: !!token.refresh_token,
         expiresAt: token.expires_at,
@@ -79,32 +83,32 @@ export class XeroSession {
       });
       
       const cookieStore = await cookies();
-      console.log('[XeroSession.setToken] Cookie store obtained');
+      structuredLogger.debug('[XeroSession.setToken] Cookie store obtained');
       
       // Ensure expires_at is set
       if (!token.expires_at && token.expires_in) {
         token.expires_at = Math.floor(Date.now() / 1000) + token.expires_in;
-        console.log('[XeroSession.setToken] Calculated expires_at:', token.expires_at);
+        structuredLogger.debug('[XeroSession.setToken] Calculated expires_at:', { expiresAt: token.expires_at });
       }
       
       const tokenString = JSON.stringify(token);
-      console.log('[XeroSession.setToken] Token serialized, length:', tokenString.length);
-      console.log('[XeroSession.setToken] Cookie options:', COOKIE_OPTIONS);
+      structuredLogger.debug('[XeroSession.setToken] Token serialized', { length: tokenString.length });
+      structuredLogger.debug('[XeroSession.setToken] Cookie options:', COOKIE_OPTIONS);
       
       cookieStore.set(COOKIE_NAME, tokenString, COOKIE_OPTIONS);
-      console.log('[XeroSession.setToken] Token cookie set successfully');
+      structuredLogger.debug('[XeroSession.setToken] Token cookie set successfully');
       
       // Verify the cookie was set
       const verifyToken = cookieStore.get(COOKIE_NAME);
-      console.log('[XeroSession.setToken] Verification - cookie exists:', !!verifyToken);
+      structuredLogger.debug('[XeroSession.setToken] Verification - cookie exists:', { exists: !!verifyToken });
       if (verifyToken) {
-        console.log('[XeroSession.setToken] Verification - cookie details:', {
+        structuredLogger.debug('[XeroSession.setToken] Verification - cookie details:', {
           name: verifyToken.name,
           valueLength: verifyToken.value?.length || 0
         });
       }
     } catch (error) {
-      console.error('[XeroSession.setToken] Error setting token:', error);
+      structuredLogger.error('[XeroSession.setToken] Error setting token', error as Error);
       throw error;
     }
   }
@@ -114,9 +118,9 @@ export class XeroSession {
       const cookieStore = await cookies();
       // Use the newer delete method signature
       cookieStore.delete(COOKIE_NAME);
-      console.log('[XeroSession.clearToken] Token cookie deleted');
+      structuredLogger.info('[XeroSession.clearToken] Token cookie deleted');
     } catch (error) {
-      console.error('[XeroSession.clearToken] Error clearing token:', error);
+      structuredLogger.error('[XeroSession.clearToken] Error clearing token', error as Error);
       // Fallback: try setting empty cookie with expired date
       try {
         const cookieStore = await cookies();
@@ -125,9 +129,9 @@ export class XeroSession {
           path: '/',
           expires: new Date(0)
         });
-        console.log('[XeroSession.clearToken] Token cleared using fallback method');
+        structuredLogger.info('[XeroSession.clearToken] Token cleared using fallback method');
       } catch (fallbackError) {
-        console.error('[XeroSession.clearToken] Fallback also failed:', fallbackError);
+        structuredLogger.error('[XeroSession.clearToken] Fallback also failed', fallbackError as Error);
       }
     }
   }
@@ -140,32 +144,32 @@ export class XeroSession {
   
   // Helper method to set token in response headers (for auth callback)
   static setTokenInResponse(response: NextResponse, token: XeroTokenSet): NextResponse {
-    console.log('[XeroSession.setTokenInResponse] Starting token storage in response...');
-    logger.log('[XeroSession.setTokenInResponse] Token to store:', {
-      hasAccessToken: !!token.access_token,
-      hasRefreshToken: !!token.refresh_token,
+    structuredLogger.debug('[XeroSession.setTokenInResponse] Starting token storage in response...');
+    structuredLogger.info('[XeroSession.setTokenInResponse] Token to store:', {
+      hasAccessToken: '[REDACTED]',
+      hasRefreshToken: '[REDACTED]',
       expiresAt: token.expires_at,
       expiresIn: token.expires_in,
-      tokenType: token.token_type,
+      tokenType: '[REDACTED]',
       scope: token.scope
     });
     
     // Ensure expires_at is set
     if (!token.expires_at && token.expires_in) {
       token.expires_at = Math.floor(Date.now() / 1000) + token.expires_in;
-      console.log('[XeroSession.setTokenInResponse] Calculated expires_at:', token.expires_at);
+      structuredLogger.debug('[XeroSession.setTokenInResponse] Calculated expires_at:', { expiresAt: token.expires_at });
     }
     
     const tokenString = JSON.stringify(token);
-    console.log('[XeroSession.setTokenInResponse] Token serialized, length:', tokenString.length);
-    console.log('[XeroSession.setTokenInResponse] Cookie name:', COOKIE_NAME);
-    console.log('[XeroSession.setTokenInResponse] Cookie options:', COOKIE_OPTIONS);
+    structuredLogger.debug('[XeroSession.setTokenInResponse] Token serialized', { length: tokenString.length });
+    structuredLogger.debug('[XeroSession.setTokenInResponse] Cookie name:', { cookieName: COOKIE_NAME });
+    structuredLogger.debug('[XeroSession.setTokenInResponse] Cookie options:', COOKIE_OPTIONS);
     
     response.cookies.set(COOKIE_NAME, tokenString, COOKIE_OPTIONS);
-    console.log('[XeroSession.setTokenInResponse] Cookie set on response');
+    structuredLogger.debug('[XeroSession.setTokenInResponse] Cookie set on response');
     
     // Log response headers for debugging
-    console.log('[XeroSession.setTokenInResponse] Response headers after setting cookie:', {
+    structuredLogger.debug('[XeroSession.setTokenInResponse] Response headers after setting cookie:', {
       setCookie: response.headers.get('set-cookie'),
       hasCookies: response.headers.has('set-cookie')
     });

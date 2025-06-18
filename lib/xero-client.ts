@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { serialize, parse } from 'cookie';
 import { XeroSession, XeroTokenSet } from './xero-session';
 import { structuredLogger } from './logger';
-import { withLock, LOCK_RESOURCES } from './sync-lock';
+import { withLock, LOCK_RESOURCES } from './redis-lock';
 
 // Minimized scopes - only request what we need
 export const xeroConfig = {
@@ -25,19 +25,45 @@ export function createXeroClient(state?: string, codeVerifier?: string) {
   
   const xero = new XeroClient(config);
   
-  // If we have a code verifier, we need to store it for PKCE
-  // The Xero SDK uses openid-client internally which expects the code_verifier
+  // Store code verifier for PKCE
   if (codeVerifier) {
-    // Store for later use in apiCallback
-    (xero as any).__codeVerifier = codeVerifier;
+    // The Xero SDK expects the code verifier to be available during token exchange
+    // We need to patch the client to include it
+    (xero as any)._codeVerifier = codeVerifier;
     
-    // Try to set it on the config as well
-    (xero as any).config.code_verifier = codeVerifier;
+    // Patch apiCallback to include code_verifier
+    const originalApiCallback = xero.apiCallback.bind(xero);
+    xero.apiCallback = async function(callbackUrl: string) {
+      // Initialize if not already done
+      if (!this.openIdClient) {
+        await this.initialize();
+      }
+      
+      // Get the code from callback URL
+      const url = new URL(callbackUrl);
+      const params = Object.fromEntries(url.searchParams);
+      
+      // Add code_verifier to the token exchange
+      if (codeVerifier && this.openIdClient) {
+        const originalCallback = this.openIdClient.oauthCallback.bind(this.openIdClient);
+        this.openIdClient.oauthCallback = async function(redirectUri: string, parameters: any, checks?: any) {
+          // Ensure checks includes the code_verifier
+          const enhancedChecks = {
+            ...checks,
+            code_verifier: codeVerifier,
+            state: state
+          };
+          return originalCallback(redirectUri, parameters, enhancedChecks);
+        };
+      }
+      
+      // Call original method
+      return originalApiCallback(callbackUrl);
+    };
     
-    structuredLogger.debug('Set code verifier on Xero client', {
+    structuredLogger.debug('PKCE enabled for Xero client', {
       component: 'xero-client',
-      codeVerifierLength: codeVerifier.length,
-      hasCodeVerifier: !!(xero as any).__codeVerifier
+      codeVerifierLength: codeVerifier.length
     });
   }
   
@@ -209,7 +235,10 @@ export async function getAuthUrl(state?: string, codeChallenge?: string): Promis
   try {
     await xero.initialize();
   } catch (error) {
-    console.error('[getAuthUrl] Failed to initialize Xero client:', error);
+    structuredLogger.error('Failed to initialize Xero client', error, {
+      component: 'xero-client',
+      function: 'getAuthUrl'
+    });
     throw error;
   }
   

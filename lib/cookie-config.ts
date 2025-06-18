@@ -1,4 +1,5 @@
 import { RequestCookie } from 'next/dist/compiled/@edge-runtime/cookies';
+import { structuredLogger as logger } from './logger';
 
 // Determine if we're in a secure context
 const isProduction = process.env.NODE_ENV === 'production';
@@ -22,7 +23,7 @@ export const AUTH_COOKIE_OPTIONS = {
 export const SESSION_COOKIE_NAME = 'user_session';
 export const TOKEN_COOKIE_NAME = 'xero_token';
 
-console.log('[CookieConfig] Configuration:', {
+logger.info('[CookieConfig] Configuration', {
   isProduction,
   appUrl,
   isHttps,

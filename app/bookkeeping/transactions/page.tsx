@@ -225,7 +225,7 @@ export default function TransactionsPage() {
         </div>
       ) : filteredTransactions.length === 0 ? (
         <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-12 text-center">
-          <DollarSign className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+          <DollarSign className="h-16 w-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-white mb-2">No transactions found</h3>
           <p className="text-gray-400 mb-6">
             {transactions.length === 0 

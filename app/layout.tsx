@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
 import { AppLayout } from '@/components/layouts/app-layout'
+import { ClientLoggerInit } from '@/components/client-logger-init'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -19,6 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
+        {/* <ClientLoggerInit /> */}
         <Providers>
           <AppLayout>
             {children}

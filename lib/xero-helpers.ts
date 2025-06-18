@@ -1,6 +1,7 @@
 import { XeroClient } from 'xero-node';
 import { TokenSet } from 'xero-node';
 import { cookies } from 'next/headers';
+import { structuredLogger } from '@/lib/logger';
 
 export async function getXeroClient() {
   const cookieStore = cookies();
@@ -43,7 +44,7 @@ export async function getGLAccounts() {
     const tenantId = tokenSet.tenant_id as string;
     
     if (!tenantId || typeof tenantId !== 'string') {
-      console.error('No tenant ID found');
+      structuredLogger.error('No tenant ID found');
       return [];
     }
     
@@ -62,7 +63,7 @@ export async function getGLAccounts() {
       status: account.status
     })) || [];
   } catch (error) {
-    console.error('Error fetching GL accounts:', error);
+    structuredLogger.error('Error fetching GL accounts:', error);
     return [];
   }
 }

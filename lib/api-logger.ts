@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { Logger, structuredLogger } from '@/lib/logger-enhanced';
+import { Logger, structuredLogger } from '@/lib/logger';
 
 /**
  * Get logger instance for API route

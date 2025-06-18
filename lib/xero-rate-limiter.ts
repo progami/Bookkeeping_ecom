@@ -1,5 +1,8 @@
 import Bottleneck from 'bottleneck';
 import { redis } from '@/lib/redis';
+import { Logger } from '@/lib/logger';
+
+const logger = new Logger({ module: 'xero-rate-limiter' });
 
 // Xero API Rate Limits:
 // - 60 calls per minute
@@ -104,7 +107,7 @@ export class XeroRateLimiter {
         // Handle rate limit errors
         if (error.response?.status === 429) {
           const retryAfter = parseInt(error.response.headers['retry-after'] || '60');
-          console.log(`Rate limit hit. Retry after ${retryAfter} seconds`);
+          logger.info(`Rate limit hit. Retry after ${retryAfter} seconds`);
           
           // Bottleneck will handle the retry
           throw new Bottleneck.BottleneckError(`Rate limited. Retry after ${retryAfter}s`);
@@ -126,7 +129,7 @@ export class XeroRateLimiter {
     }
     
     if (problem) {
-      console.warn(`Xero rate limit problem: ${problem}`);
+      logger.warn(`Xero rate limit problem: ${problem}`);
       await redis.set(`xero:rate:problem:${this.tenantId}`, problem, 'EX', 300);
     }
   }

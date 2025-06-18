@@ -12,7 +12,7 @@ export default function LoginPage() {
   const router = useRouter()
   // Auto-fill for testing - remove in production
   const [email, setEmail] = useState('ajarrar@trademanenterprise.com')
-  const [password, setPassword] = useState('gW2r4*8&wFM.#fZ')
+  const [password, setPassword] = useState('password123')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -41,9 +41,12 @@ export default function LoginPage() {
       
       if (!setupStatus.hasXeroConnection) {
         router.push('/connect')
+      } else if (!setupStatus.hasCompletedSetup) {
+        // First time setup
+        router.push('/setup')
       } else {
-        // Always go to sync page after login to ensure data is fresh
-        router.push('/sync')
+        // Regular login - go to finance dashboard
+        router.push('/finance')
       }
     } catch (err: any) {
       setError(err.message)

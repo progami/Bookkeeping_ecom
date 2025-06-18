@@ -1,4 +1,7 @@
 import crypto from 'crypto';
+import { Logger } from '@/lib/logger';
+
+const logger = new Logger({ module: 'oauth-state' });
 
 // Store states in memory with size limit to prevent memory leaks
 const MAX_STATES = 1000; // Maximum number of states to store
@@ -68,7 +71,7 @@ export function generatePKCEPair() {
     .update(codeVerifier)
     .digest('base64url');
   
-  console.log('[PKCE] Generated pair:', {
+  logger.debug('[PKCE] Generated pair:', {
     verifierLength: codeVerifier.length,
     challengeLength: codeChallenge.length,
     verifierSample: codeVerifier.substring(0, 10) + '...',

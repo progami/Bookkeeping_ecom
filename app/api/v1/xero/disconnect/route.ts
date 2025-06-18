@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { clearTokenSet } from '@/lib/xero-client';
 import { XeroSession } from '@/lib/xero-session';
 import { withRateLimit } from '@/lib/rate-limiter';
+import { Logger } from '@/lib/logger';
+
+const logger = new Logger({ component: 'xero-disconnect' });
 
 export const POST = withRateLimit(async (request: NextRequest) => {
   try {
@@ -21,11 +24,11 @@ export const POST = withRateLimit(async (request: NextRequest) => {
       expires: new Date(0)
     });
     
-    console.log('[Disconnect] Token cookie deleted');
+    logger.info('Xero token cookie deleted successfully');
     
     return response;
   } catch (error) {
-    console.error('Error disconnecting Xero:', error);
+    logger.error('Error disconnecting Xero', error);
     return NextResponse.json(
       { error: 'Failed to disconnect' },
       { status: 500 }

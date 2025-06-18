@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClientWithTenant } from './xero-client';
+import { Logger } from '@/lib/logger';
+
+const logger = new Logger({ module: 'api-helpers' });
 
 export async function withXeroAuth<T = any>(
   handler: (
@@ -13,7 +16,7 @@ export async function withXeroAuth<T = any>(
       const xeroData = await getXeroClientWithTenant();
       
       if (!xeroData) {
-        console.log('No Xero client available in withXeroAuth');
+        logger.info('No Xero client available in withXeroAuth');
         return NextResponse.json(
           { error: 'Not connected to Xero' }, 
           { status: 401 }
@@ -22,7 +25,7 @@ export async function withXeroAuth<T = any>(
       
       return await handler(request, xeroData);
     } catch (error: any) {
-      console.error('Error in withXeroAuth:', error);
+      logger.error('Error in withXeroAuth:', error);
       return NextResponse.json(
         { error: 'Authentication error', message: error.message }, 
         { status: 500 }

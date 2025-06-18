@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import { prisma } from '@/lib/prisma'
-import { cookies } from 'next/headers'
+import { SESSION_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from '@/lib/cookie-config'
+import { withErrorHandling, ApiErrors, successResponse } from '@/lib/errors/api-error-wrapper'
+import { structuredLogger } from '@/lib/logger'
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -11,10 +12,15 @@ const registerSchema = z.object({
   name: z.string().optional()
 })
 
-export async function POST(request: NextRequest) {
-  try {
+export const POST = withErrorHandling(
+  async (request: NextRequest) => {
     const body = await request.json()
     const { email, password, name } = registerSchema.parse(body)
+
+    structuredLogger.info('Registration attempt', {
+      component: 'auth-register',
+      email
+    })
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
@@ -22,10 +28,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: 'Email already registered' },
-        { status: 400 }
-      )
+      throw ApiErrors.alreadyExists('Email')
     }
 
     // Hash password
@@ -41,26 +44,27 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { 
-        userId: user.id,
+    // Create session data
+    const sessionData = {
+      user: {
+        id: user.id,
         email: user.email,
         name: user.name
       },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
-    )
+      userId: user.id,
+      email: user.email,
+      tenantId: user.tenantId || '',
+      tenantName: user.tenantName || user.name || 'User'
+    }
 
-    // Set cookie
-    cookies().set('auth-token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 // 24 hours
+    structuredLogger.info('Registration successful', {
+      component: 'auth-register',
+      userId: user.id,
+      email: user.email
     })
 
-    return NextResponse.json({
+    // Create response with user data
+    const response = successResponse({
       user: {
         id: user.id,
         email: user.email,
@@ -68,19 +72,11 @@ export async function POST(request: NextRequest) {
         hasCompletedSetup: false
       }
     })
-  } catch (error: any) {
-    console.error('Registration error:', error)
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid input', details: error.errors },
-        { status: 400 }
-      )
-    }
-    
-    return NextResponse.json(
-      { error: 'Registration failed' },
-      { status: 500 }
-    )
-  }
-}
+
+    // Set session cookie with proper configuration
+    response.cookies.set(SESSION_COOKIE_NAME, JSON.stringify(sessionData), AUTH_COOKIE_OPTIONS)
+
+    return response
+  },
+  { endpoint: '/api/v1/auth/register' }
+)

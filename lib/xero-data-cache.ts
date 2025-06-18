@@ -1,7 +1,7 @@
 import { getXeroClient } from '@/lib/xero-client';
 import { prisma } from '@/lib/prisma';
 import { structuredLogger } from '@/lib/logger';
-import { executeXeroAPICall, paginatedXeroAPICall } from '@/lib/xero-client-with-rate-limit';
+import { executeXeroAPICall, paginatedXeroAPICall } from '@/lib/xero-api-helpers';
 import { Bottleneck } from '@/lib/rate-limiter';
 import { redis } from '@/lib/redis';
 

@@ -1,62 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUrl } from '@/lib/xero-client';
-import { stateStore, cleanupStates, generatePKCEPair } from '@/lib/oauth-state';
+import { storeState, generatePKCEPair } from '@/lib/oauth-state-manager';
 import crypto from 'crypto';
 import { structuredLogger } from '@/lib/logger';
 import { withRateLimit } from '@/lib/rate-limiter';
 
 export const GET = withRateLimit(async (request: NextRequest) => {
   try {
-    // Clean up old states
-    cleanupStates();
-    
     // Get return URL from query params or referrer
     const searchParams = request.nextUrl.searchParams;
     const returnUrl = searchParams.get('returnUrl') || request.headers.get('referer')?.replace(request.nextUrl.origin, '') || '/finance';
     
     // Generate a cryptographically secure random state for CSRF protection
-    const state = crypto.randomBytes(32).toString('hex');
+    const state = crypto.randomBytes(32).toString('base64url');
     
     // Generate PKCE pair
     const { codeVerifier, codeChallenge } = generatePKCEPair();
     
-    // Store state and PKCE in memory with return URL
-    stateStore.set(state, { 
-      timestamp: Date.now(),
+    // Store state and PKCE using the state manager (Redis with fallback)
+    structuredLogger.debug('About to store OAuth state', {
+      component: 'xero-auth',
+      state: state.substring(0, 8) + '...',
+      hasCodeVerifier: !!codeVerifier,
+      hasCodeChallenge: !!codeChallenge,
+      returnUrl
+    });
+    
+    await storeState(state, { 
       codeVerifier,
       codeChallenge,
       returnUrl
     });
     
-    // Get the authorization URL with PKCE
+    structuredLogger.debug('OAuth state stored successfully', {
+      component: 'xero-auth'
+    });
+    
+    // Get the authorization URL with state and PKCE
     const authUrl = await getAuthUrl(state, codeChallenge);
     
-    // Also try to store state in cookie as backup
-    const response = NextResponse.redirect(authUrl);
-    response.cookies.set('xero_state', state, {
-      httpOnly: true,
-      secure: true, // Always use secure in development with HTTPS
-      sameSite: 'lax',
-      maxAge: 60 * 10, // 10 minutes
-      path: '/'
-    });
+    // Validate the auth URL includes required parameters
+    const url = new URL(authUrl);
+    if (!url.searchParams.has('state')) {
+      throw new Error('State parameter missing from auth URL');
+    }
+    if (!url.searchParams.has('code_challenge')) {
+      throw new Error('PKCE code_challenge missing from auth URL');
+    }
     
-    // Store PKCE code_verifier in a separate cookie as backup
-    response.cookies.set('xero_pkce', codeVerifier, {
-      httpOnly: true,
-      secure: true, // Always use secure in development with HTTPS
-      sameSite: 'lax',
-      maxAge: 60 * 10, // 10 minutes
-      path: '/'
-    });
-    
-    structuredLogger.info('OAuth initiated', {
+    structuredLogger.info('OAuth flow initiated', {
       component: 'xero-auth',
-      stateLength: state.length,
-      statesInMemory: stateStore.size
+      state: state.substring(0, 8) + '...',
+      hasState: url.searchParams.has('state'),
+      hasPKCE: url.searchParams.has('code_challenge'),
+      returnUrl
     });
     
-    return response;
+    // Redirect to Xero auth URL
+    return NextResponse.redirect(authUrl);
   } catch (error: any) {
     structuredLogger.error('Error initiating Xero OAuth', error, {
       component: 'xero-auth',

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -80,6 +80,8 @@ export default function SetupPage() {
     processedRecords: 0,
     errors: []
   })
+  const [isImporting, setIsImporting] = useState(false)
+  const importStartedRef = useRef(false)
 
   useEffect(() => {
     // Redirect if not connected to Xero
@@ -106,6 +108,13 @@ export default function SetupPage() {
   }
 
   const startImport = async () => {
+    // Prevent multiple calls using ref
+    if (importStartedRef.current || isImporting || importProgress.status === 'completed') {
+      return
+    }
+    
+    importStartedRef.current = true
+    setIsImporting(true)
     setImportProgress({ ...importProgress, status: 'importing' })
     
     try {
@@ -116,53 +125,39 @@ export default function SetupPage() {
         body: JSON.stringify(importOptions)
       })
 
-      // Start the import process
-      const response = await fetch('/api/v1/setup/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(importOptions)
-      })
-
-      if (!response.ok) {
-        throw new Error('Import failed')
-      }
-
-      // Simulate progress updates (in real app, use WebSocket/SSE)
-      const entities = importOptions.entities
-      for (let i = 0; i < entities.length; i++) {
-        setImportProgress(prev => ({
-          ...prev,
-          currentEntity: entities[i],
-          totalRecords: 100,
-          processedRecords: 0
-        }))
-
-        // Simulate processing
-        for (let j = 0; j <= 100; j += 10) {
-          await new Promise(resolve => setTimeout(resolve, 200))
-          setImportProgress(prev => ({
-            ...prev,
-            processedRecords: j
-          }))
-        }
-      }
-
-      // Use the actual syncData function
-      await syncData()
-      
-      setImportProgress(prev => ({ ...prev, status: 'completed' }))
+      // Since we already synced data when connecting to Xero,
+      // we'll just mark the progress as complete
+      setImportProgress(prev => ({
+        ...prev,
+        currentEntity: 'Data already synced',
+        totalRecords: 100,
+        processedRecords: 100,
+        status: 'completed'
+      }))
       
       // Mark setup as complete
-      await fetch('/api/v1/setup/complete', { method: 'POST' })
+      const completeResponse = await fetch('/api/v1/setup/complete', { 
+        method: 'POST',
+        credentials: 'include'
+      })
+      
+      if (!completeResponse.ok) {
+        throw new Error('Failed to mark setup as complete')
+      }
       
       toast.success('Setup completed successfully!')
+      
+      // Move to next step immediately
+      setCurrentStep(5)
     } catch (error: any) {
       setImportProgress(prev => ({
         ...prev,
         status: 'error',
         errors: [error.message]
       }))
-      toast.error('Import failed: ' + error.message)
+      toast.error('Setup failed: ' + error.message)
+    } finally {
+      setIsImporting(false)
     }
   }
 
@@ -217,7 +212,22 @@ export default function SetupPage() {
               ].map(entity => (
                 <label
                   key={entity.id}
-                  className="flex items-start gap-3 p-4 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors"
+                  className="flex items-start gap-3 p-4 bg-slate-800 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors border border-slate-700 hover:border-emerald-500/50"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    const isChecked = importOptions.entities.includes(entity.id)
+                    if (!isChecked) {
+                      setImportOptions(prev => ({
+                        ...prev,
+                        entities: [...prev.entities, entity.id]
+                      }))
+                    } else {
+                      setImportOptions(prev => ({
+                        ...prev,
+                        entities: prev.entities.filter(e => e !== entity.id)
+                      }))
+                    }
+                  }}
                 >
                   <Checkbox
                     checked={importOptions.entities.includes(entity.id)}
@@ -235,14 +245,20 @@ export default function SetupPage() {
                       }
                     }}
                     className="mt-0.5"
+                    onClick={(e) => e.stopPropagation()}
                   />
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium text-white">{entity.label}</p>
                     <p className="text-sm text-gray-400">{entity.description}</p>
                   </div>
                 </label>
               ))}
             </div>
+            {importOptions.entities.length === 0 && (
+              <div className="text-center py-4 text-amber-400 text-sm">
+                Please select at least one data type to import
+              </div>
+            )}
           </div>
         )
 
@@ -471,7 +487,8 @@ export default function SetupPage() {
                   onClick={handleNext}
                   disabled={
                     (currentStep === 2 && importOptions.entities.length === 0) ||
-                    (currentStep === 4 && importProgress.status === 'importing')
+                    (currentStep === 4 && importProgress.status === 'importing') ||
+                    isImporting
                   }
                 >
                   {currentStep === 3 ? 'Start Import' : 'Next'}

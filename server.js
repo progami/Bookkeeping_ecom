@@ -7,6 +7,25 @@ const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
 const port = 3003;
 
+// Clear development log file on server start
+if (dev) {
+  const logsDir = path.join(__dirname, 'logs');
+  const devLogPath = path.join(logsDir, 'development.log');
+  
+  // Ensure logs directory exists
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+  
+  // Clear the development log file
+  try {
+    fs.writeFileSync(devLogPath, '');
+    console.log('Development log file cleared on server start');
+  } catch (error) {
+    // Ignore error if file doesn't exist or can't be written
+  }
+}
+
 // Configure Next.js app
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();

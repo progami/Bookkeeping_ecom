@@ -104,12 +104,12 @@ export function UnifiedPageHeader({
           <h1 className={cn(responsiveText.heading[1], "font-bold text-white mb-2")}>
             {title}
           </h1>
-          <div className="flex items-center gap-4 text-gray-400">
-            {description && <p>{description}</p>}
+          <div className="flex items-center gap-4 text-gray-300">
+            {description && <p className="text-gray-300">{description}</p>}
             {showAuthStatus && hasActiveToken && (
               <>
-                <span>•</span>
-                <span className="text-sm">{getRealTimeSubtitle()}</span>
+                <span className="text-gray-400">•</span>
+                <span className="text-sm text-gray-300">{getRealTimeSubtitle()}</span>
               </>
             )}
           </div>
@@ -120,7 +120,7 @@ export function UnifiedPageHeader({
             <select
               value={timeRange}
               onChange={(e) => onTimeRangeChange(e.target.value)}
-              className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-emerald-500"
+              className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-gray-200 focus:outline-none focus:border-emerald-500"
             >
               <option value="7d">Last 7 days</option>
               <option value="30d">Last 30 days</option>
@@ -153,7 +153,7 @@ export function UnifiedPageHeader({
                       "h-4 w-4",
                       isSyncing && "animate-spin"
                     )} />
-                    <span className="text-sm">
+                    <span className="text-sm text-gray-200">
                       {isSyncing ? 'Syncing...' : `Sync (${formatDate(lastSync)})`}
                     </span>
                   </button>
@@ -168,7 +168,10 @@ export function UnifiedPageHeader({
                 </div>
               ) : (
                 <button
-                  onClick={() => router.push('/login')}
+                  onClick={() => {
+                    const currentPath = window.location.pathname
+                    router.push(`/connect?returnUrl=${encodeURIComponent(currentPath)}`)
+                  }}
                   className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all"
                 >
                   <Cloud className="h-4 w-4" />
