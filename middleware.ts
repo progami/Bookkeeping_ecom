@@ -91,7 +91,11 @@ export function middleware(request: NextRequest) {
     // Try to validate the session
     try {
       const sessionData = JSON.parse(userSession.value);
-      if (!sessionData.user || !sessionData.user.id) {
+      // Support both formats: new format with user object AND old format with userId
+      const isValidSession = (sessionData.user && sessionData.user.id) || 
+                           (sessionData.userId && sessionData.email);
+      
+      if (!isValidSession) {
         // For API routes, return 401 instead of redirecting
         if (pathname.startsWith('/api/')) {
           return NextResponse.json(
