@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { structuredLogger } from '@/lib/logger'
 import { Decimal } from '@prisma/client/runtime/library'
+import type { PrismaClient } from '@prisma/client'
 
 interface ExchangeRate {
   fromCurrency: string
@@ -8,6 +9,8 @@ interface ExchangeRate {
   rate: number
   effectiveDate: Date
 }
+
+type PrismaTransaction = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">
 
 export class CurrencyService {
   private static readonly BASE_CURRENCY = 'GBP'
@@ -20,7 +23,8 @@ export class CurrencyService {
   static async getExchangeRate(
     fromCurrency: string, 
     toCurrency: string,
-    date?: Date
+    date?: Date,
+    tx?: PrismaTransaction
   ): Promise<number> {
     // Same currency = 1:1
     if (fromCurrency === toCurrency) return 1
@@ -29,7 +33,7 @@ export class CurrencyService {
     
     try {
       // Try to get from cache first
-      const cachedRate = await this.getCachedRate(fromCurrency, toCurrency, effectiveDate)
+      const cachedRate = await this.getCachedRate(fromCurrency, toCurrency, effectiveDate, tx)
       if (cachedRate) {
         return cachedRate.rate.toNumber()
       }
@@ -43,7 +47,7 @@ export class CurrencyService {
         toCurrency,
         rate: freshRate,
         effectiveDate
-      })
+      }, tx)
       
       return freshRate
     } catch (error) {
@@ -65,10 +69,11 @@ export class CurrencyService {
     amount: number | Decimal,
     fromCurrency: string,
     toCurrency: string,
-    date?: Date
+    date?: Date,
+    tx?: PrismaTransaction
   ): Promise<number> {
     const numAmount = typeof amount === 'number' ? amount : amount.toNumber()
-    const rate = await this.getExchangeRate(fromCurrency, toCurrency, date)
+    const rate = await this.getExchangeRate(fromCurrency, toCurrency, date, tx)
     return numAmount * rate
   }
   
@@ -78,12 +83,14 @@ export class CurrencyService {
   private static async getCachedRate(
     fromCurrency: string,
     toCurrency: string,
-    date: Date
+    date: Date,
+    tx?: PrismaTransaction
   ) {
+    const db = tx || prisma
     const cutoffTime = new Date()
     cutoffTime.setHours(cutoffTime.getHours() - this.CACHE_DURATION_HOURS)
     
-    return await prisma.currencyRate.findFirst({
+    return await db.currencyRate.findFirst({
       where: {
         fromCurrency,
         toCurrency,
@@ -100,9 +107,13 @@ export class CurrencyService {
   /**
    * Cache exchange rate in database
    */
-  private static async cacheRate(rate: ExchangeRate) {
+  private static async cacheRate(
+    rate: ExchangeRate,
+    tx?: PrismaTransaction
+  ) {
+    const db = tx || prisma
     try {
-      await prisma.currencyRate.create({
+      await db.currencyRate.create({
         data: {
           fromCurrency: rate.fromCurrency,
           toCurrency: rate.toCurrency,
@@ -169,7 +180,10 @@ export class CurrencyService {
    * Sync currency rates from Xero for all active currencies
    * This would be called during regular sync operations
    */
-  static async syncCurrencyRates(currencies: string[]): Promise<void> {
+  static async syncCurrencyRates(
+    currencies: string[],
+    tx?: PrismaTransaction
+  ): Promise<void> {
     structuredLogger.info('Syncing currency rates', {
       component: 'currency-service',
       currencies
@@ -182,7 +196,7 @@ export class CurrencyService {
       for (const toCurrency of uniqueCurrencies) {
         if (fromCurrency !== toCurrency) {
           try {
-            await this.getExchangeRate(fromCurrency, toCurrency, effectiveDate)
+            await this.getExchangeRate(fromCurrency, toCurrency, effectiveDate, tx)
           } catch (error) {
             structuredLogger.error('Failed to sync rate', error, {
               component: 'currency-service',

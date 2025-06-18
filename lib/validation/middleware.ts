@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { structuredLogger } from '@/lib/logger';
+import { sanitizeObject } from '@/lib/log-sanitizer';
 
 export interface ValidationConfig {
   querySchema?: z.ZodSchema;
@@ -43,6 +44,14 @@ export function withValidation(
         try {
           const body = await request.json();
           validatedData.body = config.bodySchema.parse(body);
+          
+          // Add sanitized request body logging
+          structuredLogger.debug('Sanitized request body received', {
+            component: 'validation-middleware',
+            endpoint: request.url,
+            method: request.method,
+            body: sanitizeObject(validatedData.body)
+          });
         } catch (error) {
           if (error instanceof z.ZodError) {
             errors.body = formatZodError(error);

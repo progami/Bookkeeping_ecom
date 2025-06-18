@@ -6,7 +6,7 @@ import { syncProgressStore } from '@/lib/sync-progress-manager';
 
 export const GET = withAuthValidation(
   { authLevel: ValidationLevel.USER },
-  async (request, { session }) => {
+  async (request, { session, logger }) => {
     try {
       // Get the latest sync log
       const latestSync = await prisma.syncLog.findFirst({
@@ -52,7 +52,7 @@ export const GET = withAuthValidation(
       });
 
     } catch (error: any) {
-      console.error('Error fetching sync progress:', error);
+      logger.error('Error fetching sync progress', error);
       return NextResponse.json(
         { error: 'Failed to fetch sync progress' },
         { status: 500 }

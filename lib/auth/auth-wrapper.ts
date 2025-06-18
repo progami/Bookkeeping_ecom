@@ -3,12 +3,15 @@ import { ZodSchema } from 'zod';
 import { withValidation } from '@/lib/validation/middleware';
 import { validateSession, ValidationLevel, ValidatedSession } from './session-validation';
 import { structuredLogger } from '@/lib/logger';
+import { Logger } from '@/lib/logger';
+import crypto from 'crypto';
 
 export interface AuthenticatedContext<TBody = any, TQuery = any> {
   body?: TBody;
   query?: TQuery;
   params?: any;
   session: ValidatedSession;
+  logger: Logger;
 }
 
 /**
@@ -55,10 +58,19 @@ export function withAuthValidation<TBody = any, TQuery = any>(
         );
       }
 
+      // Create request-scoped logger
+      const requestId = crypto.randomUUID();
+      const requestLogger = structuredLogger.child({
+        requestId,
+        userId: session.user?.userId,
+        email: session.user?.email,
+      });
+
       // Combine contexts
       const context: AuthenticatedContext<TBody, TQuery> = {
         ...validationContext,
-        session
+        session,
+        logger: requestLogger
       };
 
       // Call the handler with authenticated context

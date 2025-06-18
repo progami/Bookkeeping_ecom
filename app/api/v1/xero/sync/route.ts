@@ -749,7 +749,7 @@ async function performSync(tx: any, syncLog: any, options: {
       
       // Sync rates for all currencies
       if (currencies.size > 0) {
-        await CurrencyService.syncCurrencyRates(Array.from(currencies));
+        await CurrencyService.syncCurrencyRates(Array.from(currencies), tx);
       }
       
       structuredLogger.info('Currency rates synced', { 
