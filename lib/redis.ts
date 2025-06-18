@@ -48,3 +48,19 @@ process.on('SIGINT', async () => {
   await redis.quit();
   process.exit(0);
 });
+
+// Export status helper
+export async function getRedisStatus() {
+  try {
+    const status = redis.status;
+    return {
+      connected: status === 'ready',
+      status
+    };
+  } catch (error) {
+    return {
+      connected: false,
+      status: 'error'
+    };
+  }
+}

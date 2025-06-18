@@ -53,7 +53,7 @@ export function SyncStatus() {
               
               {syncStatus.error?.code === 'RATE_LIMITED' && (
                 <p className="text-sm">
-                  Xero's rate limit has been reached. Please try again later.
+                  Xero&apos;s rate limit has been reached. Please try again later.
                 </p>
               )}
               
@@ -91,15 +91,17 @@ export function SyncStatus() {
     );
   }
 
-  if (syncStatus.status === 'success' && syncStatus.lastSyncAt) {
-    // Show success briefly, then hide
-    React.useEffect(() => {
+  // Effect for success notification timeout
+  React.useEffect(() => {
+    if (syncStatus.status === 'success' && syncStatus.lastSyncAt) {
       const timer = setTimeout(() => {
         // Don't clear the sync status, just hide the notification
       }, 5000);
       return () => clearTimeout(timer);
-    }, []);
+    }
+  }, [syncStatus.status, syncStatus.lastSyncAt]);
 
+  if (syncStatus.status === 'success' && syncStatus.lastSyncAt) {
     return (
       <div className="fixed top-4 right-4 w-96 z-50 animate-in fade-in slide-in-from-top-2">
         <Alert className="border-green-500/30 bg-green-950/50">

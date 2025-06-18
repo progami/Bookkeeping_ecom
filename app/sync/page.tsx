@@ -129,7 +129,7 @@ export default function SyncPage() {
                 {syncStatus.error?.code === 'RATE_LIMITED' && (
                   <Alert>
                     <AlertDescription>
-                      Xero's API rate limit has been reached. This usually happens when too many requests are made in a short time. Please wait a few minutes before trying again.
+                      Xero&apos;s API rate limit has been reached. This usually happens when too many requests are made in a short time. Please wait a few minutes before trying again.
                     </AlertDescription>
                   </Alert>
                 )}
