@@ -225,8 +225,13 @@ export const GET = withRateLimit(async (request: NextRequest) => {
             tenantName: user.tenantName
           });
           
-          // Create user session
+          // Create user session with proper structure
           const userSession = {
+            user: {
+              id: user.id,
+              email: user.email,
+              name: user.fullName || user.email
+            },
             userId: user.id,
             email: user.email,
             tenantId: user.tenantId,
@@ -244,13 +249,12 @@ export const GET = withRateLimit(async (request: NextRequest) => {
           };
           
           // Store session in cookie
-          // Redirect to sync page with the original return URL
-          const syncUrl = new URL(`${baseUrl}/sync`);
-          if (returnUrl && returnUrl !== '/sync') {
-            syncUrl.searchParams.set('returnUrl', returnUrl);
-          }
+          // Redirect to the original return URL or login
+          const redirectUrl = returnUrl && returnUrl !== '/' 
+            ? new URL(`${baseUrl}${returnUrl}`)
+            : new URL(`${baseUrl}/login?returnUrl=${returnUrl || '/finance'}`);
           
-          const response = NextResponse.redirect(syncUrl.toString());
+          const response = NextResponse.redirect(redirectUrl.toString());
           response.cookies.set(SESSION_COOKIE_NAME, JSON.stringify(userSession), AUTH_COOKIE_OPTIONS);
           
           structuredLogger.debug('Setting user session cookie', {
@@ -273,16 +277,15 @@ export const GET = withRateLimit(async (request: NextRequest) => {
       }
       
       // Create response with redirect (fallback if user creation fails)
-      const syncUrl = new URL(`${baseUrl}/sync`);
-      if (returnUrl && returnUrl !== '/sync') {
-        syncUrl.searchParams.set('returnUrl', returnUrl);
-      }
+      const redirectUrl = returnUrl && returnUrl !== '/' 
+        ? new URL(`${baseUrl}${returnUrl}`)
+        : new URL(`${baseUrl}/login?returnUrl=${returnUrl || '/finance'}`);
       
       structuredLogger.debug('Creating redirect response', { 
         component: 'xero-auth-callback',
-        redirectTo: syncUrl.toString() 
+        redirectTo: redirectUrl.toString() 
       });
-      const response = NextResponse.redirect(syncUrl.toString());
+      const response = NextResponse.redirect(redirectUrl.toString());
       
       // Store token in secure cookie using the response
       const tokenData = {
