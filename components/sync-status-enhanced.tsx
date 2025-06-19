@@ -62,30 +62,38 @@ export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSync
     if (!syncId) return;
 
     try {
+      console.log('[EnhancedSyncStatus] Fetching progress for syncId:', syncId);
       const response = await fetch(`/api/v1/xero/sync/progress/${syncId}`);
       const data = await response.json();
 
       if (response.ok && data) {
+        console.log('[EnhancedSyncStatus] Progress data:', data);
         setProgress(data);
 
         // Check if sync is complete
         if (data.status === 'completed') {
+          console.log('[EnhancedSyncStatus] Sync completed!');
           setIsPolling(false);
           setShowSuccess(true);
           setActiveSyncId(null); // Clear global sync state
+          localStorage.removeItem('active_sync_id'); // Clear from localStorage
           if (onComplete) {
             onComplete(data.steps);
           }
         } else if (data.status === 'failed') {
+          console.log('[EnhancedSyncStatus] Sync failed:', data.error);
           setIsPolling(false);
           setActiveSyncId(null); // Clear global sync state
+          localStorage.removeItem('active_sync_id'); // Clear from localStorage
           if (onError) {
             onError(data.error || 'Sync failed');
           }
         }
+      } else {
+        console.warn('[EnhancedSyncStatus] Invalid response:', response.status, data);
       }
     } catch (error) {
-      console.error('Failed to fetch sync progress:', error);
+      console.error('[EnhancedSyncStatus] Failed to fetch sync progress:', error);
     }
   }, [syncId, onComplete, onError, setActiveSyncId]);
 

@@ -162,12 +162,34 @@ model BankTransaction {
   
   bankAccount          BankAccount @relation(fields: [bankAccountId], references: [id])
   contact              Contact?    @relation(fields: [contactId], references: [xeroContactId])
+  lineItems            LineItem[]
   
   @@index([xeroTransactionId])
   @@index([bankAccountId])
   @@index([contactId])
   @@index([date])
   @@index([isReconciled])
+}
+
+model LineItem {
+  id                String   @id @default(cuid())
+  transactionId     String
+  xeroLineItemId    String?
+  description       String?
+  quantity          Decimal  @default(1)
+  unitAmount        Decimal  @default(0)
+  accountCode       String
+  taxType           String?
+  taxAmount         Decimal  @default(0)
+  lineAmount        Decimal  @default(0)
+  tracking          String?  // JSON string for tracking categories
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  transaction       BankTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  
+  @@index([transactionId])
+  @@index([accountCode])
 }
 
 model SyncLog {

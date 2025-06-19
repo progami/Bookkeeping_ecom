@@ -35,7 +35,11 @@ export default function ManualSyncPage() {
 
   const handleSyncComplete = (summary: any) => {
     setSyncResult({ summary });
-    toast.success('Sync completed successfully!');
+    toast.success('Sync completed successfully! Redirecting...');
+    
+    // Clear localStorage
+    localStorage.removeItem('active_sync_id');
+    console.log('[ManualSyncPage] Cleared active sync ID on completion');
     
     // Redirect after a brief delay
     setTimeout(() => {
@@ -47,6 +51,10 @@ export default function ManualSyncPage() {
     setError(errorMessage);
     toast.error(errorMessage || 'Sync failed');
     setIsLoading(false);
+    
+    // Clear localStorage
+    localStorage.removeItem('active_sync_id');
+    console.log('[ManualSyncPage] Cleared active sync ID on error');
     
     // Check for checkpoint when sync fails
     if (lastSyncId) {
@@ -68,8 +76,17 @@ export default function ManualSyncPage() {
     }
   };
   
-  // Check localStorage for last sync ID on mount
+  // Check localStorage for active sync ID on mount
   useEffect(() => {
+    // Check for active sync first
+    const activeSyncId = localStorage.getItem('active_sync_id');
+    if (activeSyncId) {
+      console.log('[ManualSyncPage] Found active sync in localStorage:', activeSyncId);
+      setSyncId(activeSyncId);
+      return; // Don't check for checkpoint if there's an active sync
+    }
+    
+    // If no active sync, check for last sync checkpoint
     const storedSyncId = localStorage.getItem('lastHistoricalSyncId');
     if (storedSyncId) {
       setLastSyncId(storedSyncId);
@@ -126,6 +143,8 @@ export default function ManualSyncPage() {
         setSyncId(data.syncId);
         setLastSyncId(data.syncId); // Store for checkpoint checking
         localStorage.setItem('lastHistoricalSyncId', data.syncId); // Store in localStorage
+        localStorage.setItem('active_sync_id', data.syncId); // Store as active sync
+        console.log('[ManualSyncPage] Stored active sync ID:', data.syncId);
         toast('Sync has been queued for processing', {
           icon: '⏳',
           duration: 5000,
@@ -135,6 +154,8 @@ export default function ManualSyncPage() {
         setSyncId(data.syncId);
         setLastSyncId(data.syncId); // Store for checkpoint checking
         localStorage.setItem('lastHistoricalSyncId', data.syncId); // Store in localStorage
+        localStorage.setItem('active_sync_id', data.syncId); // Store as active sync
+        console.log('[ManualSyncPage] Stored active sync ID:', data.syncId);
       } else {
         // Direct sync completed immediately
         setSyncResult(data);
