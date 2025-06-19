@@ -88,10 +88,19 @@ export function GlobalSyncMonitor() {
     console.log('[GlobalSyncMonitor] Updating auth status...');
     await checkAuthStatus();
     
-    // Refresh the page to show updated data
-    setTimeout(() => {
-      window.location.reload();
-    }, 2000);
+    // Instead of reloading, trigger a router refresh to update server components
+    // This is more efficient and provides better UX
+    if (typeof window !== 'undefined' && 'next' in window) {
+      const router = (window as any).next?.router;
+      if (router) {
+        router.refresh();
+      }
+    }
+    
+    // Emit a custom event that components can listen to for data refresh
+    window.dispatchEvent(new CustomEvent('syncCompleted', { 
+      detail: { summary } 
+    }));
   };
 
   const handleError = (error: string) => {

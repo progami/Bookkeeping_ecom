@@ -231,13 +231,123 @@ export function initializeClientLogger() {
     
     // Also capture unhandled errors
     window.addEventListener('error', (event) => {
-      console.error('Unhandled error:', event.error || event.message);
+      console.error('Unhandled error:', event.error || event.message, {
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        stack: event.error?.stack
+      });
     });
     
     // Capture unhandled promise rejections
     window.addEventListener('unhandledrejection', (event) => {
-      console.error('Unhandled promise rejection:', event.reason);
+      console.error('Unhandled promise rejection:', event.reason, {
+        promise: event.promise
+      });
     });
+    
+    // Capture navigation events
+    window.addEventListener('popstate', (event) => {
+      console.log('[Navigation] Browser back/forward button pressed', {
+        state: event.state
+      });
+    });
+    
+    // Capture all click events (for debugging user interactions)
+    document.addEventListener('click', (event) => {
+      const target = event.target as HTMLElement;
+      const tagName = target.tagName;
+      const className = target.className;
+      const id = target.id;
+      const text = target.textContent?.trim().substring(0, 50); // First 50 chars
+      
+      // Only log button/link clicks to avoid noise
+      if (tagName === 'BUTTON' || tagName === 'A' || target.closest('button') || target.closest('a')) {
+        console.log('[User Click]', {
+          element: tagName,
+          id: id || undefined,
+          class: className || undefined,
+          text: text || undefined,
+          href: (target as HTMLAnchorElement).href || undefined
+        });
+      }
+    }, true);
+    
+    // Capture form submissions
+    document.addEventListener('submit', (event) => {
+      const form = event.target as HTMLFormElement;
+      console.log('[Form Submit]', {
+        formId: form.id || undefined,
+        formName: form.name || undefined,
+        action: form.action,
+        method: form.method
+      });
+    }, true);
+    
+    // Capture network errors from fetch
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const [url, options] = args;
+      const method = options?.method || 'GET';
+      
+      console.log('[Network Request]', {
+        url: url.toString(),
+        method: method
+      });
+      
+      try {
+        const response = await originalFetch(...args);
+        
+        if (!response.ok) {
+          console.error('[Network Error]', {
+            url: url.toString(),
+            method: method,
+            status: response.status,
+            statusText: response.statusText
+          });
+        }
+        
+        return response;
+      } catch (error) {
+        console.error('[Network Failed]', {
+          url: url.toString(),
+          method: method,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        throw error;
+      }
+    };
+    
+    // Log page visibility changes
+    document.addEventListener('visibilitychange', () => {
+      console.log('[Page Visibility]', {
+        hidden: document.hidden,
+        visibilityState: document.visibilityState
+      });
+    });
+    
+    // Log performance metrics
+    if ('PerformanceObserver' in window) {
+      try {
+        // Observe long tasks
+        const longTaskObserver = new PerformanceObserver((list) => {
+          for (const entry of list.getEntries()) {
+            if (entry.duration > 50) { // Tasks longer than 50ms
+              console.warn('[Performance] Long task detected', {
+                duration: Math.round(entry.duration),
+                startTime: Math.round(entry.startTime),
+                name: entry.name
+              });
+            }
+          }
+        });
+        longTaskObserver.observe({ entryTypes: ['longtask'] });
+      } catch (e) {
+        // Some browsers don't support longtask
+      }
+    }
+    
+    console.log('[ClientLogger] Enhanced logging initialized - capturing ALL events');
   }
 }
 

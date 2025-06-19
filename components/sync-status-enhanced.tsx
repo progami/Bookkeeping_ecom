@@ -363,11 +363,21 @@ export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSync
                       variant="outline"
                       onClick={() => {
                         setProgress(null);
-                        window.location.reload();
+                        // Trigger router refresh instead of full page reload
+                        if (typeof window !== 'undefined' && 'next' in window) {
+                          const router = (window as any).next?.router;
+                          if (router) {
+                            router.refresh();
+                          }
+                        }
+                        // Emit event for components to refresh their data
+                        window.dispatchEvent(new CustomEvent('syncFailed', { 
+                          detail: { error: progress.error } 
+                        }));
                       }}
                       className="w-full"
                     >
-                      Dismiss & Refresh Page
+                      Dismiss & Refresh Data
                     </Button>
                   </div>
                 ) : isCompleted ? (

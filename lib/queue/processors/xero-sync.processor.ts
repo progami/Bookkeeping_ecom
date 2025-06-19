@@ -5,6 +5,40 @@ import { XeroSyncJob, createRedisConnection } from '../queue-config';
 import { structuredLogger } from '@/lib/logger';
 import { memoryMonitor } from '@/lib/memory-monitor';
 import { Contact, Invoice, BankTransaction } from 'xero-node';
+import { redis } from '@/lib/redis';
+
+// Checkpoint interface
+interface SyncCheckpoint {
+  jobId: string;
+  syncType: string;
+  entity: string;
+  page: number;
+  created: number;
+  updated: number;
+  lastProcessedId?: string;
+  timestamp: Date;
+}
+
+// Checkpoint helpers
+async function saveCheckpoint(checkpoint: SyncCheckpoint) {
+  const key = `bookkeeping:sync:checkpoint:${checkpoint.jobId}`;
+  await redis.set(key, JSON.stringify(checkpoint), 'EX', 86400); // 24 hour TTL
+  structuredLogger.debug('Saved checkpoint', { checkpoint });
+}
+
+async function getCheckpoint(jobId: string): Promise<SyncCheckpoint | null> {
+  const key = `bookkeeping:sync:checkpoint:${jobId}`;
+  const data = await redis.get(key);
+  if (data) {
+    return JSON.parse(data);
+  }
+  return null;
+}
+
+async function clearCheckpoint(jobId: string) {
+  const key = `bookkeeping:sync:checkpoint:${jobId}`;
+  await redis.del(key);
+}
 
 export function createXeroSyncWorker() {
   const worker = new Worker<XeroSyncJob>(
@@ -76,6 +110,9 @@ export function createXeroSyncWorker() {
           });
 
           await job.updateProgress(100);
+          
+          // Clear checkpoint on successful completion
+          await clearCheckpoint(job.id!);
 
           structuredLogger.info('Xero sync job completed', {
             component: 'xero-sync-worker',
@@ -132,26 +169,52 @@ async function performFullSync(xero: any, tenantId: string, job: Job) {
     total: { created: 0, updated: 0 }
   };
 
+  // Check for existing checkpoint
+  const checkpoint = await getCheckpoint(job.id!);
+  let startFromEntity = checkpoint?.entity || 'contacts';
+
+  // If resuming from checkpoint, restore counts
+  if (checkpoint) {
+    structuredLogger.info('Resuming from checkpoint', { checkpoint });
+    if (checkpoint.entity === 'invoices' || checkpoint.entity === 'transactions') {
+      results.contacts = { created: checkpoint.created, updated: checkpoint.updated };
+      results.total.created += checkpoint.created;
+      results.total.updated += checkpoint.updated;
+    }
+    if (checkpoint.entity === 'transactions') {
+      // Need to fetch invoice counts from previous run
+      // For simplicity, we'll just continue from where we left off
+    }
+  }
+
   // Sync contacts (30% progress)
-  await job.updateProgress(20);
-  const contactsResult = await syncContacts(xero, tenantId, job);
-  results.contacts = contactsResult;
-  results.total.created += contactsResult.created;
-  results.total.updated += contactsResult.updated;
+  if (startFromEntity === 'contacts') {
+    await job.updateProgress(20);
+    const contactsResult = await syncContacts(xero, tenantId, job);
+    results.contacts = contactsResult;
+    results.total.created += contactsResult.created;
+    results.total.updated += contactsResult.updated;
+    startFromEntity = 'invoices';
+  }
 
   // Sync invoices (60% progress)
-  await job.updateProgress(50);
-  const invoicesResult = await syncInvoices(xero, tenantId, job);
-  results.invoices = invoicesResult;
-  results.total.created += invoicesResult.created;
-  results.total.updated += invoicesResult.updated;
+  if (startFromEntity === 'invoices' || startFromEntity === 'contacts') {
+    await job.updateProgress(50);
+    const invoicesResult = await syncInvoices(xero, tenantId, job);
+    results.invoices = invoicesResult;
+    results.total.created += invoicesResult.created;
+    results.total.updated += invoicesResult.updated;
+    startFromEntity = 'transactions';
+  }
 
   // Sync transactions (90% progress)
-  await job.updateProgress(80);
-  const transactionsResult = await syncTransactions(xero, tenantId, job);
-  results.transactions = transactionsResult;
-  results.total.created += transactionsResult.created;
-  results.total.updated += transactionsResult.updated;
+  if (startFromEntity === 'transactions' || startFromEntity === 'invoices' || startFromEntity === 'contacts') {
+    await job.updateProgress(80);
+    const transactionsResult = await syncTransactions(xero, tenantId, job);
+    results.transactions = transactionsResult;
+    results.total.created += transactionsResult.created;
+    results.total.updated += transactionsResult.updated;
+  }
 
   return results;
 }
@@ -211,6 +274,15 @@ async function syncContacts(xero: any, tenantId: string, job: Job, options?: any
   let page = 1;
   const pageSize = 100;
 
+  // Check for existing checkpoint for this job and entity
+  const checkpoint = await getCheckpoint(job.id!);
+  if (checkpoint && checkpoint.entity === 'contacts') {
+    page = checkpoint.page;
+    created = checkpoint.created;
+    updated = checkpoint.updated;
+    structuredLogger.info('Resuming contacts sync from checkpoint', { page, created, updated });
+  }
+
   while (true) {
     const response = await xero.accountingApi.getContacts(
       tenantId,
@@ -224,11 +296,17 @@ async function syncContacts(xero: any, tenantId: string, job: Job, options?: any
     const contacts = response.body.contacts || [];
     if (contacts.length === 0) break;
 
-    // Batch upsert contacts
+    // Batch fetch existing contacts to avoid N+1 queries
+    const contactIds = contacts.map(c => c.contactID!).filter(id => id);
+    const existingContacts = await prisma.contact.findMany({
+      where: { xeroContactId: { in: contactIds } },
+      select: { xeroContactId: true }
+    });
+    const existingIds = new Set(existingContacts.map(c => c.xeroContactId));
+
+    // Process contacts in batch
     for (const contact of contacts) {
-      const existing = await prisma.contact.findUnique({
-        where: { xeroContactId: contact.contactID! }
-      });
+      if (!contact.contactID) continue;
 
       const contactData = {
         xeroContactId: contact.contactID!,
@@ -251,7 +329,7 @@ async function syncContacts(xero: any, tenantId: string, job: Job, options?: any
         lastSyncedAt: new Date()
       };
 
-      if (existing) {
+      if (existingIds.has(contact.contactID)) {
         await prisma.contact.update({
           where: { xeroContactId: contact.contactID! },
           data: contactData
@@ -262,6 +340,17 @@ async function syncContacts(xero: any, tenantId: string, job: Job, options?: any
         created++;
       }
     }
+
+    // Save checkpoint after each page
+    await saveCheckpoint({
+      jobId: job.id!,
+      syncType: 'contacts',
+      entity: 'contacts',
+      page: page + 1,
+      created,
+      updated,
+      timestamp: new Date()
+    });
 
     if (contacts.length < pageSize) break;
     page++;

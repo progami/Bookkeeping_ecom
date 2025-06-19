@@ -110,7 +110,12 @@
   
   // Also capture unhandled errors immediately
   window.addEventListener('error', (event) => {
-    console.error('Unhandled error:', event.error || event.message);
+    console.error('Unhandled error:', event.error || event.message, {
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+      stack: event.error?.stack
+    });
   });
   
   // Capture unhandled promise rejections immediately
@@ -118,5 +123,27 @@
     console.error('Unhandled promise rejection:', event.reason);
   });
   
-  originalConsole.log('[Browser Logger] Initialized early - capturing ALL logs');
+  // Capture early navigation timing
+  window.addEventListener('load', () => {
+    if (window.performance && window.performance.timing) {
+      const timing = window.performance.timing;
+      const loadTime = timing.loadEventEnd - timing.navigationStart;
+      console.log('[Performance] Page load complete', {
+        loadTime: loadTime + 'ms',
+        domContentLoaded: timing.domContentLoadedEventEnd - timing.navigationStart + 'ms',
+        domInteractive: timing.domInteractive - timing.navigationStart + 'ms'
+      });
+    }
+  });
+  
+  // Log when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('[DOM] DOMContentLoaded event fired');
+    });
+  } else {
+    console.log('[DOM] Document already loaded');
+  }
+  
+  originalConsole.log('[Browser Logger] Initialized early - capturing ALL logs, errors, and events');
 })();

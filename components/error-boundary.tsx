@@ -1,107 +1,69 @@
 'use client';
 
-import React from 'react';
-import { AlertCircle, RefreshCw, Home } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useRouter } from 'next/navigation';
+import React, { Component, ReactNode } from 'react';
 
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-  errorCode?: string;
-  retryCount: number;
+interface Props {
+  children: ReactNode;
+  fallback?: ReactNode;
 }
 
-export class ErrorBoundary extends React.Component<
-  { children: React.ReactNode; fallback?: React.ReactNode },
-  ErrorBoundaryState
-> {
-  constructor(props: any) {
+interface State {
+  hasError: boolean;
+  error?: Error;
+}
+
+export class ErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
     super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-      retryCount: 0
-    };
+    this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
-    // Determine error type
-    let errorCode = 'UNKNOWN';
-    if (error.message.includes('fetch')) {
-      errorCode = 'NETWORK_ERROR';
-    } else if (error.message.includes('timeout')) {
-      errorCode = 'TIMEOUT';
-    }
-
-    return {
-      hasError: true,
-      error,
-      errorCode
-    };
+  static getDerivedStateFromError(error: Error): State {
+    // Update state so the next render will show the fallback UI
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
-  }
-
-  handleReset = () => {
-    this.setState({
-      hasError: false,
-      error: null,
-      retryCount: this.state.retryCount + 1
+    // Log the error to console which will be captured by our client logger
+    console.error('[React Error Boundary] Component error caught', {
+      error: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+      digest: (errorInfo as any).digest,
     });
-  };
+  }
 
   render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return <>{this.props.fallback}</>;
-      }
-
-      return (
-        <div className="min-h-[400px] flex items-center justify-center p-4">
-          <div className="max-w-md w-full space-y-4">
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Something went wrong</AlertTitle>
-              <AlertDescription>
-                {this.state.errorCode === 'NETWORK_ERROR' && 
-                  'Unable to connect to the server. Please check your connection.'}
-                {this.state.errorCode === 'TIMEOUT' && 
-                  'The operation took too long. Please try again.'}
-                {this.state.errorCode === 'UNKNOWN' && 
-                  'An unexpected error occurred. Please try refreshing the page.'}
-              </AlertDescription>
-            </Alert>
-
-            <div className="flex gap-2">
-              <Button 
-                onClick={this.handleReset}
-                variant="outline"
-                className="flex-1"
+      return this.props.fallback || (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="max-w-md w-full space-y-8 p-8">
+            <div className="text-center">
+              <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+                Something went wrong
+              </h2>
+              <p className="mt-2 text-sm text-gray-600">
+                An error occurred while rendering this component.
+              </p>
+              {process.env.NODE_ENV === 'development' && this.state.error && (
+                <details className="mt-4 text-left">
+                  <summary className="cursor-pointer text-sm text-gray-500">
+                    Error details
+                  </summary>
+                  <pre className="mt-2 text-xs text-red-600 overflow-auto p-2 bg-red-50 rounded">
+                    {this.state.error.message}
+                    {'\n'}
+                    {this.state.error.stack}
+                  </pre>
+                </details>
+              )}
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
               >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Try Again
-              </Button>
-              <Button 
-                onClick={() => window.location.href = '/'}
-                variant="outline"
-                className="flex-1"
-              >
-                <Home className="mr-2 h-4 w-4" />
-                Go Home
-              </Button>
+                Reload page
+              </button>
             </div>
-
-            {this.state.retryCount > 2 && (
-              <Alert>
-                <AlertDescription>
-                  If this problem persists, please contact support.
-                </AlertDescription>
-              </Alert>
-            )}
           </div>
         </div>
       );
@@ -109,20 +71,4 @@ export class ErrorBoundary extends React.Component<
 
     return this.props.children;
   }
-}
-
-// Hook for functional components
-export function useErrorHandler() {
-  const [error, setError] = React.useState<Error | null>(null);
-
-  React.useEffect(() => {
-    if (error) {
-      throw error;
-    }
-  }, [error]);
-
-  return {
-    throwError: (error: Error) => setError(error),
-    resetError: () => setError(null)
-  };
 }

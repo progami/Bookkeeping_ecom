@@ -40,42 +40,64 @@ export async function syncXeroData(
           // Sync GL accounts
           const accounts = await xeroClient.accountingApi.getAccounts(xeroTenantId)
           if (accounts.body?.accounts) {
+            // Batch fetch existing accounts to avoid N+1 queries
+            const accountCodes = accounts.body.accounts
+              .map(acc => acc.code)
+              .filter(code => code) as string[]
+            
+            const existingAccounts = await prisma.gLAccount.findMany({
+              where: { code: { in: accountCodes } },
+              select: { code: true }
+            })
+            
+            const existingCodesSet = new Set(existingAccounts.map(acc => acc.code))
+            
+            // Prepare batch operations
+            const accountsToCreate: any[] = []
+            const accountsToUpdate: any[] = []
+            
             for (const account of accounts.body.accounts) {
-              const existing = await prisma.gLAccount.findUnique({
-                where: { code: account.code || '' }
-              })
+              if (!account.code) continue
               
-              if (existing) {
-                await prisma.gLAccount.update({
-                  where: { code: account.code || '' },
-                  data: {
-                    name: account.name || '',
-                    code: account.code || '',
-                    type: account.type?.toString() || '',
-                    status: account.status?.toString() || '',
-                    description: account.description,
-                    systemAccount: !!account.systemAccount,
-                    enablePaymentsToAccount: account.enablePaymentsToAccount || false,
-                    showInExpenseClaims: account.showInExpenseClaims || false,
-                    updatedAt: new Date()
-                  }
-                })
-                recordsUpdated++
-              } else {
-                await prisma.gLAccount.create({
-                  data: {
-                    name: account.name || '',
-                    code: account.code || '',
-                    type: account.type?.toString() || '',
-                    status: account.status?.toString() || '',
-                    description: account.description,
-                    systemAccount: !!account.systemAccount,
-                    enablePaymentsToAccount: account.enablePaymentsToAccount || false,
-                    showInExpenseClaims: account.showInExpenseClaims || false
-                  }
-                })
-                recordsCreated++
+              const accountData = {
+                name: account.name || '',
+                code: account.code || '',
+                type: account.type?.toString() || '',
+                status: account.status?.toString() || '',
+                description: account.description,
+                systemAccount: !!account.systemAccount,
+                enablePaymentsToAccount: account.enablePaymentsToAccount || false,
+                showInExpenseClaims: account.showInExpenseClaims || false
               }
+              
+              if (existingCodesSet.has(account.code)) {
+                accountsToUpdate.push({
+                  where: { code: account.code },
+                  data: { ...accountData, updatedAt: new Date() }
+                })
+              } else {
+                accountsToCreate.push(accountData)
+              }
+            }
+            
+            // Execute batch operations
+            if (accountsToCreate.length > 0) {
+              await prisma.gLAccount.createMany({
+                data: accountsToCreate,
+                skipDuplicates: true
+              })
+              recordsCreated += accountsToCreate.length
+            }
+            
+            // Update operations need to be done individually in SQLite
+            // but we can use Promise.all for better performance
+            if (accountsToUpdate.length > 0) {
+              await Promise.all(
+                accountsToUpdate.map(update =>
+                  prisma.gLAccount.update(update)
+                )
+              )
+              recordsUpdated += accountsToUpdate.length
             }
           }
           break

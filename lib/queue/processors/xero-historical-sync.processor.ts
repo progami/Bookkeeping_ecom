@@ -548,6 +548,7 @@ async function processHistoricalSync(job: Job<HistoricalSyncJob>) {
                     date: transaction.date ? new Date(transaction.date) : new Date(),
                     reference: transaction.reference || null,
                     description: transaction.lineItems?.[0]?.description || null,
+                    accountCode: transaction.lineItems?.[0]?.accountCode || null, // ADD accountCode from line items
                     currencyCode: transaction.currencyCode?.toString() || null,
                     currencyRate: transaction.currencyRate ? parseFloat(transaction.currencyRate.toString()) : null,
                     url: transaction.url || null,
@@ -575,6 +576,7 @@ async function processHistoricalSync(job: Job<HistoricalSyncJob>) {
                     date: transaction.date ? new Date(transaction.date) : new Date(),
                     reference: transaction.reference || null,
                     description: transaction.lineItems?.[0]?.description || null,
+                    accountCode: transaction.lineItems?.[0]?.accountCode || null, // ADD accountCode from line items
                     currencyCode: transaction.currencyCode?.toString() || null,
                     currencyRate: transaction.currencyRate ? parseFloat(transaction.currencyRate.toString()) : null,
                     url: transaction.url || null,

@@ -4,6 +4,8 @@ import './globals.css'
 import { Providers } from '@/components/providers'
 import { AppLayout } from '@/components/layouts/app-layout'
 import { ClientLoggerInit } from '@/components/client-logger-init'
+import { ErrorBoundary } from '@/components/error-boundary'
+import { DevLogPanel } from '@/components/dev-log-panel'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -27,11 +29,14 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ClientLoggerInit />
-        <Providers>
-          <AppLayout>
-            {children}
-          </AppLayout>
-        </Providers>
+        <ErrorBoundary>
+          <Providers>
+            <AppLayout>
+              {children}
+            </AppLayout>
+          </Providers>
+        </ErrorBoundary>
+        {process.env.NODE_ENV === 'development' && <DevLogPanel />}
       </body>
     </html>
   )

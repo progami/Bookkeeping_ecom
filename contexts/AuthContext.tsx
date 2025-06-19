@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 // Remove logging for now
@@ -67,9 +67,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Check auth status on mount and after certain actions
   useEffect(() => {
     checkAuthStatus()
-  }, [])
+  }, [checkAuthStatus])
 
-  const checkAuthStatus = async () => {
+  const checkAuthStatus = useCallback(async () => {
     logger.info('Checking auth status...')
     
     // Set a timeout to prevent infinite loading
@@ -132,17 +132,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading: false
       }))
 
-      // Auto-sync on first launch if connected but no data
-      if (xeroStatus.connected && !dbStatus.hasData && !authState.isSyncing) {
-        logger.info('First time setup - initiating auto sync...')
-        await syncData()
-      }
+      // Don't auto-sync here to avoid circular dependency
     } catch (error) {
       logger.error('Failed to check auth status', error)
       clearTimeout(timeout)
       setAuthState(prev => ({ ...prev, isLoading: false }))
     }
-  }
+  }, [])
 
   const signIn = () => {
     // Redirect to login page which will handle Xero OAuth

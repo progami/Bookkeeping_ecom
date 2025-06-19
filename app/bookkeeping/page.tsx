@@ -99,7 +99,7 @@ export default function BookkeepingDashboard() {
     } else if (error) {
       toast.error(`Failed to connect to Xero: ${error}`)
     }
-  }, [searchParams])
+  }, [searchParams, checkAuthStatus])
 
   useEffect(() => {
     // Only fetch dashboard data if we have data in the database

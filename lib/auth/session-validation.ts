@@ -53,10 +53,10 @@ function validateSessionToken(token: string): SessionUser | null {
     }
     
     // Also check for legacy format with nested user object
-    if (sessionData.user && sessionData.user.id && sessionData.email) {
+    if (sessionData.user && sessionData.user.id) {
       return {
         userId: sessionData.user.id,
-        email: sessionData.email,
+        email: sessionData.user.email || sessionData.email, // Check both locations for email
         tenantId: sessionData.tenantId || '',
         tenantName: sessionData.tenantName || '',
         role: sessionData.role || 'user'

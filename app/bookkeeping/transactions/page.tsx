@@ -44,12 +44,11 @@ export default function TransactionsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalTransactions, setTotalTransactions] = useState(0)
-  const [pageSize, setPageSize] = useState(1000)
-  const [showAllTransactions, setShowAllTransactions] = useState(false)
+  const [pageSize, setPageSize] = useState(100)
 
   useEffect(() => {
     fetchTransactions()
-  }, [currentPage, pageSize, showAllTransactions])
+  }, [currentPage, pageSize])
 
   const fetchTransactions = async () => {
     try {
@@ -58,12 +57,9 @@ export default function TransactionsPage() {
         page: currentPage.toString()
       })
       
-      // Only add limit if not showing all transactions
-      if (!showAllTransactions) {
-        params.append('limit', pageSize.toString())
-      }
+      params.append('limit', pageSize.toString())
 
-      console.log('Fetching transactions with params:', params.toString(), 'pageSize:', pageSize, 'showAll:', showAllTransactions);
+      console.log('Fetching transactions with params:', params.toString(), 'pageSize:', pageSize);
       const response = await fetch(`/api/v1/bookkeeping/bank-transactions?${params.toString()}`)
       
       if (response.ok) {
@@ -236,25 +232,17 @@ export default function TransactionsPage() {
           <div className="flex items-center gap-4">
             <span className="text-gray-400 text-sm">Show:</span>
             <select
-              value={showAllTransactions ? 'all' : pageSize.toString()}
+              value={pageSize.toString()}
               onChange={(e) => {
-                const value = e.target.value
-                if (value === 'all') {
-                  setShowAllTransactions(true)
-                  setCurrentPage(1)
-                } else {
-                  setShowAllTransactions(false)
-                  setPageSize(parseInt(value))
-                  setCurrentPage(1)
-                }
+                setPageSize(parseInt(e.target.value))
+                setCurrentPage(1)
               }}
               className="px-3 py-1.5 bg-slate-800 text-white border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
             >
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="250">250</option>
               <option value="500">500</option>
-              <option value="1000">1,000</option>
-              <option value="1500">1,500</option>
-              <option value="2000">2,000</option>
-              <option value="all">All</option>
             </select>
             <span className="text-gray-400 text-sm">
               transactions per page
@@ -267,7 +255,7 @@ export default function TransactionsPage() {
           </div>
 
           {/* Right side - Page navigation */}
-          {!showAllTransactions && totalPages > 1 && (
+          {totalPages > 1 && (
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
