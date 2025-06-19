@@ -64,11 +64,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isSyncing: false
   })
 
-  // Check auth status on mount and after certain actions
-  useEffect(() => {
-    checkAuthStatus()
-  }, [checkAuthStatus])
-
   const checkAuthStatus = useCallback(async () => {
     logger.info('Checking auth status...')
     
@@ -139,6 +134,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthState(prev => ({ ...prev, isLoading: false }))
     }
   }, [])
+
+  // Check auth status on mount
+  useEffect(() => {
+    checkAuthStatus()
+  }, [checkAuthStatus])
 
   const signIn = () => {
     // Redirect to login page which will handle Xero OAuth
