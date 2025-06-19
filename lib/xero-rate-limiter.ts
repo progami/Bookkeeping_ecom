@@ -16,6 +16,19 @@ export class XeroRateLimiter {
   constructor(tenantId: string) {
     this.tenantId = tenantId;
     
+    logger.info(`[XeroRateLimiter] Initializing rate limiter for tenant ${tenantId} with Redis backing`);
+    
+    // Get Redis connection options from environment
+    const redisUrl = process.env.REDIS_URL;
+    const redisOptions = redisUrl ? 
+      redisUrl : 
+      {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+        password: process.env.REDIS_PASSWORD,
+        db: parseInt(process.env.REDIS_DB || '0'),
+      };
+    
     // Create a Bottleneck limiter with Xero's rate limits
     this.limiter = new Bottleneck({
       // Per minute limit - be conservative to avoid hitting limits
@@ -29,18 +42,27 @@ export class XeroRateLimiter {
       // Minimum time between requests (1200ms = 50 requests/minute max)
       minTime: 1200,
       
-      // Use local storage instead of Redis for now to avoid bottleneck issues
-      // datastore: 'redis',
-      // clearDatastore: false,
-      // clientOptions: {
-      //   host: process.env.REDIS_HOST || 'localhost',
-      //   port: parseInt(process.env.REDIS_PORT || '6379'),
-      // },
-      id: `xero-limiter-${tenantId}`, // Unique ID per tenant
+      // Use Redis for distributed rate limiting across instances
+      datastore: 'ioredis',
+      clearDatastore: false, // Don't clear on startup - preserve rate limits
+      clientOptions: redisOptions,
+      id: `bookkeeping:xero-limiter-${tenantId}`, // Unique ID per tenant with prefix
     });
 
     // Track daily usage
     this.setupDailyLimitTracking();
+    
+    // Add error handling for Bottleneck Redis errors
+    this.limiter.on('error', (error) => {
+      logger.error(`[XeroRateLimiter] Bottleneck Redis error for tenant ${tenantId}:`, error);
+    });
+    
+    // Log when connected
+    this.limiter.ready().then(() => {
+      logger.info(`[XeroRateLimiter] Successfully connected to Redis for tenant ${tenantId}`);
+    }).catch((error) => {
+      logger.error(`[XeroRateLimiter] Failed to connect to Redis for tenant ${tenantId}:`, error);
+    });
   }
 
   private async setupDailyLimitTracking() {
@@ -61,12 +83,13 @@ export class XeroRateLimiter {
   }
 
   private async resetDailyCounter() {
-    const key = `xero:daily:${this.tenantId}:${new Date().toISOString().split('T')[0]}`;
+    const key = `bookkeeping:xero:daily:${this.tenantId}:${new Date().toISOString().split('T')[0]}`;
     await redis.set(key, '0', 'EX', 86400); // Expire after 24 hours
+    logger.info(`[XeroRateLimiter] Reset daily counter for tenant ${this.tenantId}`);
   }
 
   private async checkDailyLimit(): Promise<boolean> {
-    const key = `xero:daily:${this.tenantId}:${new Date().toISOString().split('T')[0]}`;
+    const key = `bookkeeping:xero:daily:${this.tenantId}:${new Date().toISOString().split('T')[0]}`;
     const count = await redis.incr(key);
     
     if (count > 5000) {
@@ -128,20 +151,20 @@ export class XeroRateLimiter {
     const problem = headers['x-rate-limit-problem'];
     
     if (remaining !== undefined) {
-      await redis.set(`xero:rate:remaining:${this.tenantId}`, remaining, 'EX', 60);
+      await redis.set(`bookkeeping:xero:rate:remaining:${this.tenantId}`, remaining, 'EX', 60);
     }
     
     if (problem) {
-      logger.warn(`Xero rate limit problem: ${problem}`);
-      await redis.set(`xero:rate:problem:${this.tenantId}`, problem, 'EX', 300);
+      logger.warn(`[XeroRateLimiter] Rate limit problem for tenant ${this.tenantId}: ${problem}`);
+      await redis.set(`bookkeeping:xero:rate:problem:${this.tenantId}`, problem, 'EX', 300);
     }
   }
 
   async getRateLimitStatus() {
-    const key = `xero:daily:${this.tenantId}:${new Date().toISOString().split('T')[0]}`;
+    const key = `bookkeeping:xero:daily:${this.tenantId}:${new Date().toISOString().split('T')[0]}`;
     const dailyUsed = parseInt(await redis.get(key) || '0');
-    const remaining = await redis.get(`xero:rate:remaining:${this.tenantId}`);
-    const problem = await redis.get(`xero:rate:problem:${this.tenantId}`);
+    const remaining = await redis.get(`bookkeeping:xero:rate:remaining:${this.tenantId}`);
+    const problem = await redis.get(`bookkeeping:xero:rate:problem:${this.tenantId}`);
     
     return {
       dailyUsed,
