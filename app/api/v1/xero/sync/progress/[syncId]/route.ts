@@ -18,10 +18,12 @@ export async function GET(
       }, { status: 404 });
     }
     
-    // As a backup, also add no-cache headers to the response
+    // Explicitly add no-cache headers to every response from this endpoint.
     return NextResponse.json(progress, {
       headers: {
-        'Cache-Control': 'no-store, max-age=0',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       },
     });
   } catch (error: any) {
