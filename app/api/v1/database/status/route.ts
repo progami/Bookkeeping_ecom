@@ -24,6 +24,13 @@ export async function GET() {
 
     const hasData = bankAccountCount > 0 || transactionCount > 0 || glAccountCount > 0
     
+    console.log('[Database Status] Returning status:', {
+      hasData,
+      lastSync: lastSyncRecord?.completedAt || null,
+      syncLogId: lastSyncRecord?.id || null,
+      syncType: lastSyncRecord?.syncType || null
+    })
+    
     return NextResponse.json({
       hasData,
       counts: {

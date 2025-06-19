@@ -41,8 +41,12 @@ export default function ManualSyncPage() {
     localStorage.removeItem('active_sync_id');
     console.log('[ManualSyncPage] Cleared active sync ID on completion');
     
+    // Wait a bit to ensure database transaction is committed
+    console.log('[ManualSyncPage] Sync completed, waiting for DB commit...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     // Update auth context to refresh lastSync time
-    console.log('[ManualSyncPage] Sync completed, updating auth status...');
+    console.log('[ManualSyncPage] Updating auth status...');
     await checkAuthStatus();
     
     // Redirect after a brief delay

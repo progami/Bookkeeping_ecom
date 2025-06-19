@@ -117,7 +117,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logger.info('Status check complete', {
         hasSession: true,
         hasData: dbStatus.hasData,
-        xeroConnected: xeroStatus.connected
+        xeroConnected: xeroStatus.connected,
+        lastSync: dbStatus.lastSync
       })
 
       setAuthState(prev => ({

@@ -80,8 +80,12 @@ export function GlobalSyncMonitor() {
     localStorage.removeItem('active_sync_id');
     setLocalSyncId(null);
     
+    // Wait a bit to ensure database transaction is committed
+    console.log('[GlobalSyncMonitor] Sync completed, waiting for DB commit...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     // Update auth context to refresh lastSync time
-    console.log('[GlobalSyncMonitor] Sync completed, updating auth status...');
+    console.log('[GlobalSyncMonitor] Updating auth status...');
     await checkAuthStatus();
     
     // Refresh the page to show updated data
