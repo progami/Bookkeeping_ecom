@@ -5,20 +5,53 @@ import { structuredLogger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
-    structuredLogger.info('Fetching bank account balances', {
+    structuredLogger.info('Fetching bank account balances with dynamic calculation', {
       component: 'cash-balance-api'
     });
     
-    // Fetch all bank accounts from database
-    const bankAccounts = await prisma.bankAccount.findMany({
-      where: {
-        currencyCode: {
-          not: null
+    // Fetch all bank accounts and calculate balances from transactions
+    const [bankAccounts, transactionBalances] = await Promise.all([
+      prisma.bankAccount.findMany({
+        where: {
+          currencyCode: {
+            not: null
+          }
+        },
+        orderBy: {
+          name: 'asc'
         }
-      },
-      orderBy: {
-        name: 'asc'
+      }),
+      // Calculate balances dynamically from transactions
+      prisma.bankTransaction.groupBy({
+        by: ['bankAccountId', 'type'],
+        where: {
+          status: { not: 'DELETED' }
+        },
+        _sum: {
+          total: true
+        }
+      })
+    ]);
+    
+    // Create a map of calculated balances from transactions
+    const balanceMap = new Map<string, number>();
+    
+    // Process transaction balances
+    transactionBalances.forEach(item => {
+      const currentBalance = balanceMap.get(item.bankAccountId) || 0;
+      const amount = Number(item._sum.total || 0);
+      
+      // RECEIVE transactions are positive, SPEND transactions are negative
+      if (item.type === 'RECEIVE') {
+        balanceMap.set(item.bankAccountId, currentBalance + amount);
+      } else if (item.type === 'SPEND') {
+        balanceMap.set(item.bankAccountId, currentBalance - amount);
       }
+    });
+    
+    structuredLogger.info('Calculated dynamic balances', {
+      component: 'cash-balance-api',
+      balances: Object.fromEntries(balanceMap)
     });
     
     // Calculate total balance in GBP
@@ -29,11 +62,17 @@ export async function GET(request: NextRequest) {
     // Process each account and convert to base currency
     for (const account of bankAccounts) {
       const accountCurrency = account.currencyCode || baseCurrency;
+      const calculatedBalance = balanceMap.get(account.id) || 0;
+      
+      structuredLogger.info(`Account ${account.name}: stored balance = ${account.balance}, calculated balance = ${calculatedBalance}`, {
+        component: 'cash-balance-api',
+        accountId: account.id
+      });
       
       try {
-        // Get exchange rate using currency service
+        // Get exchange rate using currency service - use calculated balance instead of stored
         const balanceInGBP = await CurrencyService.convert(
-          account.balance,
+          calculatedBalance,
           accountCurrency,
           baseCurrency,
           account.balanceLastUpdated || undefined
@@ -45,7 +84,7 @@ export async function GET(request: NextRequest) {
           id: account.id,
           name: account.name,
           code: account.code || '',
-          balance: account.balance,
+          balance: calculatedBalance, // Use calculated balance
           balanceInGBP: balanceInGBP,
           currency: accountCurrency,
           type: 'BANK',
@@ -63,7 +102,7 @@ export async function GET(request: NextRequest) {
           id: account.id,
           name: account.name,
           code: account.code || '',
-          balance: account.balance,
+          balance: calculatedBalance, // Use calculated balance
           balanceInGBP: 0, // Unable to convert
           currency: accountCurrency,
           type: 'BANK',

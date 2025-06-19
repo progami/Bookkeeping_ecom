@@ -300,6 +300,13 @@ const originalConsole = {
 // Log initialization in development - only log once per process
 // Use process.env to persist the flag across module reloads in Next.js
 if (process.env.NODE_ENV !== 'production' && typeof window === 'undefined') {
+  // Debug: Log module load attempt
+  const now = new Date().toISOString();
+  if (process.env.__LOGGER_INITIALIZED) {
+    // Module is being reloaded but logger already initialized
+    console.log(`[${now}] Logger module reloaded (Fast Refresh) - skipping initialization`);
+  }
+  
   // Check if we've already initialized using an environment variable
   // This persists across Next.js Fast Refresh cycles
   if (!process.env.__LOGGER_INITIALIZED) {
