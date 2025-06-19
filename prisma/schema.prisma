@@ -222,6 +222,7 @@ model GLAccount {
   class                 String?  // 'ASSET', 'EQUITY', 'EXPENSE', 'LIABILITY', 'REVENUE'
   reportingCode         String?
   reportingCodeName     String?
+  balance               Decimal  @default(0)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   

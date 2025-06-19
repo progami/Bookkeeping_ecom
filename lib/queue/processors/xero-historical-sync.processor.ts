@@ -953,6 +953,101 @@ async function processHistoricalSync(job: Job<HistoricalSyncJob>) {
         });
       }
 
+    // Final step: Sync Trial Balance to get authoritative account balances
+    structuredLogger.info('[Historical Sync Worker] Syncing Trial Balance for authoritative balances', { syncId });
+    
+    try {
+      await updateSyncProgress(syncId, {
+        currentStep: 'Syncing Trial Balance',
+        percentage: 98,
+        steps: {
+          trialBalance: { status: 'in_progress', count: 0 }
+        }
+      });
+      
+      // Fetch Trial Balance report
+      const trialBalanceResponse = await executeXeroAPICall(
+        xero,
+        tenantId,
+        () => xero.accountingApi.getReportTrialBalance(tenantId)
+      );
+      
+      if (trialBalanceResponse?.body?.reports && trialBalanceResponse.body.reports.length > 0) {
+        const report = trialBalanceResponse.body.reports[0];
+        let balanceUpdates = 0;
+        
+        // Process Trial Balance rows
+        if (report.rows && report.rows.length > 0) {
+          for (const section of report.rows) {
+            if (section.rows) {
+              for (const row of section.rows) {
+                // Each row contains cells with account code and balance
+                if (row.cells && row.cells.length >= 2) {
+                  // First cell contains account info, last cells contain debit/credit/YTD
+                  const accountCode = row.cells[0]?.value;
+                  // YTD balance is typically in the last cell
+                  const ytdBalance = row.cells[row.cells.length - 1]?.value;
+                  
+                  if (accountCode && ytdBalance !== undefined) {
+                    const balance = parseFloat(ytdBalance.toString()) || 0;
+                    
+                    // Update GL Account balance
+                    const glAccount = await prisma.gLAccount.findUnique({
+                      where: { code: accountCode.toString() }
+                    });
+                    
+                    if (glAccount) {
+                      await prisma.gLAccount.update({
+                        where: { code: accountCode.toString() },
+                        data: { balance }
+                      });
+                      balanceUpdates++;
+                      
+                      // If it's a bank account, also update the BankAccount table
+                      if (glAccount.type === 'BANK' || glAccount.class === 'ASSET') {
+                        const bankAccount = await prisma.bankAccount.findFirst({
+                          where: { code: accountCode.toString() }
+                        });
+                        
+                        if (bankAccount) {
+                          await prisma.bankAccount.update({
+                            where: { id: bankAccount.id },
+                            data: { 
+                              balance,
+                              balanceLastUpdated: new Date()
+                            }
+                          });
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        structuredLogger.info('[Historical Sync Worker] Trial Balance synced successfully', { 
+          syncId, 
+          balanceUpdates 
+        });
+        
+        await updateSyncProgress(syncId, {
+          currentStep: 'Trial Balance synced',
+          percentage: 100,
+          steps: {
+            trialBalance: { status: 'completed', count: balanceUpdates }
+          }
+        });
+      }
+    } catch (error) {
+      structuredLogger.error('[Historical Sync Worker] Failed to sync Trial Balance', error, {
+        syncId,
+        errorMessage: error.message
+      });
+      // Don't fail the entire sync for Trial Balance errors - log and continue
+    }
+
     // Mark sync as completed
     await completeSyncProgress(syncId, {
       contacts: totalContacts,

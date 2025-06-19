@@ -65,10 +65,6 @@ interface DashboardStats {
 }
 
 export default function BookkeepingDashboard() {
-  // Measure page performance
-  if (typeof window !== 'undefined') {
-    measurePageLoad('Bookkeeping Dashboard');
-  }
   const router = useRouter()
   const searchParams = useSearchParams()
   const { 
@@ -86,6 +82,11 @@ export default function BookkeepingDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [dataLoading, setDataLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('30d')
+
+  // Measure page performance after component mounts
+  useEffect(() => {
+    measurePageLoad('Bookkeeping Dashboard');
+  }, []);
 
   useEffect(() => {
     // Check for OAuth callback params
