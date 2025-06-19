@@ -959,6 +959,24 @@ async function processHistoricalSync(job: Job<HistoricalSyncJob>) {
       invoices: totalInvoices,
       bills: totalBills
     });
+    
+    // Update sync log in database
+    await prisma.syncLog.update({
+      where: { id: syncId },
+      data: {
+        status: 'success',
+        completedAt: new Date(),
+        recordsCreated: totalTransactions + totalInvoices + totalBills + totalContacts,
+        recordsUpdated: 0,
+        details: JSON.stringify({
+          contacts: totalContacts,
+          accounts: totalAccounts,
+          transactions: totalTransactions,
+          invoices: totalInvoices,
+          bills: totalBills
+        })
+      }
+    });
 
     // Clear checkpoint on success
     const redis = createRedisConnection();
@@ -999,6 +1017,28 @@ async function processHistoricalSync(job: Job<HistoricalSyncJob>) {
 
     // Update sync status to failed
     await failSyncProgress(syncId, error.message || 'Historical sync failed');
+    
+    // Update sync log in database
+    try {
+      await prisma.syncLog.update({
+        where: { id: syncId },
+        data: {
+          status: 'failed',
+          completedAt: new Date(),
+          errorMessage: error.message || 'Historical sync failed',
+          details: JSON.stringify({
+            contacts: totalContacts,
+            accounts: totalAccounts,
+            transactions: totalTransactions,
+            invoices: totalInvoices,
+            bills: totalBills,
+            error: error.message
+          })
+        }
+      });
+    } catch (updateError) {
+      structuredLogger.error('[Historical Sync Worker] Failed to update sync log', updateError, { syncId });
+    }
 
     // Re-throw to let BullMQ handle retries
     throw error;

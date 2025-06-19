@@ -228,4 +228,17 @@
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }
+  
+  @keyframes gradient {
+    0%, 100% {
+      transform: rotate(0deg) scale(1);
+    }
+    50% {
+      transform: rotate(180deg) scale(1.5);
+    }
+  }
+  
+  .animate-gradient {
+    animation: gradient 10s ease-in-out infinite;
+  }
 }

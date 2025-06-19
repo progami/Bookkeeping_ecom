@@ -3,8 +3,8 @@ import { structuredLogger } from '@/lib/logger';
 let workersInitialized = false;
 
 export async function initializeQueueWorkers() {
-  // Only initialize in development and server-side
-  if (typeof window !== 'undefined' || process.env.NODE_ENV !== 'development') {
+  // Only initialize on server-side
+  if (typeof window !== 'undefined') {
     return;
   }
 
@@ -23,6 +23,6 @@ export async function initializeQueueWorkers() {
 }
 
 // Initialize workers when this module is imported
-if (typeof window === 'undefined' && process.env.NODE_ENV === 'development') {
+if (typeof window === 'undefined') {
   initializeQueueWorkers();
 }

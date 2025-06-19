@@ -97,7 +97,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         // Store the syncId for tracking
         localStorage.setItem('active_sync_id', response.data.syncId);
         
-        // The sync status will be tracked by the EnhancedSyncStatus component
+        // The sync status will be tracked by the ModernSyncStatus component
         const newStatus: SyncStatus = {
           status: 'syncing',
           lastSyncAt: new Date()
@@ -105,6 +105,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         
         setSyncStatus(newStatus);
         localStorage.setItem('xero_sync_status', JSON.stringify(newStatus));
+        
+        // Return the syncId so components can track progress
         return response.data.syncId;
       }
 

@@ -13,6 +13,7 @@ import {
   XCircle 
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { ModernSyncStatus } from './modern-sync-status';
 
 export function SyncStatus() {
   const { syncStatus, syncWithXero, clearSyncError } = useSync();
@@ -45,6 +46,15 @@ export function SyncStatus() {
   }
 
   if (syncStatus.status === 'syncing') {
+    // Get the active sync ID from localStorage
+    const activeSyncId = typeof window !== 'undefined' ? localStorage.getItem('active_sync_id') : null;
+    
+    // Use the modern sync status component if we have a sync ID
+    if (activeSyncId) {
+      return <ModernSyncStatus syncId={activeSyncId} />;
+    }
+    
+    // Fallback to basic loading state
     return (
       <div className="fixed top-4 right-4 w-96 z-50">
         <Alert className="border-blue-500/30 bg-blue-950/50">

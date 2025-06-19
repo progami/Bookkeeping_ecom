@@ -22,20 +22,37 @@ export const GET = withAuthValidation(
 
       // Get real-time progress if sync is in progress
       if (latestSync.status === 'in_progress') {
-        const progress = await getSyncProgress(latestSync.id) || {
-          status: 'in_progress',
+        logger.info('Fetching progress for in-progress sync', {
           syncId: latestSync.id,
-          startedAt: latestSync.startedAt,
-          steps: {
-            accounts: { status: 'pending', count: 0 },
-            transactions: { status: 'pending', count: 0 },
-            invoices: { status: 'pending', count: 0 },
-            bills: { status: 'pending', count: 0 },
-            contacts: { status: 'pending', count: 0 }
-          },
-          currentStep: 'Initializing...',
-          percentage: 0
-        };
+          startedAt: latestSync.startedAt
+        });
+        
+        const progress = await getSyncProgress(latestSync.id);
+        
+        logger.info('Progress fetched from Redis', {
+          syncId: latestSync.id,
+          hasProgress: !!progress,
+          progressStatus: progress?.status,
+          percentage: progress?.percentage
+        });
+        
+        // If no progress found, return basic status
+        if (!progress) {
+          return NextResponse.json({
+            status: 'in_progress',
+            syncId: latestSync.id,
+            startedAt: latestSync.startedAt,
+            steps: {
+              accounts: { status: 'pending', count: 0 },
+              transactions: { status: 'pending', count: 0 },
+              invoices: { status: 'pending', count: 0 },
+              bills: { status: 'pending', count: 0 },
+              contacts: { status: 'pending', count: 0 }
+            },
+            currentStep: 'Initializing...',
+            percentage: 0
+          });
+        }
 
         return NextResponse.json(progress);
       }

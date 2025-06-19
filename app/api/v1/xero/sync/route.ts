@@ -90,7 +90,7 @@ export const POST = withRateLimit(
       syncLog = await prisma.syncLog.create({
         data: {
           syncType,
-          status: 'pending',
+          status: 'in_progress', // Set to in_progress immediately so progress endpoint can find it
           startedAt: new Date()
         }
       });
