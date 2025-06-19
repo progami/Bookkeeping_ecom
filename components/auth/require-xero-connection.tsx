@@ -60,7 +60,10 @@ export function RequireXeroConnection({ children }: RequireXeroConnectionProps) 
               This page requires an active Xero connection. Please connect your Xero account to continue.
             </p>
             <Button 
-              onClick={() => router.push('/connect')}
+              onClick={() => {
+                const currentPath = window.location.pathname
+                window.location.href = `/api/v1/xero/auth?returnUrl=${encodeURIComponent(currentPath)}`
+              }}
               className="w-full"
             >
               Connect to Xero

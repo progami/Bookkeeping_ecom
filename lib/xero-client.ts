@@ -6,12 +6,12 @@ import { XeroSession, XeroTokenSet } from './xero-session';
 import { structuredLogger } from './logger';
 import { withLock, LOCK_RESOURCES } from './redis-lock';
 
-// Minimized scopes - only request what we need
+// Updated scopes - write permissions for full functionality
 export const xeroConfig = {
   clientId: process.env.XERO_CLIENT_ID || '',
   clientSecret: process.env.XERO_CLIENT_SECRET || '',
   redirectUris: [process.env.XERO_REDIRECT_URI || 'https://localhost:3003/api/v1/xero/auth/callback'],
-  scopes: 'accounting.transactions.read accounting.reports.read accounting.settings.read accounting.contacts.read offline_access'
+  scopes: 'offline_access openid profile email accounting.transactions accounting.settings accounting.contacts accounting.reports.read'
 };
 
 export function createXeroClient(state?: string, codeVerifier?: string) {

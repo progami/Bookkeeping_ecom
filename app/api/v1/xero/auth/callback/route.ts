@@ -27,6 +27,21 @@ export const GET = withRateLimit(async (request: NextRequest) => {
   
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3003';
   
+  // Check if user is already authenticated
+  const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
+  const isAuthenticated = !!sessionCookie?.value;
+  
+  // Determine error redirect based on auth status
+  const errorRedirect = (errorParam: string) => {
+    if (isAuthenticated) {
+      // If authenticated, redirect to finance page with error
+      return NextResponse.redirect(`${baseUrl}/finance?xero_error=${encodeURIComponent(errorParam)}`);
+    } else {
+      // If not authenticated, redirect to login
+      return NextResponse.redirect(`${baseUrl}/login?error=${encodeURIComponent(errorParam)}`);
+    }
+  };
+  
   // Handle errors
   if (error) {
     structuredLogger.error('Xero OAuth error', undefined, {
@@ -34,11 +49,11 @@ export const GET = withRateLimit(async (request: NextRequest) => {
       error,
       errorDescription
     });
-    return NextResponse.redirect(`${baseUrl}/login?error=${encodeURIComponent(errorDescription || error)}`);
+    return errorRedirect(errorDescription || error);
   }
   
   if (!code) {
-    return NextResponse.redirect(`${baseUrl}/login?error=no_code`);
+    return errorRedirect('no_code');
   }
   
   // Verify state (CSRF protection)
@@ -46,7 +61,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
     structuredLogger.error('No state parameter in callback', undefined, {
       component: 'xero-auth-callback'
     });
-    return NextResponse.redirect(`${baseUrl}/login?error=missing_state`);
+    return errorRedirect('missing_state');
   }
   
   // Retrieve state data from state manager
@@ -57,7 +72,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
       component: 'xero-auth-callback',
       state: state.substring(0, 8) + '...'
     });
-    return NextResponse.redirect(`${baseUrl}/login?error=invalid_state`);
+    return errorRedirect('invalid_state');
   }
   
   // Extract code verifier for PKCE
@@ -68,7 +83,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
     structuredLogger.error('No code verifier in state data', undefined, {
       component: 'xero-auth-callback'
     });
-    return NextResponse.redirect(`${baseUrl}/login?error=invalid_pkce`);
+    return errorRedirect('invalid_pkce');
   }
   
   structuredLogger.debug('State validated successfully', {
@@ -249,10 +264,10 @@ export const GET = withRateLimit(async (request: NextRequest) => {
           };
           
           // Store session in cookie
-          // Redirect to the original return URL or login
+          // Redirect to the original return URL or finance page
           const redirectUrl = returnUrl && returnUrl !== '/' 
             ? new URL(`${baseUrl}${returnUrl}`)
-            : new URL(`${baseUrl}/login?returnUrl=${returnUrl || '/finance'}`);
+            : new URL(`${baseUrl}/finance`);
           
           const response = NextResponse.redirect(redirectUrl.toString());
           response.cookies.set(SESSION_COOKIE_NAME, JSON.stringify(userSession), AUTH_COOKIE_OPTIONS);
@@ -279,7 +294,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
       // Create response with redirect (fallback if user creation fails)
       const redirectUrl = returnUrl && returnUrl !== '/' 
         ? new URL(`${baseUrl}${returnUrl}`)
-        : new URL(`${baseUrl}/login?returnUrl=${returnUrl || '/finance'}`);
+        : new URL(`${baseUrl}/finance`);
       
       structuredLogger.debug('Creating redirect response', { 
         component: 'xero-auth-callback',
@@ -330,14 +345,14 @@ export const GET = withRateLimit(async (request: NextRequest) => {
         errorType = 'invalid_client';
       }
       
-      return NextResponse.redirect(`${baseUrl}/login?error=${errorType}`);
+      return errorRedirect(errorType);
     }
   } catch (error: any) {
     structuredLogger.error('Unexpected error in callback', error, {
       component: 'xero-auth-callback'
     });
     
-    return NextResponse.redirect(`${baseUrl}/login?error=callback_error`);
+    return errorRedirect('callback_error');
   }
   } catch (fatalError: any) {
     // Catch any errors that might occur before we can even log
@@ -346,6 +361,6 @@ export const GET = withRateLimit(async (request: NextRequest) => {
       errorMessage: fatalError.message || 'Unknown error'
     });
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3003';
-    return NextResponse.redirect(`${baseUrl}/login?error=callback_fatal_error`);
+    return errorRedirect('callback_fatal_error');
   }
 });

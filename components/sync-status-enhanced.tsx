@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -17,6 +17,8 @@ import {
   Users
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useGlobalSync } from '@/contexts/GlobalSyncContext';
+import { useRouter } from 'next/navigation';
 
 interface SyncProgress {
   syncId: string;
@@ -52,6 +54,8 @@ export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSync
   const [isPolling, setIsPolling] = React.useState(false);
   const [showSuccess, setShowSuccess] = React.useState(false);
   const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  const { setActiveSyncId } = useGlobalSync();
+  const router = useRouter();
 
   // Poll for progress updates
   const fetchProgress = React.useCallback(async () => {
@@ -68,11 +72,13 @@ export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSync
         if (data.status === 'completed') {
           setIsPolling(false);
           setShowSuccess(true);
+          setActiveSyncId(null); // Clear global sync state
           if (onComplete) {
             onComplete(data.steps);
           }
         } else if (data.status === 'failed') {
           setIsPolling(false);
+          setActiveSyncId(null); // Clear global sync state
           if (onError) {
             onError(data.error || 'Sync failed');
           }
@@ -81,12 +87,13 @@ export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSync
     } catch (error) {
       console.error('Failed to fetch sync progress:', error);
     }
-  }, [syncId, onComplete, onError]);
+  }, [syncId, onComplete, onError, setActiveSyncId]);
 
   // Start polling when syncId is provided
   React.useEffect(() => {
     if (syncId && !isPolling) {
       setIsPolling(true);
+      setActiveSyncId(syncId); // Set global sync state
       fetchProgress(); // Initial fetch
 
       // Poll every 2 seconds
@@ -99,7 +106,7 @@ export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSync
         pollingIntervalRef.current = null;
       }
     };
-  }, [syncId, isPolling, fetchProgress]);
+  }, [syncId, isPolling, fetchProgress, setActiveSyncId]);
 
   // Auto-hide success after 10 seconds
   React.useEffect(() => {
@@ -156,13 +163,19 @@ export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSync
     const overallProgress = calculateOverallProgress();
 
     return (
-      <div className="fixed top-4 right-4 w-96 z-50">
-        <Alert className="border-blue-500/30 bg-blue-950/50">
-          <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
-          <AlertTitle className="text-blue-100">
-            {progress.status === 'pending' ? 'Preparing Sync' : 'Syncing with Xero'}
-          </AlertTitle>
-          <AlertDescription className="text-blue-200">
+      <>
+        {/* Full screen overlay to block navigation */}
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
+        
+        {/* Centered modal */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg">
+            <Alert className="border-blue-500/30 bg-blue-950/95 shadow-2xl">
+              <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+              <AlertTitle className="text-blue-100">
+                {progress.status === 'pending' ? 'Preparing Sync' : 'Syncing with Xero'}
+              </AlertTitle>
+              <AlertDescription className="text-blue-200">
             <div className="space-y-3">
               <p className="text-sm">{progress.currentStep}</p>
               
@@ -229,40 +242,54 @@ export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSync
                 </div>
               )}
               
-              <p className="text-xs text-blue-300/60 italic">
-                💡 You can safely navigate away - the sync will continue in the background
+              <p className="text-xs text-amber-300/80 font-medium">
+                ⚠️ Please wait for the sync to complete before navigating
               </p>
             </div>
           </AlertDescription>
         </Alert>
-      </div>
+          </div>
+        </div>
+      </>
     );
   }
 
   if (progress.status === 'failed') {
     return (
-      <div className="fixed top-4 right-4 w-96 z-50">
-        <Alert variant="destructive">
-          <XCircle className="h-4 w-4" />
-          <AlertTitle>Sync Failed</AlertTitle>
-          <AlertDescription>
-            <div className="space-y-3">
-              <p>{progress.error || 'Unable to complete sync with Xero'}</p>
-              
-              <div className="flex gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setProgress(null)}
-                  className="flex-1"
-                >
-                  Dismiss
-                </Button>
-              </div>
-            </div>
-          </AlertDescription>
-        </Alert>
-      </div>
+      <>
+        {/* Full screen overlay */}
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
+        
+        {/* Centered modal */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg">
+            <Alert variant="destructive" className="shadow-2xl">
+              <XCircle className="h-4 w-4" />
+              <AlertTitle>Sync Failed</AlertTitle>
+              <AlertDescription>
+                <div className="space-y-3">
+                  <p>{progress.error || 'Unable to complete sync with Xero'}</p>
+                  
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setProgress(null);
+                        // Allow navigation after dismissing error
+                        window.location.reload();
+                      }}
+                      className="flex-1"
+                    >
+                      Dismiss & Refresh
+                    </Button>
+                  </div>
+                </div>
+              </AlertDescription>
+            </Alert>
+          </div>
+        </div>
+      </>
     );
   }
 

@@ -197,12 +197,12 @@ async function processHistoricalSync(job: Job<HistoricalSyncJob>) {
         const response = await rateLimiter.executeAPICall(
           async () => xero.accountingApi.getContacts(
             tenant.tenantId,
-            undefined,
-            undefined,
-            'Name ASC',
-            undefined,
-            currentPage,
-            100
+            undefined, // ifModifiedSince
+            undefined, // where
+            'Name ASC', // order
+            undefined, // IDs
+            currentPage, // page
+            true // includeArchived (set to true to get all contacts)
           )
         );
         
@@ -422,6 +422,10 @@ async function processHistoricalSync(job: Job<HistoricalSyncJob>) {
           }
         });
 
+        // TODO: Optimize transaction sync to avoid N+1 problem
+        // Current implementation fetches transactions per bank account which causes excessive API calls
+        // Should be refactored to fetch all transactions at once using getBankTransactions without account filter
+        
         // Get bank accounts
         const bankAccountsResponse = await rateLimiter.executeAPICall(
           async () => xero.accountingApi.getAccounts(
@@ -994,14 +998,18 @@ async function processHistoricalSync(job: Job<HistoricalSyncJob>) {
     };
 
   } catch (error: any) {
-    structuredLogger.error('[Historical Sync Worker] Sync failed', error, {
+    structuredLogger.error('[Historical Sync Worker] Sync failed catastrophically', error, {
       syncId,
       userId,
-      tenantId
+      tenantId,
+      errorStack: error.stack,
+      errorMessage: error.message
     });
 
+    // Update sync status to failed
     await failSyncProgress(syncId, error.message || 'Historical sync failed');
 
+    // Re-throw to let BullMQ handle retries
     throw error;
   } finally {
     // CRITICAL: Disconnect the Prisma Client in a finally block
@@ -1035,6 +1043,17 @@ historicalSyncWorker.on('failed', (job, err) => {
 
 historicalSyncWorker.on('error', (err) => {
   structuredLogger.error('[Historical Sync Worker] Worker error', err);
+});
+
+// Add stalled job handler
+historicalSyncWorker.on('stalled', (jobId) => {
+  structuredLogger.warn('[Historical Sync Worker] Job stalled', { jobId });
+});
+
+// Add additional error boundaries for uncaught exceptions in worker context
+process.on('unhandledRejection', (reason, promise) => {
+  structuredLogger.error('[Historical Sync Worker] Unhandled Rejection at:', promise, { reason });
+  // Don't exit the process - let the job fail and retry
 });
 
 // Graceful shutdown

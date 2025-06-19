@@ -26,9 +26,9 @@ export default function SyncPage() {
   }, []);
 
   useEffect(() => {
-    // If no Xero connection, redirect to connect page
+    // If no Xero connection, redirect to finance page
     if (!hasXeroConnection) {
-      router.push('/connect');
+      router.push('/finance');
       return;
     }
 

@@ -6,6 +6,7 @@ import {
   ArrowLeft, RefreshCw, Cloud, LogOut, Clock, Settings
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useGlobalSync } from '@/contexts/GlobalSyncContext'
 import { cn } from '@/lib/utils'
 import { Breadcrumbs } from './breadcrumbs'
 import { responsiveText } from '@/lib/responsive-utils'
@@ -60,6 +61,7 @@ export function UnifiedPageHeader({
     syncData,
     disconnectFromXero
   } = useAuth()
+  const { isAnySyncActive } = useGlobalSync()
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Never'
@@ -143,6 +145,11 @@ export function UnifiedPageHeader({
                   
                   <button
                     onClick={async () => {
+                      if (isAnySyncActive) {
+                        toast.error('A sync is already in progress. Please wait for it to complete.');
+                        return;
+                      }
+                      
                       try {
                         toast('Syncing with Xero...', {
                           icon: '🔄',
@@ -153,7 +160,7 @@ export function UnifiedPageHeader({
                         toast.error(error.message || 'Sync failed');
                       }
                     }}
-                    disabled={isSyncing}
+                    disabled={isSyncing || isAnySyncActive}
                     className={cn(
                       "flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all",
                       "bg-slate-800 hover:bg-slate-700 border border-slate-700",
@@ -189,7 +196,7 @@ export function UnifiedPageHeader({
                 <button
                   onClick={() => {
                     const currentPath = window.location.pathname
-                    router.push(`/connect?returnUrl=${encodeURIComponent(currentPath)}`)
+                    window.location.href = `/api/v1/xero/auth?returnUrl=${encodeURIComponent(currentPath)}`
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all"
                 >

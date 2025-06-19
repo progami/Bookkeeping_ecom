@@ -3,11 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { UnifiedPageHeader } from '@/components/ui/unified-page-header';
 import { SyncConfiguration, SyncConfig } from '@/components/sync-configuration';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Save } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Save, Loader2 } from 'lucide-react';
 import { EnhancedSyncStatus } from '@/components/sync-status-enhanced';
 import toast from 'react-hot-toast';
 
@@ -24,6 +25,7 @@ interface SyncProgress {
 export default function ManualSyncPage() {
   const router = useRouter();
   const { hasActiveToken } = useAuth();
+  const { isAnySyncActive } = useGlobalSync();
   const [isLoading, setIsLoading] = useState(false);
   const [syncId, setSyncId] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<any>(null);
@@ -76,6 +78,11 @@ export default function ManualSyncPage() {
   }, []);
 
   const handleSync = async (config: SyncConfig) => {
+    if (isAnySyncActive) {
+      toast.error('A sync is already in progress. Please wait for it to complete.');
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     setSyncResult(null);
@@ -155,7 +162,7 @@ export default function ManualSyncPage() {
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              You need to connect to Xero first. <a href="/connect" className="underline">Connect now</a>
+              You need to connect to Xero first. <button onClick={() => window.location.href = `/api/v1/xero/auth?returnUrl=${encodeURIComponent('/sync/manual')}`} className="underline">Connect now</button>
             </AlertDescription>
           </Alert>
         </div>
@@ -175,6 +182,21 @@ export default function ManualSyncPage() {
         />
 
         <div className="max-w-4xl mx-auto space-y-6">
+          {/* Active Sync Alert */}
+          {isAnySyncActive && !syncId && (
+            <Alert className="border-amber-500/30 bg-amber-950/30">
+              <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
+              <AlertDescription>
+                <div className="space-y-2">
+                  <p className="font-medium text-amber-100">Sync in Progress</p>
+                  <p className="text-sm text-amber-200">
+                    Another sync is currently running. Please wait for it to complete before starting a new sync.
+                  </p>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+          
           {/* Checkpoint Alert */}
           {checkpointInfo && !syncId && !syncResult && (
             <Alert className="border-blue-500/30 bg-blue-950/30">

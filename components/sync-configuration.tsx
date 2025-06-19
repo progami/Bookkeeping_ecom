@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 
 interface SyncConfigurationProps {
   onSync: (config: SyncConfig) => void;
@@ -44,6 +45,7 @@ const historicalOptions = [
 ];
 
 export function SyncConfiguration({ onSync, isLoading, className }: SyncConfigurationProps) {
+  const { isAnySyncActive } = useGlobalSync();
   const [historicalOption, setHistoricalOption] = useState('1y');
   const [customHistoricalDate, setCustomHistoricalDate] = useState('');
 
@@ -152,7 +154,7 @@ export function SyncConfiguration({ onSync, isLoading, className }: SyncConfigur
         <div className="flex justify-end pt-4">
           <Button 
             onClick={handleSync} 
-            disabled={isLoading}
+            disabled={isLoading || isAnySyncActive}
             className="min-w-[120px]"
           >
             {isLoading ? (

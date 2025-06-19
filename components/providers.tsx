@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { SyncProvider } from '@/contexts/SyncContext';
+import { GlobalSyncProvider } from '@/contexts/GlobalSyncContext';
 import { SyncStatus } from '@/components/sync-status';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -29,20 +30,22 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <SyncProvider>
-          <SyncStatus />
-          {children}
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              style: {
-                background: '#1e293b',
-                color: '#fff',
-                border: '1px solid #334155'
-              }
-            }}
-          />
-        </SyncProvider>
+        <GlobalSyncProvider>
+          <SyncProvider>
+            <SyncStatus />
+            {children}
+            <Toaster 
+              position="top-right"
+              toastOptions={{
+                style: {
+                  background: '#1e293b',
+                  color: '#fff',
+                  border: '1px solid #334155'
+                }
+              }}
+            />
+          </SyncProvider>
+        </GlobalSyncProvider>
       </AuthProvider>
     </ThemeProvider>
   );
