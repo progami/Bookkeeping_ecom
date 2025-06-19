@@ -8,7 +8,7 @@ import { UnifiedPageHeader } from '@/components/ui/unified-page-header';
 import { SyncConfiguration, SyncConfig } from '@/components/sync-configuration';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Save, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Save, Loader2, ArrowLeft } from 'lucide-react';
 import { EnhancedSyncStatus } from '@/components/sync-status-enhanced';
 import toast from 'react-hot-toast';
 
@@ -35,7 +35,7 @@ export default function ManualSyncPage() {
 
   const handleSyncComplete = async (summary: any) => {
     setSyncResult({ summary });
-    toast.success('Sync completed successfully! Redirecting...');
+    toast.success('Sync completed successfully!');
     
     // Clear localStorage
     localStorage.removeItem('active_sync_id');
@@ -49,10 +49,7 @@ export default function ManualSyncPage() {
     console.log('[ManualSyncPage] Updating auth status...');
     await checkAuthStatus();
     
-    // Redirect after a brief delay
-    setTimeout(() => {
-      router.push('/finance');
-    }, 2000);
+    // Don't auto-redirect - let user stay on the page
   };
 
   const handleSyncError = (errorMessage: string) => {
@@ -168,9 +165,7 @@ export default function ManualSyncPage() {
         // Direct sync completed immediately
         setSyncResult(data);
         toast.success('Sync completed successfully!');
-        setTimeout(() => {
-          router.push('/finance');
-        }, 2000);
+        // Don't auto-redirect - let user stay on the page
       }
     } catch (err: any) {
       console.error('Sync error:', err.message || err.toString());
@@ -286,28 +281,51 @@ export default function ManualSyncPage() {
           {/* Success Result */}
           {syncResult && (
             <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <CheckCircle2 className="h-6 w-6 text-green-400" />
-                <h3 className="text-lg font-semibold text-white">Sync Complete</h3>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="h-6 w-6 text-green-400" />
+                  <h3 className="text-lg font-semibold text-white">Sync Complete</h3>
+                </div>
+                <button
+                  onClick={() => router.push('/finance')}
+                  className="text-gray-400 hover:text-white transition-colors"
+                  title="Back to Finance Dashboard"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
               
               {syncResult.summary && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div>
-                    <div className="text-xs text-gray-500">GL Accounts</div>
-                    <div className="text-xl font-bold text-white">{syncResult.summary.glAccounts || 0}</div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div>
+                      <div className="text-xs text-gray-500">GL Accounts</div>
+                      <div className="text-xl font-bold text-white">{syncResult.summary.glAccounts || 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Transactions</div>
+                      <div className="text-xl font-bold text-white">{syncResult.summary.transactions || 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Invoices</div>
+                      <div className="text-xl font-bold text-white">{syncResult.summary.invoices || 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Bills</div>
+                      <div className="text-xl font-bold text-white">{syncResult.summary.bills || 0}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Transactions</div>
-                    <div className="text-xl font-bold text-white">{syncResult.summary.transactions || 0}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Invoices</div>
-                    <div className="text-xl font-bold text-white">{syncResult.summary.invoices || 0}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500">Bills</div>
-                    <div className="text-xl font-bold text-white">{syncResult.summary.bills || 0}</div>
+                  
+                  <div className="pt-4 border-t border-slate-700/50">
+                    <button
+                      onClick={() => router.push('/finance')}
+                      className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                      Back to Finance Dashboard
+                    </button>
                   </div>
                 </div>
               )}
