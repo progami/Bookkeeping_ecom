@@ -298,11 +298,13 @@ const originalConsole = {
 };
 
 // Log initialization in development - only log once per process
+// Use process.env to persist the flag across module reloads in Next.js
 if (process.env.NODE_ENV !== 'production' && typeof window === 'undefined') {
-  // Use a global flag to ensure we only log startup once
-  const globalAny = global as any;
-  if (!globalAny.__loggerInitialized) {
-    globalAny.__loggerInitialized = true;
+  // Check if we've already initialized using an environment variable
+  // This persists across Next.js Fast Refresh cycles
+  if (!process.env.__LOGGER_INITIALIZED) {
+    // Set the environment variable to prevent re-initialization
+    process.env.__LOGGER_INITIALIZED = 'true';
     
     // DISABLED: Console interception causes duplicate logs when Winston already has console transport
     // console.log = (...args: any[]) => {
