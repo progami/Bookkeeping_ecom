@@ -4,3 +4,4 @@
 - Sync data from Xero only once at the start of the app / login, and if the user presses the sync button
 - Add logging wherever possible be explicit for future debugging purposes, for dev env write to development.log file
 - capture full error logs, do not skip logs
+- DO NOT MODIFY INTERNAL LIBRARIES, OR SDK's THEMSELVES

@@ -14,7 +14,7 @@ export const xeroConfig = {
   scopes: 'offline_access openid profile email accounting.transactions accounting.settings accounting.contacts accounting.reports.read'
 };
 
-export function createXeroClient(state?: string, codeVerifier?: string) {
+export function createXeroClient(state?: string) {
   const config: any = {
     clientId: xeroConfig.clientId,
     clientSecret: xeroConfig.clientSecret,
@@ -24,49 +24,6 @@ export function createXeroClient(state?: string, codeVerifier?: string) {
   };
   
   const xero = new XeroClient(config);
-  
-  // Store code verifier for PKCE
-  if (codeVerifier) {
-    // The Xero SDK expects the code verifier to be available during token exchange
-    // We need to patch the client to include it
-    (xero as any)._codeVerifier = codeVerifier;
-    
-    // Patch apiCallback to include code_verifier
-    const originalApiCallback = xero.apiCallback.bind(xero);
-    xero.apiCallback = async function(callbackUrl: string) {
-      // Initialize if not already done
-      if (!this.openIdClient) {
-        await this.initialize();
-      }
-      
-      // Get the code from callback URL
-      const url = new URL(callbackUrl);
-      const params = Object.fromEntries(url.searchParams);
-      
-      // Add code_verifier to the token exchange
-      if (codeVerifier && this.openIdClient) {
-        const originalCallback = this.openIdClient.oauthCallback.bind(this.openIdClient);
-        this.openIdClient.oauthCallback = async function(redirectUri: string, parameters: any, checks?: any) {
-          // Ensure checks includes the code_verifier
-          const enhancedChecks = {
-            ...checks,
-            code_verifier: codeVerifier,
-            state: state
-          };
-          return originalCallback(redirectUri, parameters, enhancedChecks);
-        };
-      }
-      
-      // Call original method
-      return originalApiCallback(callbackUrl);
-    };
-    
-    structuredLogger.debug('PKCE enabled for Xero client', {
-      component: 'xero-client',
-      codeVerifierLength: codeVerifier.length
-    });
-  }
-  
   return xero;
 }
 
@@ -252,7 +209,7 @@ export async function getXeroClientWithTenant(): Promise<{ client: XeroClient; t
 
 export async function getAuthUrl(state?: string, codeChallenge?: string): Promise<string> {
   // Pass the state to createXeroClient so it's included in the config
-  const xero = createXeroClient(state, undefined);
+  const xero = createXeroClient(state);
   
   try {
     await xero.initialize();

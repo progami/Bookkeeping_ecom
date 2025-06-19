@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createXeroClient, storeTokenSet, xeroConfig } from '@/lib/xero-client';
-import { getState } from '@/lib/oauth-state-manager';
+import { getState, deleteState } from '@/lib/oauth-state-manager';
 import { XeroSession } from '@/lib/xero-session';
 import { structuredLogger } from '@/lib/logger';
 import { AUTH_COOKIE_OPTIONS, SESSION_COOKIE_NAME } from '@/lib/cookie-config';
@@ -99,8 +99,8 @@ export const GET = withRateLimit(async (request: NextRequest) => {
       state: state.substring(0, 8) + '...'
     });
     
-    // Create Xero client with state and code verifier
-    const xero = createXeroClient(state, codeVerifier);
+    // Create Xero client with state
+    const xero = createXeroClient(state);
     
     // Initialize the Xero SDK (required for openid-client)
     await xero.initialize();
@@ -118,8 +118,16 @@ export const GET = withRateLimit(async (request: NextRequest) => {
     });
     
     try {
-      // Exchange authorization code for tokens
-      const tokenSet = await xero.apiCallback(fullCallbackUrl);
+      // Exchange authorization code for tokens with PKCE checks
+      const checks = {
+        code_verifier: codeVerifier,
+        state: state
+      };
+      
+      const tokenSet = await xero.apiCallback(fullCallbackUrl, checks);
+      
+      // Delete the state immediately after successful token exchange to prevent reuse
+      await deleteState(state);
       
       structuredLogger.info('Token exchange successful', {
         component: 'xero-auth-callback',
