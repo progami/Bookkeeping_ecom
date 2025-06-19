@@ -39,13 +39,11 @@ export default function LoginPage() {
       // Check setup status and redirect accordingly
       const setupStatus = await fetch('/api/v1/setup/status').then(r => r.json())
       
-      if (!setupStatus.hasXeroConnection) {
-        router.push('/connect')
-      } else if (!setupStatus.hasCompletedSetup) {
-        // First time setup
+      if (!setupStatus.hasCompletedSetup && !setupStatus.hasXeroConnection) {
+        // First time setup - they need to go through setup which includes Xero connection
         router.push('/setup')
       } else {
-        // Regular login - go to finance dashboard
+        // Regular login - go to finance dashboard (they can connect to Xero from there if needed)
         router.push('/finance')
       }
     } catch (err: any) {

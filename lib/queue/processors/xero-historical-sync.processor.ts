@@ -422,11 +422,12 @@ async function processHistoricalSync(job: Job<HistoricalSyncJob>) {
           }
         });
 
-        // TODO: Optimize transaction sync to avoid N+1 problem
-        // Current implementation fetches transactions per bank account which causes excessive API calls
-        // Should be refactored to fetch all transactions at once using getBankTransactions without account filter
+        // FIXED: Optimized transaction sync to avoid N+1 problem
+        // Now fetching all transactions in a single paginated call instead of per bank account
         
-        // Get bank accounts
+        const transactionSyncStartTime = Date.now();
+        
+        // Get all bank accounts first to create a lookup map
         const bankAccountsResponse = await rateLimiter.executeAPICall(
           async () => xero.accountingApi.getAccounts(
             tenant.tenantId,
@@ -437,85 +438,107 @@ async function processHistoricalSync(job: Job<HistoricalSyncJob>) {
         );
 
         const bankAccounts = bankAccountsResponse.body.accounts || [];
+        
+        // Create bank account lookup map - FIXED N+1 QUERY
+        // Fetch ALL bank accounts from database in a single query
+        const xeroAccountIds = bankAccounts.map(account => account.accountID!).filter(Boolean);
+        const bankAccountRecords = await prisma.bankAccount.findMany({
+          where: {
+            xeroAccountId: {
+              in: xeroAccountIds
+            }
+          }
+        });
+        
+        // Create lookup map from the batch query results
+        const bankAccountMap = new Map<string, any>();
+        for (const bankAccountRecord of bankAccountRecords) {
+          bankAccountMap.set(bankAccountRecord.xeroAccountId, bankAccountRecord);
+        }
+        
+        // Log any missing bank accounts
+        for (const account of bankAccounts) {
+          if (!bankAccountMap.has(account.accountID!)) {
+            structuredLogger.warn('[Historical Sync Worker] Bank account not found in database', {
+              accountId: account.accountID,
+              accountName: account.name
+            });
+          }
+        }
+
         const maxTransactions = syncOptions.limits?.transactions || 10000;
         let transactionsSynced = 0;
-
-        // Process each bank account
-        const completedBankAccounts = checkpoint?.completedBankAccounts || [];
         
-        for (let i = 0; i < bankAccounts.length; i++) {
-          const account = bankAccounts[i];
-          
-          // Skip if we've already completed this account
-          if (completedBankAccounts.includes(account.accountID!)) {
-            structuredLogger.info('[Historical Sync Worker] Skipping already completed bank account', {
-              accountId: account.accountID,
-              accountName: account.name
-            });
-            continue;
-          }
-          
-          // First ensure the bank account exists in our database
-          const bankAccountRecord = await prisma.bankAccount.findUnique({
-            where: { xeroAccountId: account.accountID! }
-          });
-          
-          if (!bankAccountRecord) {
-            structuredLogger.warn('[Historical Sync Worker] Bank account not found, skipping transactions', {
-              accountId: account.accountID,
-              accountName: account.name
-            });
-            continue;
-          }
-
-          let accountTransactions = 0;
-          const startPage = checkpoint?.lastProcessedAccountId === account.accountID 
-            ? (checkpoint.lastProcessedPage || 0) + 1 
-            : 1;
-
-          // Update progress with current account
-          await updateSyncProgress(syncId, {
-            currentStep: `Syncing transactions for ${account.name}...`,
-            percentage: 25 + Math.min(40, (transactionsSynced / maxTransactions) * 40),
-            steps: {
-              transactions: { 
-                status: 'in_progress', 
-                count: transactionsSynced,
-                details: `Processing account ${i + 1}/${bankAccounts.length}`
-              }
+        // Update progress
+        await updateSyncProgress(syncId, {
+          currentStep: 'Fetching all bank transactions...',
+          percentage: 30,
+          steps: {
+            transactions: { 
+              status: 'in_progress', 
+              count: 0,
+              details: `Processing all bank accounts (${bankAccounts.length} total)`
             }
-          });
+          }
+        });
 
-          // Fetch transactions with pagination - worker-safe implementation
-          let currentPage = startPage;
-          let hasMorePages = true;
-          
-          // Batch processing for transactions
-          const BATCH_SIZE = 100;
-          let transactionBatch: any[] = [];
-          
-          while (hasMorePages && transactionsSynced < maxTransactions) {
-            const response = await rateLimiter.executeAPICall(
-              async () => xero.accountingApi.getBankTransactions(
-                tenant.tenantId,
-                historicalSyncFromDate,
-                undefined,
-                'Date ASC',
-                currentPage,
-                100
-              )
+        // Fetch ALL transactions with pagination using generator
+        const transactionPages = paginatedXeroAPICallGenerator(
+          xero,
+          tenant.tenantId,
+          async (client, pageNum) => {
+            const response = await client.accountingApi.getBankTransactions(
+              tenant.tenantId,
+              historicalSyncFromDate, // Modified since date for historical sync
+              undefined, // No account-specific filter - fetch ALL transactions
+              'Date ASC', // Chronological order
+              undefined, // unitdp
+              pageNum,
+              100 // Page size
             );
-            
-            const transactions = response.body.bankTransactions || [];
-            hasMorePages = !!response.body.pagination?.pageCount && currentPage < response.body.pagination.pageCount;
-            
-            for (const transaction of transactions) {
-              if (transaction.bankAccount?.accountID !== account.accountID) continue;
-              if (transactionsSynced >= maxTransactions) break;
+            return {
+              items: response.body.bankTransactions || [],
+              hasMore: (response.body.bankTransactions || []).length === 100
+            };
+          }
+        );
 
-              // Add to batch instead of awaiting
-              transactionBatch.push(
-                prisma.bankTransaction.upsert({
+        // Batch processing for transactions
+        const BATCH_SIZE = 100;
+        let upsertBatch: any[] = [];
+        let processedPages = 0;
+        
+        // Process the stream of all transactions
+        for await (const transactionPage of transactionPages) {
+          processedPages++;
+          
+          // Update progress every few pages
+          if (processedPages % 5 === 0) {
+            await updateSyncProgress(syncId, {
+              currentStep: `Processing transactions (page ${processedPages})...`,
+              percentage: 30 + Math.min(35, (transactionsSynced / maxTransactions) * 35),
+              steps: {
+                transactions: { 
+                  status: 'in_progress', 
+                  count: transactionsSynced,
+                  details: `Processed ${processedPages} pages`
+                }
+              }
+            });
+          }
+          
+          for (const transaction of transactionPage) {
+            if (transactionsSynced >= maxTransactions) break;
+            
+            // Skip if we don't have this bank account in our database
+            const bankAccountRecord = bankAccountMap.get(transaction.bankAccount?.accountID || '');
+            if (!bankAccountRecord) {
+              continue;
+            }
+
+            // Add to batch instead of awaiting
+            upsertBatch.push(
+              prisma.bankTransaction.upsert({
                   where: { xeroTransactionId: transaction.bankTransactionID! },
                   update: {
                     type: transaction.type?.toString() || '',
@@ -568,79 +591,36 @@ async function processHistoricalSync(job: Job<HistoricalSyncJob>) {
                     hasAttachments: transaction.hasAttachments || false,
                     lastSyncedAt: new Date()
                   }
-                })
-              );
+              })
+            );
 
-              accountTransactions++;
-              transactionsSynced++;
-              totalTransactions++;
+            transactionsSynced++;
+            totalTransactions++;
 
-              // Execute batch when it reaches BATCH_SIZE
-              if (transactionBatch.length >= BATCH_SIZE) {
-                await prisma.$transaction(transactionBatch);
-                transactionBatch = []; // Reset batch
-                
-                // Update progress after batch execution
-                await updateSyncProgress(syncId, {
-                  currentStep: `Syncing transactions: ${totalTransactions} processed...`,
-                  percentage: 25 + Math.min(40, (transactionsSynced / maxTransactions) * 40),
-                  steps: {
-                    transactions: { 
-                      status: 'in_progress', 
-                      count: totalTransactions,
-                      details: `Account ${i + 1}/${bankAccounts.length}: ${accountTransactions} transactions`
-                    }
-                  }
-                });
-
-                // Save checkpoint after batch
-                await saveCheckpoint(syncId, {
-                  lastProcessedAccountId: account.accountID,
-                  lastProcessedPage: Math.floor(accountTransactions / 100),
-                  processedCounts: {
-                    contacts: totalContacts,
-                    accounts: totalAccounts,
-                    transactions: totalTransactions
-                  }
-                });
-              }
-
-              // Stop if we've reached the limit
-              if (transactionsSynced >= maxTransactions) break;
-            }
-            
-            currentPage++;
-            
-            // Add small delay between pages to avoid rate limiting
-            if (hasMorePages) {
-              await new Promise(resolve => setTimeout(resolve, 100));
+            // Execute batch when it reaches BATCH_SIZE
+            if (upsertBatch.length >= BATCH_SIZE) {
+              await prisma.$transaction(upsertBatch);
+              upsertBatch = []; // Reset batch
+              
+              // Save checkpoint periodically
+              await saveCheckpoint(syncId, {
+                lastProcessedPage: processedPages,
+                processedCounts: {
+                  contacts: totalContacts,
+                  accounts: totalAccounts,
+                  transactions: totalTransactions
+                }
+              });
             }
           }
           
-          // Execute any remaining transactions in the batch
-          if (transactionBatch.length > 0) {
-            await prisma.$transaction(transactionBatch);
-          }
-          
-          // Mark this bank account as completed in checkpoint
-          const updatedCompletedAccounts = [...completedBankAccounts, account.accountID!];
-          await saveCheckpoint(syncId, {
-            ...checkpoint,
-            lastProcessedAccountId: account.accountID,
-            completedBankAccounts: updatedCompletedAccounts,
-            processedCounts: {
-              contacts: totalContacts,
-              accounts: totalAccounts,
-              transactions: totalTransactions
-            }
-          });
-          
-          structuredLogger.info('[Historical Sync Worker] Completed bank account sync', {
-            syncId,
-            accountId: account.accountID,
-            accountName: account.name,
-            transactionCount: accountTransactions
-          });
+          // Stop if we've reached the limit
+          if (transactionsSynced >= maxTransactions) break;
+        }
+        
+        // Execute any remaining transactions in the batch
+        if (upsertBatch.length > 0) {
+          await prisma.$transaction(upsertBatch);
         }
 
         // Save final checkpoint for transactions
@@ -659,6 +639,17 @@ async function processHistoricalSync(job: Job<HistoricalSyncJob>) {
           steps: {
             transactions: { status: 'completed', count: totalTransactions }
           }
+        });
+        
+        const transactionSyncDuration = Date.now() - transactionSyncStartTime;
+        structuredLogger.info('[Historical Sync Worker] Completed all transactions sync', {
+          syncId,
+          totalTransactions,
+          pagesProcessed: processedPages,
+          bankAccountsCount: bankAccounts.length,
+          duration: transactionSyncDuration,
+          durationSeconds: Math.round(transactionSyncDuration / 1000),
+          transactionsPerSecond: totalTransactions > 0 ? (totalTransactions / (transactionSyncDuration / 1000)).toFixed(2) : 0
         });
       }
 

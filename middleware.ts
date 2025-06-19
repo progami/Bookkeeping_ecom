@@ -45,7 +45,6 @@ const PROTECTED_ROUTES = [
   '/cashflow',
   '/database',
   '/database-schema',
-  '/connect',
   '/setup',
   '/api-docs'
 ]

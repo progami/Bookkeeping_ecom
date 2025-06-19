@@ -86,7 +86,7 @@ export default function SetupPage() {
   useEffect(() => {
     // Redirect if not connected to Xero
     if (!hasActiveToken) {
-      router.push('/connect')
+      router.push('/finance')
     }
   }, [hasActiveToken, router])
 

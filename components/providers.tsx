@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { SyncProvider } from '@/contexts/SyncContext';
 import { GlobalSyncProvider } from '@/contexts/GlobalSyncContext';
 import { SyncStatus } from '@/components/sync-status';
+import { GlobalSyncMonitor } from '@/components/global-sync-monitor';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -33,6 +34,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <GlobalSyncProvider>
           <SyncProvider>
             <SyncStatus />
+            <GlobalSyncMonitor />
             {children}
             <Toaster 
               position="top-right"

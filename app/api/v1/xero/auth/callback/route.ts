@@ -118,13 +118,25 @@ export const GET = withRateLimit(async (request: NextRequest) => {
     });
     
     try {
+      // Extract parameters from the callback URL
+      const params = xero.openIdClient.callbackParams(fullCallbackUrl);
+      
       // Exchange authorization code for tokens with PKCE checks
       const checks = {
         code_verifier: codeVerifier,
         state: state
       };
       
-      const tokenSet = await xero.apiCallback(fullCallbackUrl, checks);
+      // Use the openid-client directly for proper PKCE support
+      let tokenSet;
+      if (xeroConfig.scopes.includes('openid')) {
+        tokenSet = await xero.openIdClient.callback(xeroConfig.redirectUris[0], params, checks);
+      } else {
+        tokenSet = await xero.openIdClient.oauthCallback(xeroConfig.redirectUris[0], params, checks);
+      }
+      
+      // Set the token on the Xero client
+      xero.setTokenSet(tokenSet);
       
       // Delete the state immediately after successful token exchange to prevent reuse
       await deleteState(state);

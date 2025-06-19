@@ -21,7 +21,7 @@ export interface SyncStatus {
 
 interface SyncContextType {
   syncStatus: SyncStatus;
-  syncWithXero: () => Promise<void>;
+  syncWithXero: () => Promise<string | void>;
   clearSyncError: () => void;
   canUseXeroData: boolean;
 }
@@ -70,7 +70,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       const response = await apiClient.post('/api/v1/xero/sync', {
         forceSync: false,
         syncOptions: {
-          entities: ['accounts', 'transactions', 'invoices', 'bills', 'contacts']
+          entities: ['accounts', 'transactions', 'invoices', 'bills', 'contacts'],
+          historicalSyncFromDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString() // Default to 90 days of historical data
         }
       });
 
@@ -91,6 +92,23 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // If we get a syncId, it means the sync was queued for background processing
+      if (response.data?.syncId) {
+        // Store the syncId for tracking
+        localStorage.setItem('active_sync_id', response.data.syncId);
+        
+        // The sync status will be tracked by the EnhancedSyncStatus component
+        const newStatus: SyncStatus = {
+          status: 'syncing',
+          lastSyncAt: new Date()
+        };
+        
+        setSyncStatus(newStatus);
+        localStorage.setItem('xero_sync_status', JSON.stringify(newStatus));
+        return response.data.syncId;
+      }
+
+      // For immediate syncs (non-historical), handle the response
       const newStatus: SyncStatus = {
         status: 'success',
         lastSyncAt: new Date(),
