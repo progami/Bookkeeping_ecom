@@ -46,9 +46,9 @@ export async function GET(request: NextRequest) {
     const tenantId = tenants[0].tenantId;
     console.log('Using tenant:', tenantId, tenants[0].tenantName);
 
-    // Check if user wants YTD data
+    // Check if user wants balance data
     const searchParams = request.nextUrl.searchParams;
-    const includeYTD = searchParams.get('includeYTD') === 'true';
+    const includeBalances = searchParams.get('includeBalances') === 'true';
 
     // Get all accounts from Xero
     const response = await xeroClient.accountingApi.getAccounts(
@@ -58,80 +58,37 @@ export async function GET(request: NextRequest) {
       'Code ASC' // order by code
     );
 
-    // Get YTD amounts if requested
+    // Get account balances using Trial Balance if requested
     let accountBalances: Record<string, number> = {};
     
-    if (includeYTD) {
+    if (includeBalances) {
       try {
-        // Get YTD from January 1st to today
         const currentDate = new Date();
-        const startOfYear = new Date(currentDate.getFullYear(), 0, 1);
         
-        console.log('Fetching P&L report for YTD amounts...');
-        const plResponse = await xeroClient.accountingApi.getReportProfitAndLoss(
+        console.log('Fetching Trial Balance for account balances...');
+        const trialBalanceResponse = await xeroClient.accountingApi.getReportTrialBalance(
           tenantId,
-          startOfYear.toISOString().split('T')[0],
           currentDate.toISOString().split('T')[0]
         );
 
-        // Parse the P&L report to extract account balances
-        if (plResponse.body.reports && plResponse.body.reports.length > 0) {
-          const report = plResponse.body.reports[0];
+        // Parse the Trial Balance report to extract account balances
+        if (trialBalanceResponse.body.reports && trialBalanceResponse.body.reports.length > 0) {
+          const report = trialBalanceResponse.body.reports[0];
           
-          // Process each section of the report
+          // Process each row in the trial balance
           report.rows?.forEach((row: any) => {
             if (row.rowType === 'Section' && row.rows) {
               row.rows.forEach((accountRow: any) => {
                 if (accountRow.rowType === 'Row' && accountRow.cells) {
-                  // Get account name and amount
-                  const accountName = accountRow.cells[0]?.value;
-                  const amountCell = accountRow.cells[1];
+                  // Get account code and debit/credit amounts
+                  const accountCode = accountRow.cells[0]?.value;
+                  const debitAmount = parseFloat(accountRow.cells[1]?.value) || 0;
+                  const creditAmount = parseFloat(accountRow.cells[2]?.value) || 0;
                   
-                  if (accountName && amountCell?.value) {
-                    const amount = parseFloat(amountCell.value) || 0;
-                    // Store by account name for now, we'll match by code later
-                    accountBalances[accountName] = amount;
-                  }
-                }
-              });
-            }
-          });
-        }
-
-        // Also fetch Balance Sheet for asset/liability accounts
-        console.log('Fetching Balance Sheet for asset/liability balances...');
-        const bsResponse = await xeroClient.accountingApi.getReportBalanceSheet(
-          tenantId,
-          currentDate.toISOString().split('T')[0]
-        );
-
-        if (bsResponse.body.reports && bsResponse.body.reports.length > 0) {
-          const report = bsResponse.body.reports[0];
-          
-          // Process each section of the balance sheet
-          report.rows?.forEach((row: any) => {
-            if (row.rowType === 'Section' && row.rows) {
-              row.rows.forEach((subsection: any) => {
-                if (subsection.rowType === 'Section' && subsection.rows) {
-                  subsection.rows.forEach((accountRow: any) => {
-                    if (accountRow.rowType === 'Row' && accountRow.cells) {
-                      const accountName = accountRow.cells[0]?.value;
-                      const amountCell = accountRow.cells[1];
-                      
-                      if (accountName && amountCell?.value) {
-                        const amount = parseFloat(amountCell.value) || 0;
-                        accountBalances[accountName] = amount;
-                      }
-                    }
-                  });
-                } else if (subsection.rowType === 'Row' && subsection.cells) {
-                  // Handle direct rows in sections
-                  const accountName = subsection.cells[0]?.value;
-                  const amountCell = subsection.cells[1];
-                  
-                  if (accountName && amountCell?.value) {
-                    const amount = parseFloat(amountCell.value) || 0;
-                    accountBalances[accountName] = amount;
+                  if (accountCode) {
+                    // Net balance = debit - credit
+                    const netBalance = debitAmount - creditAmount;
+                    accountBalances[accountCode] = netBalance;
                   }
                 }
               });
@@ -139,8 +96,8 @@ export async function GET(request: NextRequest) {
           });
         }
       } catch (error) {
-        console.error('Error fetching YTD amounts:', error);
-        // Continue without YTD amounts
+        console.error('Error fetching Trial Balance:', error);
+        // Continue without balance amounts
       }
     }
 
@@ -163,8 +120,8 @@ export async function GET(request: NextRequest) {
       addToWatchlist: account.addToWatchlist,
       // Full account string for display
       fullName: `${account.code} - ${account.name}`,
-      // Add YTD amount if available
-      ytdAmount: accountBalances[account.name || ''] || 0
+      // Add balance if available (using account code)
+      balance: accountBalances[account.code || ''] || 0
     })) || [];
 
     // Filter for expense accounts (commonly used in bills)
@@ -177,9 +134,9 @@ export async function GET(request: NextRequest) {
     // Get unique tax types
     const taxTypes = [...new Set(accounts.map(acc => acc.taxType).filter(Boolean))];
 
-    // Calculate total YTD if we have the data
-    const totalYTD = includeYTD ? 
-      accounts.reduce((sum, acc) => sum + Math.abs(acc.ytdAmount), 0) : 0;
+    // Calculate total balances if we have the data
+    const totalBalance = includeBalances ? 
+      accounts.reduce((sum, acc) => sum + Math.abs(acc.balance), 0) : 0;
 
     return NextResponse.json(
       {
@@ -191,8 +148,8 @@ export async function GET(request: NextRequest) {
         },
         taxTypes,
         count: accounts.length,
-        hasYTDData: includeYTD && Object.keys(accountBalances).length > 0,
-        totalYTD,
+        hasBalanceData: includeBalances && Object.keys(accountBalances).length > 0,
+        totalBalance,
         timestamp: new Date().toISOString()
       },
       {

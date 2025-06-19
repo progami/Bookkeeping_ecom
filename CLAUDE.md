@@ -1,3 +1,6 @@
 - stop closing the browser when using playwright to persist sessions for 2FA - use screenshots when working with playwright
 - Commit regularly after each feature is shipped to avoid data loss
 - Discuss plan with user before executing any changes, and seek approval clearly.
+- Sync data from Xero only once at the start of the app / login, and if the user presses the sync button
+- Add logging wherever possible be explicit for future debugging purposes, for dev env write to development.log file
+- capture full error logs, do not skip logs

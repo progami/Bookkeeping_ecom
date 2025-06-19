@@ -11,7 +11,7 @@ export const xeroConfig = {
   clientId: process.env.XERO_CLIENT_ID || '',
   clientSecret: process.env.XERO_CLIENT_SECRET || '',
   redirectUris: [process.env.XERO_REDIRECT_URI || 'https://localhost:3003/api/v1/xero/auth/callback'],
-  scopes: 'accounting.transactions.read accounting.reports.read accounting.settings.read offline_access'
+  scopes: 'accounting.transactions.read accounting.reports.read accounting.settings.read accounting.contacts.read offline_access'
 };
 
 export function createXeroClient(state?: string, codeVerifier?: string) {
@@ -89,6 +89,33 @@ export async function storeTokenSet(tokenSet: TokenSet | any) {
 
 export async function clearTokenSet() {
   await XeroSession.clearToken();
+}
+
+export function createXeroClientFromTokenSet(tokenSet: XeroTokenSet): XeroClient {
+  const xero = new XeroClient(xeroConfig);
+  xero.setTokenSet(tokenSet);
+  return xero;
+}
+
+export async function refreshToken(tokenSet: XeroTokenSet): Promise<XeroTokenSet | null> {
+  try {
+    const xero = createXeroClient();
+    xero.setTokenSet(tokenSet);
+
+    const newTokenSet = await xero.refreshWithRefreshToken(
+      xeroConfig.clientId,
+      xeroConfig.clientSecret,
+      tokenSet.refresh_token!
+    );
+    
+    await storeTokenSet(newTokenSet);
+    return newTokenSet as XeroTokenSet;
+
+  } catch (error) {
+    structuredLogger.error('Failed to refresh Xero token', error, { component: 'xero-client' });
+    await clearTokenSet(); // The refresh token is likely invalid, clear everything
+    return null;
+  }
 }
 
 export async function getXeroClient(): Promise<XeroClient | null> {

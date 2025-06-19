@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { structuredLogger } from '@/lib/logger';
 
 export async function POST(request: Request) {
+  structuredLogger.info('[LOGS API] Received request');
   try {
     const { logs } = await request.json();
+    structuredLogger.info(`[LOGS API] Processing ${logs.length} logs`);
     
     if (!Array.isArray(logs)) {
       return NextResponse.json({ error: 'Invalid logs format' }, { status: 400 });
@@ -13,33 +15,32 @@ export async function POST(request: Request) {
     logs.forEach((log: any) => {
       const { level, message, timestamp } = log;
       
-      // Map browser log levels to winston levels
-      const logLevel = level === 'log' ? 'info' : level;
+      // Write the log EXACTLY as it appears in browser console
+      // Just add [BROWSER] prefix to distinguish from server logs
+      const browserLog = `[BROWSER] ${message}`;
       
-      // Add [CLIENT] prefix to distinguish browser logs
-      const prefixedMessage = `[CLIENT] ${message}`;
-      
-      // Log using winston based on level
-      switch (logLevel) {
+      // Use the exact log level from browser
+      switch (level) {
         case 'error':
-          structuredLogger.error(prefixedMessage);
+          structuredLogger.error(browserLog);
           break;
         case 'warn':
-          structuredLogger.warn(prefixedMessage);
+          structuredLogger.warn(browserLog);
           break;
         case 'debug':
-          structuredLogger.debug(prefixedMessage);
+          structuredLogger.debug(browserLog);
           break;
+        case 'log':
         case 'info':
         default:
-          structuredLogger.info(prefixedMessage);
+          structuredLogger.info(browserLog);
           break;
       }
     });
     
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to process client logs:', error);
+    structuredLogger.error('[LOGS API] Failed to process client logs:', error);
     return NextResponse.json({ error: 'Failed to process logs' }, { status: 500 });
   }
 }

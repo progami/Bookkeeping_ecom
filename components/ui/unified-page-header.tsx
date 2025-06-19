@@ -3,12 +3,13 @@
 import { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
-  ArrowLeft, RefreshCw, Cloud, LogOut, Clock
+  ArrowLeft, RefreshCw, Cloud, LogOut, Clock, Settings
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
 import { Breadcrumbs } from './breadcrumbs'
 import { responsiveText } from '@/lib/responsive-utils'
+import toast from 'react-hot-toast'
 
 interface UnifiedPageHeaderProps {
   // Basic props (from page-header)
@@ -141,7 +142,17 @@ export function UnifiedPageHeader({
                   </div>
                   
                   <button
-                    onClick={syncData}
+                    onClick={async () => {
+                      try {
+                        toast('Syncing with Xero...', {
+                          icon: '🔄',
+                          duration: 3000,
+                        });
+                        await syncData();
+                      } catch (error: any) {
+                        toast.error(error.message || 'Sync failed');
+                      }
+                    }}
                     disabled={isSyncing}
                     className={cn(
                       "flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all",
@@ -156,6 +167,14 @@ export function UnifiedPageHeader({
                     <span className="text-sm text-gray-200">
                       {isSyncing ? 'Syncing...' : `Sync (${formatDate(lastSync)})`}
                     </span>
+                  </button>
+                  
+                  <button
+                    onClick={() => router.push('/sync/manual')}
+                    className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+                    title="Manual sync with options"
+                  >
+                    <Settings className="h-4 w-4 text-gray-400" />
                   </button>
                   
                   <button

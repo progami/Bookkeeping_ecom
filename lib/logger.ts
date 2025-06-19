@@ -92,7 +92,7 @@ if (process.env.NODE_ENV !== 'production') {
               : info.message;
             
             // Extract module name from message if it starts with [ModuleName]
-            let module = 'Server';
+            let moduleName = 'Server';
             let cleanMessage = message;
             
             // Check for [CLIENT] prefix
@@ -101,17 +101,17 @@ if (process.env.NODE_ENV !== 'production') {
               // Check if there's another module name after [CLIENT]
               const clientModuleMatch = afterClient.match(/^\[([^\]]+)\]/);
               if (clientModuleMatch) {
-                module = clientModuleMatch[1];
+                moduleName = clientModuleMatch[1];
                 cleanMessage = afterClient.substring(clientModuleMatch[0].length).trim();
               } else {
-                module = 'Client';
+                moduleName = 'Client';
                 cleanMessage = afterClient;
               }
             } else {
               // Check for regular module pattern
               const moduleMatch = message.match(/^\[([^\]]+)\]/);
               if (moduleMatch) {
-                module = moduleMatch[1];
+                moduleName = moduleMatch[1];
                 cleanMessage = message.substring(moduleMatch[0].length).trim();
               }
             }
@@ -124,7 +124,7 @@ if (process.env.NODE_ENV !== 'production') {
                               '\x1b[37m'; // white
             const reset = '\x1b[0m';
             
-            return `[${timestamp}] [${module}] ${levelColor}[${level}]${reset} - ${cleanMessage}`;
+            return `[${timestamp}] [${moduleName}] ${levelColor}[${level}]${reset} - ${cleanMessage}`;
           }
         )
       ),
@@ -154,7 +154,7 @@ if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
                 : info.message;
               
               // Extract module name from message if it starts with [ModuleName]
-              let module = 'Server';
+              let moduleName = 'Server';
               let cleanMessage = message;
               
               // Check for [CLIENT] prefix
@@ -163,22 +163,22 @@ if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
                 // Check if there's another module name after [CLIENT]
                 const clientModuleMatch = afterClient.match(/^\[([^\]]+)\]/);
                 if (clientModuleMatch) {
-                  module = clientModuleMatch[1];
+                  moduleName = clientModuleMatch[1];
                   cleanMessage = afterClient.substring(clientModuleMatch[0].length).trim();
                 } else {
-                  module = 'Client';
+                  moduleName = 'Client';
                   cleanMessage = afterClient;
                 }
               } else {
                 // Check for regular module pattern
                 const moduleMatch = message.match(/^\[([^\]]+)\]/);
                 if (moduleMatch) {
-                  module = moduleMatch[1];
+                  moduleName = moduleMatch[1];
                   cleanMessage = message.substring(moduleMatch[0].length).trim();
                 }
               }
               
-              return `[${info.timestamp}] [${module}] [${level}] - ${cleanMessage}`;
+              return `[${info.timestamp}] [${moduleName}] [${level}] - ${cleanMessage}`;
             }
           )
         ),
@@ -204,7 +204,7 @@ if (process.env.NODE_ENV === 'production' && DailyRotateFile && typeof window ==
             : info.message;
           
           // Extract module name from message if it starts with [ModuleName]
-          let module = 'Server';
+          let moduleName = 'Server';
           let cleanMessage = message;
           
           // Check for [CLIENT] prefix
@@ -213,22 +213,22 @@ if (process.env.NODE_ENV === 'production' && DailyRotateFile && typeof window ==
             // Check if there's another module name after [CLIENT]
             const clientModuleMatch = afterClient.match(/^\[([^\]]+)\]/);
             if (clientModuleMatch) {
-              module = clientModuleMatch[1];
+              moduleName = clientModuleMatch[1];
               cleanMessage = afterClient.substring(clientModuleMatch[0].length).trim();
             } else {
-              module = 'Client';
+              moduleName = 'Client';
               cleanMessage = afterClient;
             }
           } else {
             // Check for regular module pattern
             const moduleMatch = message.match(/^\[([^\]]+)\]/);
             if (moduleMatch) {
-              module = moduleMatch[1];
+              moduleName = moduleMatch[1];
               cleanMessage = message.substring(moduleMatch[0].length).trim();
             }
           }
           
-          return `[${info.timestamp}] [${module}] [${level}] - ${cleanMessage}`;
+          return `[${info.timestamp}] [${moduleName}] [${level}] - ${cleanMessage}`;
         }
       )
     );

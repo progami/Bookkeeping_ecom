@@ -56,9 +56,9 @@ class UniversalLogger {
       // Client side - use console with formatting
       // Extract module name from message if it follows pattern [Module]
       const moduleMatch = message.match(/^\[([^\]]+)\]/);
-      const module = moduleMatch ? moduleMatch[1] : 'App';
+      const moduleName = moduleMatch ? moduleMatch[1] : 'App';
       const cleanMessage = moduleMatch ? message.substring(moduleMatch[0].length).trim() : message;
-      const formattedMessage = this.formatMessage(level, module, cleanMessage);
+      const formattedMessage = this.formatMessage(level, moduleName, cleanMessage);
       
       switch (level) {
         case LOG_LEVELS.ERROR:

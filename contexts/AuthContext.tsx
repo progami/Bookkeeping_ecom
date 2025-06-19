@@ -45,6 +45,8 @@ interface AuthContextType extends AuthState {
   disconnectFromXero: () => Promise<void>
   syncData: () => Promise<void>
   checkAuthStatus: () => Promise<void>
+  // Alias for compatibility
+  hasXeroConnection: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -69,10 +71,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuthStatus = async () => {
     logger.info('Checking auth status...')
+    
+    // Set a timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      logger.warn('Auth check timeout - setting default state')
+      setAuthState(prev => ({
+        ...prev,
+        isAuthenticated: false,
+        user: null,
+        isLoading: false
+      }))
+    }, 5000) // 5 second timeout
+    
     try {
       // Check user session first
-      const sessionRes = await fetch('/api/v1/auth/session', { credentials: 'include' })
+      const sessionRes = await fetch('/api/v1/auth/session', { 
+        credentials: 'include',
+        // Add timeout to fetch
+        signal: AbortSignal.timeout(4000)
+      })
       const sessionData = await sessionRes.json()
+      
+      clearTimeout(timeout)
       
       if (!sessionData.authenticated) {
         logger.info('No user session found')
@@ -118,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       logger.error('Failed to check auth status', error)
+      clearTimeout(timeout)
       setAuthState(prev => ({ ...prev, isLoading: false }))
     }
   }
@@ -259,7 +280,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     connectToXero,
     disconnectFromXero,
     syncData,
-    checkAuthStatus
+    checkAuthStatus,
+    // Alias for compatibility
+    hasXeroConnection: authState.hasActiveToken
   }
 
   return (

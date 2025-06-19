@@ -223,10 +223,12 @@ export function withRateLimit(
       // Call the original handler
       const response = await handler(req);
 
-      // Copy rate limit headers to response
-      headers.forEach((value, key) => {
-        response.headers.set(key, value);
-      });
+      // Copy rate limit headers to response if response exists
+      if (response && response.headers) {
+        headers.forEach((value, key) => {
+          response.headers.set(key, value);
+        });
+      }
 
       return response;
     } catch (error) {
@@ -237,7 +239,19 @@ export function withRateLimit(
           endpoint: pathname
         });
       }
+      
+      // Re-throw the error so it can be handled by the global error handler
       throw error;
+    } finally {
+      // In case the error handler returns a response, try to add headers
+      // This is wrapped in try-catch to prevent secondary errors
+      try {
+        if (headers && headers.size > 0) {
+          // Headers will be added by the error handler if it creates a response
+        }
+      } catch (e) {
+        // Ignore header errors in finally block
+      }
     }
   };
 }

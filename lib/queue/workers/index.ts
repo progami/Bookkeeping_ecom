@@ -18,9 +18,9 @@ export async function startWorkers() {
     const webhookWorker = createWebhookProcessor();
     workers.set('webhook-processor', webhookWorker);
 
-    // Add more workers here as needed
-    // const syncWorker = createSyncProcessor();
-    // workers.set('sync-processor', syncWorker);
+    // Start historical sync processor
+    const { historicalSyncWorker } = await import('../processors/xero-historical-sync.processor');
+    workers.set('historical-sync', historicalSyncWorker);
 
     structuredLogger.info('Queue workers started', {
       component: 'queue-workers',

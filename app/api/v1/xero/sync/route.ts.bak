@@ -15,8 +15,6 @@ import { withAuthValidation } from '@/lib/auth/auth-wrapper';
 import { ValidationLevel } from '@/lib/auth/session-validation';
 import { memoryMonitor } from '@/lib/memory-monitor';
 import { updateSyncProgress, completeSyncProgress, failSyncProgress } from '@/lib/sync-progress-manager';
-import { getQueue, QUEUE_NAMES, HistoricalSyncJob, PRIORITY_LEVELS } from '@/lib/queue/queue-config';
-import '@/lib/queue/init-workers'; // Initialize workers
 
 export const POST = withRateLimit(
   withAuthValidation(
@@ -32,7 +30,7 @@ export const POST = withRateLimit(
       structuredLogger.info('[Xero Sync] Manual sync request received', {
         forceFullSync,
         syncOptions,
-        userId: session?.user?.userId
+        userId: session?.userId
       });
       
       // Default to all entities if not specified
@@ -64,106 +62,7 @@ export const POST = withRateLimit(
       lastSuccessfulSync: lastSuccessfulSync?.completedAt
     });
     
-    // For historical sync, enqueue to background queue
-    if (isHistoricalSync) {
-      // Get Xero client to check tenant and get token
-      const xero = await getXeroClient();
-      if (!xero) {
-        throw new Error('Not connected to Xero');
-      }
-      
-      // Get the token set that the API route can access
-      const { getStoredTokenSet } = await import('@/lib/xero-client');
-      const tokenSet = await getStoredTokenSet();
-      if (!tokenSet || !tokenSet.access_token) {
-        throw new Error('Xero token not found. Please reconnect.');
-      }
-      
-      await xero.updateTenants();
-      if (!xero.tenants || xero.tenants.length === 0) {
-        throw new Error('No Xero tenants found. Please reconnect to Xero.');
-      }
-      
-      const tenant = xero.tenants[0];
-      
-      // Create sync log
-      syncLog = await prisma.syncLog.create({
-        data: {
-          syncType,
-          status: 'pending',
-          startedAt: new Date()
-        }
-      });
-      
-      // Initialize progress in Redis
-      await updateSyncProgress(syncLog.id, {
-        syncId: syncLog.id,
-        status: 'pending',
-        percentage: 0,
-        currentStep: 'Sync queued for background processing...',
-        steps: {},
-        startedAt: syncLog.startedAt.toISOString()
-      });
-      
-      // Enqueue job to historical sync queue with token
-      const historicalSyncQueue = getQueue<HistoricalSyncJob>(QUEUE_NAMES.HISTORICAL_SYNC);
-      const job = await historicalSyncQueue.add(
-        'historical-sync',
-        {
-          userId: session.user.userId,
-          tenantId: tenant.tenantId,
-          syncId: syncLog.id,
-          tokenSet: {
-            access_token: tokenSet.access_token,
-            refresh_token: tokenSet.refresh_token,
-            expires_at: tokenSet.expires_at,
-            expires_in: tokenSet.expires_in,
-            token_type: tokenSet.token_type,
-            scope: tokenSet.scope
-          }, // Pass the token set securely
-          syncOptions: {
-            entities: entitiesToSync,
-            historicalSyncFromDate: historicalSyncFromDate.toISOString(),
-            limits,
-            accountIds: syncOptions.accountIds
-          }
-        },
-        {
-          priority: PRIORITY_LEVELS.HIGH,
-          removeOnComplete: false,
-          removeOnFail: false
-        }
-      );
-      
-      structuredLogger.info('[Xero Sync] Historical sync job enqueued', {
-        syncId: syncLog.id,
-        jobId: job.id,
-        tenantId: tenant.tenantId
-      });
-      
-      // Log sync queue
-      await auditLogger.logSuccess(
-        AuditAction.SYNC_START,
-        AuditResource.SYNC_OPERATION,
-        {
-          resourceId: syncLog.id,
-          metadata: {
-            syncType,
-            jobId: job.id,
-            queued: true
-          }
-        }
-      );
-      
-      return NextResponse.json({
-        syncId: syncLog.id,
-        status: 'queued',
-        jobId: job.id,
-        message: 'Historical sync has been queued for background processing'
-      });
-    }
-    
-    // For regular syncs, continue with existing logic
+    // Use idempotency for sync operations
     const idempotencyKey = {
       operation: 'xero_sync',
       syncType,
@@ -200,16 +99,6 @@ export const POST = withRateLimit(
                 }
               }
             );
-            
-            // Initialize progress in Redis immediately after creating sync log
-            await updateSyncProgress(syncLog.id, {
-              syncId: syncLog.id,
-              status: 'pending',
-              percentage: 0,
-              currentStep: 'Preparing sync...',
-              steps: {},
-              startedAt: syncLog.startedAt.toISOString()
-            });
 
             return await performSync(tx, syncLog, {
               modifiedSince,
@@ -320,7 +209,7 @@ async function performSync(tx: any, syncLog: any, options: {
     });
     
     // Initialize progress
-    await updateSyncProgress(syncLog.id, {
+    updateSyncProgress(syncLog.id, {
       status: 'in_progress',
       syncId: syncLog.id,
       startedAt: syncLog.startedAt,
@@ -340,7 +229,7 @@ async function performSync(tx: any, syncLog: any, options: {
     
     // Step 1: Sync all GL accounts (Chart of Accounts) first
     if (entitiesToSync.includes('accounts')) {
-      await updateSyncProgress(syncLog.id, {
+      updateSyncProgress(syncLog.id, {
         currentStep: 'Syncing Chart of Accounts...',
         percentage: 5,
         steps: {
@@ -403,7 +292,7 @@ async function performSync(tx: any, syncLog: any, options: {
         count: totalGLAccounts 
       });
       
-      await updateSyncProgress(syncLog.id, {
+      updateSyncProgress(syncLog.id, {
         currentStep: 'Chart of Accounts synced',
         percentage: 15,
         steps: {
@@ -414,7 +303,7 @@ async function performSync(tx: any, syncLog: any, options: {
     
     // Step 2: Sync all bank accounts with rate limiting (always needed for transactions)
     if (entitiesToSync.includes('accounts') || entitiesToSync.includes('transactions')) {
-      await updateSyncProgress(syncLog.id, {
+      updateSyncProgress(syncLog.id, {
         currentStep: 'Syncing bank accounts...',
         percentage: 20,
         steps: {
@@ -424,7 +313,6 @@ async function performSync(tx: any, syncLog: any, options: {
       
       structuredLogger.debug('Fetching bank accounts', { component: 'xero-sync' });
       const accountsResponse = await executeXeroAPICall(
-        xero,
         tenant.tenantId,
         async (client) => client.accountingApi.getAccounts(
           tenant.tenantId,
@@ -477,7 +365,7 @@ async function performSync(tx: any, syncLog: any, options: {
         count: totalAccounts
       });
       
-      await updateSyncProgress(syncLog.id, {
+      updateSyncProgress(syncLog.id, {
         currentStep: 'Bank accounts synced',
         percentage: 25,
         steps: {
@@ -487,7 +375,7 @@ async function performSync(tx: any, syncLog: any, options: {
     
       // Step 3: Fetch transactions for EACH bank account
       if (entitiesToSync.includes('transactions')) {
-        await updateSyncProgress(syncLog.id, {
+        updateSyncProgress(syncLog.id, {
           currentStep: 'Syncing transactions...',
           percentage: 30,
           steps: {
@@ -564,7 +452,6 @@ async function performSync(tx: any, syncLog: any, options: {
           
           // Use paginated API call generator with rate limiting
           const transactionPages = paginatedXeroAPICallGenerator(
-            xero,
             tenant.tenantId,
             async (client, pageNum) => {
               structuredLogger.debug('Fetching transaction page', {
@@ -600,7 +487,7 @@ async function performSync(tx: any, syncLog: any, options: {
           // Process transactions as they come in
           for await (const transactions of transactionPages) {
               // Process each transaction
-              for (const xeroTx of transactions as any[]) {
+              for (const xeroTx of transactions) {
                 if (!xeroTx.bankTransactionID) continue;
                 if (transactionsSynced >= maxTransactions) break;
                 
@@ -682,7 +569,7 @@ async function performSync(tx: any, syncLog: any, options: {
                 // Update progress every 100 transactions
                 if (totalTransactions % 100 === 0) {
                   const progressPercentage = 30 + Math.min(35, (transactionsSynced / maxTransactions) * 35);
-                  await updateSyncProgress(syncLog.id, {
+                  updateSyncProgress(syncLog.id, {
                     currentStep: `Syncing transactions: ${totalTransactions} processed...`,
                     percentage: progressPercentage,
                     steps: {
@@ -705,14 +592,18 @@ async function performSync(tx: any, syncLog: any, options: {
           
           // Update progress with account-specific info
           const progressPercentage = 30 + Math.min(35, ((i + 1) / accountsToSync.length) * 35);
-          await updateSyncProgress(syncLog.id, {
+          updateSyncProgress(syncLog.id, {
             currentStep: `Synced ${i + 1}/${accountsToSync.length} accounts (${totalTransactions} transactions)`,
             percentage: progressPercentage,
             steps: {
               transactions: { 
                 status: 'in_progress', 
                 count: totalTransactions,
-                details: `Processed ${i + 1}/${accountsToSync.length} accounts`
+                details: {
+                  accountsCompleted: i + 1,
+                  totalAccounts: accountsToSync.length,
+                  checkpoints: accountCheckpoints
+                }
               }
             }
           });
@@ -747,7 +638,7 @@ async function performSync(tx: any, syncLog: any, options: {
           });
         }
         
-        await updateSyncProgress(syncLog.id, {
+        updateSyncProgress(syncLog.id, {
           currentStep: 'Transactions synced',
           percentage: 65,
           steps: {
@@ -762,7 +653,7 @@ async function performSync(tx: any, syncLog: any, options: {
     
     // Step 4: Sync invoices if requested
     if (entitiesToSync.includes('invoices') || entitiesToSync.includes('bills')) {
-      await updateSyncProgress(syncLog.id, {
+      updateSyncProgress(syncLog.id, {
         currentStep: 'Syncing invoices and bills...',
         percentage: 70,
         steps: {
@@ -786,7 +677,6 @@ async function performSync(tx: any, syncLog: any, options: {
           const invoiceFilterToDate = toDate;
           
           const customerInvoicesResponse = await executeXeroAPICall(
-            xero,
             tenant.tenantId,
             async (client) => client.accountingApi.getInvoices(
               tenant.tenantId,
@@ -859,7 +749,7 @@ async function performSync(tx: any, syncLog: any, options: {
             invoicesSynced++;
           }
           
-          await updateSyncProgress(syncLog.id, {
+          updateSyncProgress(syncLog.id, {
             steps: {
               invoices: { status: 'completed', count: totalInvoices }
             }
@@ -878,7 +768,6 @@ async function performSync(tx: any, syncLog: any, options: {
           const billsFilterToDate = toDate;
           
           const supplierBillsResponse = await executeXeroAPICall(
-            xero,
             tenant.tenantId,
             async (client) => client.accountingApi.getInvoices(
               tenant.tenantId,
@@ -951,7 +840,7 @@ async function performSync(tx: any, syncLog: any, options: {
             billsSynced++;
           }
           
-          await updateSyncProgress(syncLog.id, {
+          updateSyncProgress(syncLog.id, {
             steps: {
               bills: { status: 'completed', count: totalBills }
             }
@@ -961,7 +850,7 @@ async function performSync(tx: any, syncLog: any, options: {
         structuredLogger.error('Error syncing invoices', invoiceError, { component: 'xero-sync' });
       }
       
-      await updateSyncProgress(syncLog.id, {
+      updateSyncProgress(syncLog.id, {
         currentStep: 'Invoices and bills synced',
         percentage: 85
       });
@@ -969,7 +858,7 @@ async function performSync(tx: any, syncLog: any, options: {
 
     // Step 5: Sync currency rates for all active currencies
     try {
-      await updateSyncProgress(syncLog.id, {
+      updateSyncProgress(syncLog.id, {
         currentStep: 'Syncing currency rates...',
         percentage: 90
       });
@@ -1025,16 +914,17 @@ async function performSync(tx: any, syncLog: any, options: {
       // Don't fail the entire sync for currency errors
     }
 
-    // Final progress update using helper
-    await completeSyncProgress(syncLog.id, {
-      glAccounts: totalGLAccounts,
-      bankAccounts: totalAccounts,
-      transactions: totalTransactions,
-      invoices: totalInvoices,
-      bills: totalBills,
-      contacts: totalContacts,
-      created: createdTransactions,
-      updated: updatedTransactions
+    // Final progress update
+    updateSyncProgress(syncLog.id, {
+      currentStep: 'Sync completed successfully',
+      percentage: 100,
+      steps: {
+        accounts: { status: 'completed', count: totalGLAccounts + totalAccounts },
+        transactions: { status: 'completed', count: totalTransactions },
+        invoices: { status: 'completed', count: totalInvoices },
+        bills: { status: 'completed', count: totalBills },
+        contacts: { status: totalContacts > 0 ? 'completed' : 'skipped', count: totalContacts }
+      }
     });
 
     structuredLogger.info('Sync completed successfully', {
@@ -1140,8 +1030,13 @@ async function performSync(tx: any, syncLog: any, options: {
   } catch (error: any) {
     structuredLogger.error('Sync error', error, { component: 'xero-sync' });
     
-    // Update progress to failed using helper
-    await failSyncProgress(syncLog.id, error.message || 'An unknown error occurred during sync');
+    // Update progress to failed
+    updateSyncProgress(syncLog.id, {
+      currentStep: `Sync failed: ${error.message}`,
+      percentage: 0,
+      status: 'failed',
+      errorMessage: error.message
+    });
     
     // Log sync failure
     await auditLogger.logFailure(

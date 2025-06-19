@@ -68,6 +68,8 @@ export const xeroSyncSchema = z.object({
     // Date range for transactions/invoices
     fromDate: z.string().datetime().optional(),
     toDate: z.string().datetime().optional(),
+    // Historical sync - fetch all data from this date (ignores modifiedSince)
+    historicalSyncFromDate: z.string().datetime().optional(),
     // Specific account IDs to sync
     accountIds: z.array(z.string()).optional(),
     // Max items per entity type

@@ -90,7 +90,7 @@ export const POST = apiWrapper(
     });
   },
   {
-    authLevel: ValidationLevel.PUBLIC, // Webhooks are public endpoints
+    authLevel: ValidationLevel.NONE, // Webhooks are public endpoints
     endpoint: '/api/v1/xero/webhooks'
   }
 );
@@ -115,7 +115,7 @@ export const GET = apiWrapper(
     });
   },
   {
-    authLevel: ValidationLevel.FULL,
+    authLevel: ValidationLevel.XERO,
     endpoint: '/api/v1/xero/webhooks'
   }
 );

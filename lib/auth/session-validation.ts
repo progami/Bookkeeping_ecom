@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { SESSION_COOKIE_NAME, TOKEN_COOKIE_NAME } from '@/lib/cookie-config';
-import { getXeroClient } from '@/lib/xero-client';
+import { getXeroClient, refreshToken, getStoredTokenSet } from '@/lib/xero-client';
 import { prisma } from '@/lib/prisma';
 import { structuredLogger } from '@/lib/logger';
+import { withLock, LOCK_RESOURCES } from '@/lib/redis-lock';
 
 export interface SessionUser {
   userId: string;
@@ -184,19 +185,79 @@ export async function validateSession(
         const bufferTime = 5 * 60 * 1000; // 5 minute buffer
         
         if (now >= expiresAt - bufferTime) {
-          structuredLogger.warn('Xero token expired or expiring soon', {
+          structuredLogger.info('Xero token expiring soon, attempting refresh', {
             component: 'session-validation',
             userId: user.userId,
             expiresAt: new Date(expiresAt).toISOString()
           });
           
-          // Token needs refresh
-          return {
-            user,
-            xeroToken,
-            isAdmin,
-            isValid: false
-          };
+          // Attempt to refresh the token proactively
+          const refreshKey = `token-refresh-${user.userId}`;
+          
+          let refreshedToken: XeroTokenData | null = null;
+          try {
+            refreshedToken = await withLock(
+              LOCK_RESOURCES.XERO_TOKEN_REFRESH,
+              30000, // 30 seconds TTL
+              async () => {
+                // Double-check if token still needs refresh
+                const currentToken = await getStoredTokenSet();
+                if (currentToken && currentToken.expires_at && currentToken.expires_at * 1000 >= expiresAt - bufferTime) {
+                  structuredLogger.info('Token already refreshed by another process', {
+                    component: 'session-validation',
+                    userId: user.userId
+                  });
+                  return currentToken;
+                }
+                
+                // Perform the refresh
+                const newToken = await refreshToken(xeroToken);
+                if (!newToken) {
+                  throw new Error('Failed to refresh token');
+                }
+                
+                return newToken;
+              }
+            );
+          } catch (error) {
+            structuredLogger.error('Token refresh error', error, {
+              component: 'session-validation',
+              userId: user.userId
+            });
+            refreshedToken = null;
+          }
+          
+          if (refreshedToken) {
+            // Update the xeroToken variable with the refreshed token
+            xeroToken = refreshedToken;
+            
+            // Update the cookie with the new token
+            // Import the centralized cookie config
+            const { COOKIE_OPTIONS } = await import('@/lib/cookie-config');
+            const cookieStore = cookies();
+            cookieStore.set(TOKEN_COOKIE_NAME, JSON.stringify(refreshedToken), COOKIE_OPTIONS);
+            
+            structuredLogger.info('Xero token refreshed successfully', {
+              component: 'session-validation',
+              userId: user.userId,
+              newExpiresAt: new Date(refreshedToken.expires_at * 1000).toISOString()
+            });
+            
+            // Continue with validation as if the token were valid from the start
+          } else {
+            // Refresh failed, return invalid
+            structuredLogger.error('Token refresh failed', undefined, {
+              component: 'session-validation',
+              userId: user.userId
+            });
+            
+            return {
+              user,
+              xeroToken,
+              isAdmin,
+              isValid: false
+            };
+          }
         }
         
         // Skip Xero client verification here to avoid circular dependency

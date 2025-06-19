@@ -16,6 +16,14 @@ export default function SyncPage() {
   const { hasXeroConnection } = useAuth();
   const [syncStarted, setSyncStarted] = useState(false);
   const [setupChecked, setSetupChecked] = useState(false);
+  const [isAutoSync, setIsAutoSync] = useState(false);
+
+  useEffect(() => {
+    // Check if this is an auto-sync (from Xero callback)
+    const params = new URLSearchParams(window.location.search);
+    const fromCallback = params.get('from') === 'xero-callback';
+    setIsAutoSync(fromCallback);
+  }, []);
 
   useEffect(() => {
     // If no Xero connection, redirect to connect page
@@ -24,8 +32,8 @@ export default function SyncPage() {
       return;
     }
 
-    // Start sync automatically
-    if (!syncStarted && syncStatus.status === 'idle') {
+    // Only start sync automatically if it's from Xero callback or if user hasn't started sync yet
+    if (!syncStarted && syncStatus.status === 'idle' && isAutoSync) {
       setSyncStarted(true);
       syncWithXero();
     }
@@ -59,18 +67,20 @@ export default function SyncPage() {
           }, 1500);
         });
     }
-  }, [hasXeroConnection, syncStatus, syncStarted, syncWithXero, router, setupChecked]);
+  }, [hasXeroConnection, syncStatus, syncStarted, syncWithXero, router, setupChecked, isAutoSync]);
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle>
+            {syncStatus.status === 'idle' && 'Sync Your Data'}
             {syncStatus.status === 'syncing' && 'Syncing Your Data'}
             {syncStatus.status === 'success' && 'Sync Complete!'}
             {syncStatus.status === 'failed' && 'Sync Failed'}
           </CardTitle>
           <CardDescription>
+            {syncStatus.status === 'idle' && 'Keep your financial data up to date'}
             {syncStatus.status === 'syncing' && 'Loading your financial data from Xero'}
             {syncStatus.status === 'success' && 'Your data is ready'}
             {syncStatus.status === 'failed' && 'We couldn&apos;t sync your data'}
@@ -78,6 +88,26 @@ export default function SyncPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
+            {/* Idle State - Manual Sync */}
+            {syncStatus.status === 'idle' && !syncStarted && (
+              <div className="space-y-4">
+                <div className="flex justify-center">
+                  <RefreshCw className="h-12 w-12 text-gray-400" />
+                </div>
+                <p className="text-sm text-center text-muted-foreground mb-4">
+                  This page is being redirected. Use the sync button in the header or go to Advanced Sync.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => router.push('/sync/manual')}
+                    className="flex-1"
+                  >
+                    Go to Advanced Sync
+                  </Button>
+                </div>
+              </div>
+            )}
+            
             {/* Syncing State */}
             {syncStatus.status === 'syncing' && (
               <div className="space-y-4">

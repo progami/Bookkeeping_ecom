@@ -18,16 +18,16 @@ export class XeroRateLimiter {
     
     // Create a Bottleneck limiter with Xero's rate limits
     this.limiter = new Bottleneck({
-      // Per minute limit
-      reservoir: 60,
-      reservoirRefreshAmount: 60,
+      // Per minute limit - be conservative to avoid hitting limits
+      reservoir: 50, // Leave buffer of 10 requests
+      reservoirRefreshAmount: 50,
       reservoirRefreshInterval: 60 * 1000, // 1 minute
       
       // Maximum concurrent requests per tenant
-      maxConcurrent: 5,
+      maxConcurrent: 2, // Reduce concurrent requests
       
-      // Minimum time between requests (100ms)
-      minTime: 100,
+      // Minimum time between requests (1200ms = 50 requests/minute max)
+      minTime: 1200,
       
       // Use local storage instead of Redis for now to avoid bottleneck issues
       // datastore: 'redis',
@@ -105,12 +105,15 @@ export class XeroRateLimiter {
         return result;
       } catch (error: any) {
         // Handle rate limit errors
-        if (error.response?.status === 429) {
+        if (error.response?.status === 429 || error.response?.statusCode === 429) {
           const retryAfter = parseInt(error.response.headers['retry-after'] || '60');
           logger.info(`Rate limit hit. Retry after ${retryAfter} seconds`);
           
-          // Bottleneck will handle the retry
-          throw new Bottleneck.BottleneckError(`Rate limited. Retry after ${retryAfter}s`);
+          // Wait for the retry period plus a buffer
+          await new Promise(resolve => setTimeout(resolve, (retryAfter + 2) * 1000));
+          
+          // Retry the request
+          return this.executeAPICall(apiFunction);
         }
         
         // Re-throw other errors

@@ -19,6 +19,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        {/* Initialize logger IMMEDIATELY to capture ALL browser logs */}
+        {process.env.NODE_ENV === 'development' && (
+          <script async src="/init-logger.js" />
+        )}
+      </head>
       <body className={inter.className}>
         <ClientLoggerInit />
         <Providers>

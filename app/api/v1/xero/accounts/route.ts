@@ -87,7 +87,7 @@ export const GET = apiWrapper(
     });
   },
   {
-    authLevel: ValidationLevel.FULL,
+    authLevel: ValidationLevel.XERO,
     endpoint: '/api/v1/xero/accounts'
   }
 );

@@ -36,7 +36,18 @@ const httpsOptions = {
   cert: fs.readFileSync(path.join(__dirname, 'certificates', 'localhost.pem'))
 };
 
-app.prepare().then(() => {
+app.prepare().then(async () => {
+  // Initialize queue workers in development
+  if (dev) {
+    try {
+      // Queue workers will be initialized by Next.js when it loads the app
+      console.log('Queue workers will be initialized by Next.js');
+    } catch (error) {
+      console.error('Failed to initialize queue workers:', error);
+      // Continue running without workers
+    }
+  }
+  
   createServer(httpsOptions, async (req, res) => {
     try {
       // Use WHATWG URL API instead of deprecated url.parse()
@@ -63,4 +74,10 @@ app.prepare().then(() => {
     .listen(port, () => {
       console.log(`> Ready on https://${hostname}:${port}`);
     });
+    
+  // Handle graceful shutdown
+  process.on('SIGTERM', async () => {
+    console.log('SIGTERM received, shutting down gracefully...');
+    process.exit(0);
+  });
 });

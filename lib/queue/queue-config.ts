@@ -22,6 +22,7 @@ export const createRedisConnection = () => new Redis(redisConfig);
 // Queue definitions
 export const QUEUE_NAMES = {
   XERO_SYNC: 'xero-sync',
+  HISTORICAL_SYNC: 'historical-sync',
   EMAIL_NOTIFICATIONS: 'email-notifications',
   REPORT_GENERATION: 'report-generation',
   DATA_EXPORT: 'data-export',
@@ -39,6 +40,30 @@ export interface XeroSyncJob {
     startDate?: string;
     endDate?: string;
     forceUpdate?: boolean;
+  };
+}
+
+export interface HistoricalSyncJob {
+  userId: string;
+  tenantId: string;
+  syncId: string;
+  tokenSet: {
+    access_token: string;
+    refresh_token?: string;
+    expires_at?: number;
+    expires_in?: number;
+    token_type?: string;
+    scope?: string;
+  };
+  syncOptions: {
+    entities: string[];
+    historicalSyncFromDate: string;
+    limits?: {
+      transactions?: number;
+      invoices?: number;
+      bills?: number;
+    };
+    accountIds?: string[];
   };
 }
 

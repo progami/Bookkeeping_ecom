@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuthValidation } from '@/lib/auth/auth-wrapper';
 import { ValidationLevel } from '@/lib/auth/session-validation';
-import { syncProgressStore } from '@/lib/sync-progress-manager';
+import { getSyncProgress } from '@/lib/sync-progress-manager';
 
 export const GET = withAuthValidation(
   { authLevel: ValidationLevel.USER },
@@ -22,7 +22,7 @@ export const GET = withAuthValidation(
 
       // Get real-time progress if sync is in progress
       if (latestSync.status === 'in_progress') {
-        const progress = syncProgressStore.get(latestSync.id) || {
+        const progress = await getSyncProgress(latestSync.id) || {
           status: 'in_progress',
           syncId: latestSync.id,
           startedAt: latestSync.startedAt,

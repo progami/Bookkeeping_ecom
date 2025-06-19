@@ -16,6 +16,29 @@ import { formatDistanceToNow } from 'date-fns';
 
 export function SyncStatus() {
   const { syncStatus, syncWithXero, clearSyncError } = useSync();
+  const [showSuccess, setShowSuccess] = React.useState(false);
+  const [previousStatus, setPreviousStatus] = React.useState(syncStatus.status);
+
+  // Show success notification only when sync transitions from syncing to success
+  React.useEffect(() => {
+    if (syncStatus.status === 'success' && previousStatus === 'syncing') {
+      setShowSuccess(true);
+    } else if (syncStatus.status === 'syncing' || syncStatus.status === 'idle') {
+      // Reset success state when starting a new sync or going idle
+      setShowSuccess(false);
+    }
+    setPreviousStatus(syncStatus.status);
+  }, [syncStatus.status, previousStatus]);
+
+  // Effect for success notification timeout - must be before any conditional returns
+  React.useEffect(() => {
+    if (showSuccess && syncStatus.status === 'success') {
+      const timer = setTimeout(() => {
+        setShowSuccess(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccess, syncStatus.status]);
 
   if (syncStatus.status === 'idle') {
     return null;
@@ -91,22 +114,12 @@ export function SyncStatus() {
     );
   }
 
-  // Effect for success notification timeout
-  React.useEffect(() => {
-    if (syncStatus.status === 'success' && syncStatus.lastSyncAt) {
-      const timer = setTimeout(() => {
-        // Don't clear the sync status, just hide the notification
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [syncStatus.status, syncStatus.lastSyncAt]);
-
-  if (syncStatus.status === 'success' && syncStatus.lastSyncAt) {
+  if (syncStatus.status === 'success' && showSuccess) {
     return (
       <div className="fixed top-4 right-4 w-96 z-50 animate-in fade-in slide-in-from-top-2">
-        <Alert className="border-green-500/30 bg-green-950/50">
+        <Alert className="border-green-500/30 bg-green-950/50 relative">
           <CheckCircle2 className="h-4 w-4 text-green-400" />
-          <AlertTitle className="text-green-100">
+          <AlertTitle className="text-green-100 pr-8">
             Sync Complete
           </AlertTitle>
           <AlertDescription className="text-green-200">
@@ -120,6 +133,13 @@ export function SyncStatus() {
               )}
             </div>
           </AlertDescription>
+          <button
+            onClick={() => setShowSuccess(false)}
+            className="absolute top-2 right-2 p-1 hover:bg-green-900/50 rounded transition-colors"
+            aria-label="Dismiss notification"
+          >
+            <XCircle className="h-4 w-4 text-green-400/60 hover:text-green-400" />
+          </button>
         </Alert>
       </div>
     );

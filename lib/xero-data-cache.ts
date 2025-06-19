@@ -290,6 +290,7 @@ export class XeroDataCache {
         key: CacheKey.PROFIT_LOSS,
         fetch: async () => {
           const report = await executeXeroAPICall(
+            xero,
             tenantId,
             (xeroClient) => xeroClient.accountingApi.getReportProfitAndLoss(
               tenantId,
@@ -305,6 +306,7 @@ export class XeroDataCache {
         key: CacheKey.BALANCE_SHEET,
         fetch: async () => {
           const report = await executeXeroAPICall(
+            xero,
             tenantId,
             (xeroClient) => xeroClient.accountingApi.getReportBalanceSheet(
               tenantId,
@@ -320,6 +322,7 @@ export class XeroDataCache {
         key: CacheKey.ACCOUNTS,
         fetch: async () => {
           const accounts = await executeXeroAPICall(
+            xero,
             tenantId,
             (xeroClient) => xeroClient.accountingApi.getAccounts(tenantId)
           );
@@ -330,6 +333,7 @@ export class XeroDataCache {
         key: CacheKey.BANK_ACCOUNTS,
         fetch: async () => {
           const accounts = await executeXeroAPICall(
+            xero,
             tenantId,
             (xeroClient) => xeroClient.accountingApi.getAccounts(tenantId, undefined, 'Type=="BANK"')
           );

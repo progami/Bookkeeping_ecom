@@ -3,12 +3,25 @@ class ClientLogger {
   private logBuffer: any[] = [];
   private flushInterval: NodeJS.Timeout | null = null;
   private originalConsole: any = {};
+  private enabled: boolean = false;
   
   constructor() {
     // Only run in browser
     if (typeof window === 'undefined') return;
     
-    // Store original console methods
+    // Always enable in development - check multiple conditions
+    this.enabled = process.env.NODE_ENV === 'development' || 
+                   process.env.NODE_ENV !== 'production' ||
+                   window.location.hostname === 'localhost' ||
+                   window.location.hostname === '127.0.0.1';
+    
+    // Get the pre-existing log buffer from the early init script
+    if ((window as any).__logBuffer && Array.isArray((window as any).__logBuffer)) {
+      this.logBuffer = (window as any).__logBuffer;
+      console.log('[ClientLogger] Found', this.logBuffer.length, 'pre-existing logs from early init');
+    }
+    
+    // Store original console methods FIRST
     this.originalConsole = {
       log: console.log.bind(console),
       error: console.error.bind(console),
@@ -17,49 +30,112 @@ class ClientLogger {
       debug: console.debug.bind(console)
     };
     
+    // Debug log to see what's happening
+    this.originalConsole.log('[ClientLogger] Initialized:', this.enabled ? 'ENABLED' : 'DISABLED');
+    
+    if (!this.enabled) return;
+    
     // Start flush interval
     this.startFlushInterval();
     
-    // Intercept console methods
+    // Intercept console methods (they're already intercepted by init-logger.js, but we take over here)
     this.interceptConsole();
+    
+    // Immediately flush any pre-existing logs
+    if (this.logBuffer.length > 0) {
+      setTimeout(() => this.flush(), 100); // Small delay to ensure everything is ready
+    }
   }
   
   private interceptConsole() {
+    this.originalConsole.log('[ClientLogger] Intercepting console methods...');
+    
+    // Get stack trace to find caller info
+    const getCallerInfo = () => {
+      const stack = new Error().stack || '';
+      const lines = stack.split('\n');
+      // Find the first line that's not from client-logger.ts
+      for (let i = 3; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line.includes('client-logger') && !line.includes('console.') && line.includes('.js') || line.includes('.tsx') || line.includes('.ts')) {
+          // Extract filename and line number
+          const match = line.match(/([^\/\s]+\.(tsx?|jsx?|js)):(\d+):(\d+)/);
+          if (match) {
+            return `${match[1]}:${match[3]}`;
+          }
+        }
+      }
+      return '';
+    };
+    
     // Override console.log
     console.log = (...args: any[]) => {
-      this.addToBuffer('log', args);
+      const caller = getCallerInfo();
+      if (caller) {
+        // Prepend caller info to match browser console format
+        this.addToBuffer('log', [caller, ...args]);
+      } else {
+        this.addToBuffer('log', args);
+      }
       this.originalConsole.log(...args);
     };
     
     // Override console.error
     console.error = (...args: any[]) => {
-      this.addToBuffer('error', args);
+      const caller = getCallerInfo();
+      if (caller) {
+        this.addToBuffer('error', [caller, ...args]);
+      } else {
+        this.addToBuffer('error', args);
+      }
       this.originalConsole.error(...args);
     };
     
     // Override console.warn
     console.warn = (...args: any[]) => {
-      this.addToBuffer('warn', args);
+      const caller = getCallerInfo();
+      if (caller) {
+        this.addToBuffer('warn', [caller, ...args]);
+      } else {
+        this.addToBuffer('warn', args);
+      }
       this.originalConsole.warn(...args);
     };
     
     // Override console.info
     console.info = (...args: any[]) => {
-      this.addToBuffer('info', args);
+      const caller = getCallerInfo();
+      if (caller) {
+        this.addToBuffer('info', [caller, ...args]);
+      } else {
+        this.addToBuffer('info', args);
+      }
       this.originalConsole.info(...args);
     };
     
     // Override console.debug
     console.debug = (...args: any[]) => {
-      this.addToBuffer('debug', args);
+      const caller = getCallerInfo();
+      if (caller) {
+        this.addToBuffer('debug', [caller, ...args]);
+      } else {
+        this.addToBuffer('debug', args);
+      }
       this.originalConsole.debug(...args);
     };
   }
   
   private addToBuffer(level: string, args: any[]) {
-    // Convert args to string message
+    // Don't process our own logs to prevent loops
+    if (args.length > 0 && typeof args[0] === 'string' && args[0].startsWith('[ClientLogger]')) {
+      return;
+    }
+    
+    // Convert args to string message - EXACTLY as they appear in console
     const message = args.map(arg => {
-      if (typeof arg === 'object') {
+      if (arg instanceof Error) {
+        return arg.stack || arg.toString();
+      } else if (typeof arg === 'object') {
         try {
           return JSON.stringify(arg, null, 2);
         } catch (e) {
@@ -69,23 +145,17 @@ class ClientLogger {
       return String(arg);
     }).join(' ');
     
-    // NEW: Add this check to break the logging loop.
-    // If the message already matches our formatted log pattern,
-    // do not send it to the server again. It will still appear
-    // in the browser console for developers.
-    if (/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]/.test(message)) {
-      return;
-    }
-    
-    // Skip empty messages
-    if (!message.trim()) return;
-    
     // Add to buffer
     this.logBuffer.push({
       level,
       message,
       timestamp: new Date().toISOString()
     });
+    
+    // Debug
+    if (this.logBuffer.length === 1 || this.logBuffer.length % 5 === 0) {
+      this.originalConsole.log('[ClientLogger] Buffer size:', this.logBuffer.length);
+    }
     
     // Flush if buffer is getting large
     if (this.logBuffer.length >= 10) {
@@ -103,29 +173,40 @@ class ClientLogger {
   }
   
   private async flush() {
-    if (this.logBuffer.length === 0) return;
+    if (!this.enabled || this.logBuffer.length === 0) return;
     
     // Copy current buffer and clear it
     const logsToSend = [...this.logBuffer];
     this.logBuffer = [];
     
+    // Debug: Log the flush attempt
+    this.originalConsole.log('[ClientLogger] Flushing', logsToSend.length, 'logs to server');
+    
     try {
-      await fetch('/api/v1/logs', {
+      const response = await fetch('/api/v1/logs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ logs: logsToSend }),
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      this.originalConsole.log('[ClientLogger] Successfully sent logs');
     } catch (error) {
       // Restore logs to buffer if send failed
       this.logBuffer = [...logsToSend, ...this.logBuffer];
-      this.originalConsole.error('Failed to send logs to server:', error);
+      this.originalConsole.error('[ClientLogger] Failed to send logs to server:', error);
     }
   }
   
   // Clean up on page unload
   destroy() {
+    if (!this.enabled) return;
+    
     if (this.flushInterval) {
       clearInterval(this.flushInterval);
     }
@@ -146,6 +227,16 @@ export function initializeClientLogger() {
       if (clientLogger) {
         clientLogger.destroy();
       }
+    });
+    
+    // Also capture unhandled errors
+    window.addEventListener('error', (event) => {
+      console.error('Unhandled error:', event.error || event.message);
+    });
+    
+    // Capture unhandled promise rejections
+    window.addEventListener('unhandledrejection', (event) => {
+      console.error('Unhandled promise rejection:', event.reason);
     });
   }
 }

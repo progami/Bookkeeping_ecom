@@ -50,9 +50,13 @@ export class XeroReportFetcher {
   static async fetchBalanceSheetSummary(tenantId: string): Promise<BalanceSheetSummary> {
     try {
       const xeroClient = await getXeroClient();
+      if (!xeroClient) {
+        throw new Error('Xero client not available');
+      }
       
       // Fetch all accounts with their balances
-      const accountsResponse = await executeXeroAPICall(
+      const accountsResponse = await executeXeroAPICall<any>(
+        xeroClient,
         tenantId,
         (client) => client.accountingApi.getAccounts(
           tenantId,
@@ -159,14 +163,18 @@ export class XeroReportFetcher {
   ): Promise<ProfitLossSummary> {
     try {
       const xeroClient = await getXeroClient();
+      if (!xeroClient) {
+        throw new Error('Xero client not available');
+      }
       
       // Use the profit and loss endpoint with date parameters
-      const response = await executeXeroAPICall(
+      const response = await executeXeroAPICall<any>(
+        xeroClient,
         tenantId,
         (client) => client.accountingApi.getReportProfitAndLoss(
           tenantId,
-          fromDate,
-          toDate,
+          fromDate?.toISOString(),
+          toDate?.toISOString(),
           undefined, // periods
           undefined, // timeframe
           undefined, // trackingCategoryID
@@ -249,12 +257,16 @@ export class XeroReportFetcher {
   ): Promise<TrialBalanceSummary> {
     try {
       const xeroClient = await getXeroClient();
+      if (!xeroClient) {
+        throw new Error('Xero client not available');
+      }
       
-      const response = await executeXeroAPICall(
+      const response = await executeXeroAPICall<any>(
+        xeroClient,
         tenantId,
         (client) => client.accountingApi.getReportTrialBalance(
           tenantId,
-          date,
+          date?.toISOString(),
           false // paymentsOnly
         )
       );

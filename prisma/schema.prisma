@@ -181,6 +181,8 @@ model SyncLog {
   errorMessage   String?
   details        String? // Store details as JSON string
   
+  checkpoints    SyncCheckpoint[]
+  
   @@index([syncType, startedAt])
 }
 
@@ -450,4 +452,18 @@ model Report {
   @@index([userId])
   @@index([status])
   @@index([expiresAt])
+}
+
+model SyncCheckpoint {
+  id            String   @id @default(cuid())
+  syncLogId     String
+  checkpointKey String   // e.g., "account_12345", "invoice_page_5"
+  data          String   // JSON data about the checkpoint
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  syncLog       SyncLog  @relation(fields: [syncLogId], references: [id], onDelete: Cascade)
+  
+  @@unique([syncLogId, checkpointKey])
+  @@index([syncLogId])
 }

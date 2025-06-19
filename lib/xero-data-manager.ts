@@ -171,6 +171,10 @@ export class XeroDataManager {
       
       const xeroClient = await getXeroClient();
       
+      if (!xeroClient) {
+        throw new Error('Xero client not available');
+      }
+      
       // Fetch all data in parallel with rate limiting consideration
       const [
         accounts,
@@ -183,16 +187,16 @@ export class XeroDataManager {
       ] = await Promise.all([
         // Core data
         this.fetchWithRetry(() => 
-          executeXeroAPICall(tenantId, (xeroClient) => xeroClient.accountingApi.getAccounts(tenantId))
+          executeXeroAPICall(xeroClient, tenantId, (client) => client.accountingApi.getAccounts(tenantId))
         ),
         this.fetchWithRetry(() => 
-          executeXeroAPICall(tenantId, (xeroClient) => xeroClient.accountingApi.getBankTransactions(tenantId))
+          executeXeroAPICall(xeroClient, tenantId, (client) => client.accountingApi.getBankTransactions(tenantId))
         ),
         this.fetchWithRetry(() => 
-          executeXeroAPICall(tenantId, (xeroClient) => xeroClient.accountingApi.getInvoices(tenantId))
+          executeXeroAPICall(xeroClient, tenantId, (client) => client.accountingApi.getInvoices(tenantId))
         ),
         this.fetchWithRetry(() => 
-          executeXeroAPICall(tenantId, (xeroClient) => xeroClient.accountingApi.getContacts(tenantId))
+          executeXeroAPICall(xeroClient, tenantId, (client) => client.accountingApi.getContacts(tenantId))
         ),
         
         // Reports - using optimized fetchers
