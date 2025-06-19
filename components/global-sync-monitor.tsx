@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { EnhancedSyncStatus } from './sync-status-enhanced';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { useSync } from '@/contexts/SyncContext';
+import { apiRequest } from '@/lib/api-client';
 
 export function GlobalSyncMonitor() {
   const { activeSyncId, setActiveSyncId } = useGlobalSync();
@@ -20,7 +21,7 @@ export function GlobalSyncMonitor() {
       if (storedSyncId) {
         // Verify the sync is still active by checking its status
         try {
-          const response = await fetch(`/api/v1/xero/sync/progress/${storedSyncId}`);
+          const response = await apiRequest(`/api/v1/xero/sync/progress/${storedSyncId}`);
           const data = await response.json();
           
           if (response.ok && data && (data.status === 'in_progress' || data.status === 'pending')) {

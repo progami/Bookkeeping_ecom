@@ -19,6 +19,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { useRouter } from 'next/navigation';
+import { apiRequest } from '@/lib/api-client';
 
 interface SyncProgress {
   syncId: string;
@@ -63,7 +64,7 @@ export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSync
 
     try {
       console.log('[EnhancedSyncStatus] Fetching progress for syncId:', syncId);
-      const response = await fetch(`/api/v1/xero/sync/progress/${syncId}`);
+      const response = await apiRequest(`/api/v1/xero/sync/progress/${syncId}`);
       const data = await response.json();
 
       if (response.ok && data) {
