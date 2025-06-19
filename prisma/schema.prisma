@@ -162,7 +162,7 @@ model BankTransaction {
   
   bankAccount          BankAccount @relation(fields: [bankAccountId], references: [id])
   contact              Contact?    @relation(fields: [contactId], references: [xeroContactId])
-  lineItems            LineItem[]
+  lineItemDetails      LineItem[]
   
   @@index([xeroTransactionId])
   @@index([bankAccountId])
