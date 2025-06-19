@@ -75,11 +75,8 @@ export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSync
           console.log('[EnhancedSyncStatus] Sync completed!');
           setIsPolling(false);
           setShowSuccess(true);
-          setActiveSyncId(null); // Clear global sync state
-          localStorage.removeItem('active_sync_id'); // Clear from localStorage
-          if (onComplete) {
-            onComplete(data.steps);
-          }
+          // DO NOT call onComplete here - let the UI show success first
+          // The cleanup will happen after showing success for a few seconds
         } else if (data.status === 'failed') {
           console.log('[EnhancedSyncStatus] Sync failed:', data.error);
           setIsPolling(false);
@@ -116,16 +113,32 @@ export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSync
     };
   }, [syncId, isPolling, fetchProgress, setActiveSyncId]);
 
-  // Auto-hide success after 10 seconds
+  // Handle success state - show for 5 seconds then notify parent
   React.useEffect(() => {
-    if (showSuccess) {
+    if (showSuccess && progress) {
+      console.log('[EnhancedSyncStatus] Showing success UI for 5 seconds...');
+      
+      // Show success UI for 5 seconds before notifying parent
       const timer = setTimeout(() => {
+        console.log('[EnhancedSyncStatus] Success display complete, notifying parent...');
+        
+        // Clear global state
+        setActiveSyncId(null);
+        localStorage.removeItem('active_sync_id');
+        
+        // Notify parent component
+        if (onComplete) {
+          onComplete(progress.steps);
+        }
+        
+        // Clear local state after parent is notified
         setShowSuccess(false);
         setProgress(null);
-      }, 10000);
+      }, 5000); // 5 seconds to see success message
+      
       return () => clearTimeout(timer);
     }
-  }, [showSuccess]);
+  }, [showSuccess, progress, onComplete, setActiveSyncId]);
 
   if (!progress) {
     return null;
