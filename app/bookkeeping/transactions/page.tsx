@@ -44,24 +44,31 @@ export default function TransactionsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalTransactions, setTotalTransactions] = useState(0)
-  const pageSize = 50
+  const [pageSize, setPageSize] = useState(1000)
+  const [showAllTransactions, setShowAllTransactions] = useState(false)
 
   useEffect(() => {
     fetchTransactions()
-  }, [currentPage])
+  }, [currentPage, pageSize, showAllTransactions])
 
   const fetchTransactions = async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams({
-        page: currentPage.toString(),
-        pageSize: pageSize.toString()
+        page: currentPage.toString()
       })
+      
+      // Only add limit if not showing all transactions
+      if (!showAllTransactions) {
+        params.append('limit', pageSize.toString())
+      }
 
+      console.log('Fetching transactions with params:', params.toString(), 'pageSize:', pageSize, 'showAll:', showAllTransactions);
       const response = await fetch(`/api/v1/bookkeeping/bank-transactions?${params.toString()}`)
       
       if (response.ok) {
         const data = await response.json()
+        console.log('Received data:', data.transactions?.length, 'transactions, total:', data.total, 'pageSize:', data.pageSize);
         setTransactions(data.transactions || [])
         setTotalPages(data.totalPages || 1)
         setTotalTransactions(data.total || 0)
@@ -107,7 +114,11 @@ export default function TransactionsPage() {
   const exportToCSV = () => {
     const headers = ['Date', 'Description', 'Contact', 'Type', 'Amount', 'Account', 'Status', 'Reconciled']
     const rows = filteredTransactions.map(t => [
-      new Date(t.date).toLocaleDateString(),
+      new Date(t.date).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      }),
       t.description || '',
       t.contactName || '',
       t.type,
@@ -218,6 +229,68 @@ export default function TransactionsPage() {
         />
       </div>
 
+      {/* Pagination Controls */}
+      <div className="mb-6 px-6 py-4 bg-slate-800/30 border border-slate-700/50 rounded-xl">
+        <div className="flex items-center justify-between">
+          {/* Left side - Page size selector */}
+          <div className="flex items-center gap-4">
+            <span className="text-gray-400 text-sm">Show:</span>
+            <select
+              value={showAllTransactions ? 'all' : pageSize.toString()}
+              onChange={(e) => {
+                const value = e.target.value
+                if (value === 'all') {
+                  setShowAllTransactions(true)
+                  setCurrentPage(1)
+                } else {
+                  setShowAllTransactions(false)
+                  setPageSize(parseInt(value))
+                  setCurrentPage(1)
+                }
+              }}
+              className="px-3 py-1.5 bg-slate-800 text-white border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+            >
+              <option value="500">500</option>
+              <option value="1000">1,000</option>
+              <option value="1500">1,500</option>
+              <option value="2000">2,000</option>
+              <option value="all">All</option>
+            </select>
+            <span className="text-gray-400 text-sm">
+              transactions per page
+            </span>
+          </div>
+
+          {/* Center - Transaction count */}
+          <div className="text-gray-400 text-sm">
+            Showing {filteredTransactions.length} of {totalTransactions} total transactions
+          </div>
+
+          {/* Right side - Page navigation */}
+          {!showAllTransactions && totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 bg-slate-800 text-gray-300 rounded-lg hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+              >
+                Previous
+              </button>
+              <span className="text-gray-400 text-sm px-3">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 bg-slate-800 text-gray-300 rounded-lg hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Transactions Table */}
       {loading ? (
         <div className="flex items-center justify-center h-64">
@@ -276,7 +349,11 @@ export default function TransactionsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                        {new Date(transaction.date).toLocaleDateString()}
+                        {new Date(transaction.date).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric', 
+                          year: 'numeric' 
+                        })}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-white">
@@ -323,29 +400,6 @@ export default function TransactionsPage() {
               </tbody>
             </table>
           </div>
-          
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="px-6 py-4 bg-slate-900/50 border-t border-slate-700 flex items-center justify-between">
-              <button
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-                className="px-4 py-2 bg-slate-800 text-gray-300 rounded-lg hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Previous
-              </button>
-              <span className="text-gray-400">
-                Page {currentPage} of {totalPages}
-              </span>
-              <button
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
-                className="px-4 py-2 bg-slate-800 text-gray-300 rounded-lg hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Next
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>

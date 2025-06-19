@@ -10,16 +10,18 @@ export const GET = withValidation(
   async (request, { query }) => {
     try {
       const page = query?.page || 1;
-      const pageSize = query?.pageSize || 50;
-      const skip = (page - 1) * pageSize;
+      const pageSize = query?.limit || 50;
+      const showAll = !query?.limit;
+      const skip = showAll ? 0 : (page - 1) * pageSize;
+      
+      console.log('Bank transactions API - page:', page, 'limit:', query?.limit, 'pageSize:', pageSize, 'skip:', skip, 'showAll:', showAll);
 
     // Get total count
     const total = await prisma.bankTransaction.count();
 
     // Get transactions with bank account details
-    const transactions = await prisma.bankTransaction.findMany({
+    const findManyOptions: any = {
       skip,
-      take: pageSize,
       orderBy: { date: 'desc' },
       include: {
         bankAccount: {
@@ -29,9 +31,16 @@ export const GET = withValidation(
           }
         }
       }
-    });
+    };
+    
+    // Only add take (limit) if not showing all
+    if (!showAll) {
+      findManyOptions.take = pageSize;
+    }
+    
+    const transactions = await prisma.bankTransaction.findMany(findManyOptions);
 
-    const totalPages = Math.ceil(total / pageSize);
+    const totalPages = showAll ? 1 : Math.ceil(total / pageSize);
 
       return NextResponse.json({
         transactions,

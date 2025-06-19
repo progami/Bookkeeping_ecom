@@ -1,24 +1,24 @@
 'use client';
 
-import React, { useEffect } from 'react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { 
-  AlertCircle, 
   CheckCircle2, 
-  RefreshCw, 
   Loader2,
   XCircle,
   Clock,
   Database,
   FileText,
   Receipt,
-  Users
+  Users,
+  Package,
+  AlertTriangle,
+  ChevronRight,
+  Activity
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
-import { useRouter } from 'next/navigation';
 import { apiRequest } from '@/lib/api-client';
 
 interface SyncProgress {
@@ -32,6 +32,7 @@ interface SyncProgress {
     invoices?: { status: string; count: number; details?: any };
     bills?: { status: string; count: number; details?: any };
     contacts?: { status: string; count: number; details?: any };
+    summary?: { status: string; details?: any };
   };
   startedAt?: string;
   completedAt?: string;
@@ -50,16 +51,28 @@ interface EnhancedSyncStatusProps {
   onError?: (error: string) => void;
 }
 
-export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSyncStatusProps) {
-  const [progress, setProgress] = React.useState<SyncProgress | null>(null);
-  const [isPolling, setIsPolling] = React.useState(false);
-  const [showSuccess, setShowSuccess] = React.useState(false);
-  const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
-  const { setActiveSyncId } = useGlobalSync();
-  const router = useRouter();
+const SYNC_STEPS = [
+  { key: 'contacts', label: 'Contacts & Suppliers', icon: Users },
+  { key: 'accounts', label: 'Chart of Accounts', icon: Database },
+  { key: 'transactions', label: 'Bank Transactions', icon: FileText },
+  { key: 'invoices', label: 'Sales Invoices', icon: Receipt },
+  { key: 'bills', label: 'Purchase Bills', icon: FileText },
+];
 
-  // Poll for progress updates
-  const fetchProgress = React.useCallback(async () => {
+export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSyncStatusProps) {
+  const [progress, setProgress] = useState<SyncProgress | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { setActiveSyncId } = useGlobalSync();
+
+  const stopPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  }, []);
+
+  const poll = useCallback(async () => {
     if (!syncId) return;
 
     try {
@@ -68,21 +81,17 @@ export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSync
       const data = await response.json();
 
       if (response.ok && data) {
-        console.log('[EnhancedSyncStatus] Progress data:', data);
         setProgress(data);
 
-        // Check if sync is complete
         if (data.status === 'completed') {
           console.log('[EnhancedSyncStatus] Sync completed!');
-          setIsPolling(false);
+          stopPolling();
           setShowSuccess(true);
-          // DO NOT call onComplete here - let the UI show success first
-          // The cleanup will happen after showing success for a few seconds
         } else if (data.status === 'failed') {
           console.log('[EnhancedSyncStatus] Sync failed:', data.error);
-          setIsPolling(false);
-          setActiveSyncId(null); // Clear global sync state
-          localStorage.removeItem('active_sync_id'); // Clear from localStorage
+          stopPolling();
+          setActiveSyncId(null);
+          localStorage.removeItem('active_sync_id');
           if (onError) {
             onError(data.error || 'Sync failed');
           }
@@ -93,53 +102,37 @@ export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSync
     } catch (error) {
       console.error('[EnhancedSyncStatus] Failed to fetch sync progress:', error);
     }
-  }, [syncId, onComplete, onError, setActiveSyncId]);
+  }, [syncId, onError, setActiveSyncId, stopPolling]);
 
-  // Start polling when syncId is provided
-  React.useEffect(() => {
-    if (syncId && !isPolling) {
-      setIsPolling(true);
-      setActiveSyncId(syncId); // Set global sync state
-      fetchProgress(); // Initial fetch
-
-      // Poll every 2 seconds
-      pollingIntervalRef.current = setInterval(fetchProgress, 2000);
+  useEffect(() => {
+    if (syncId) {
+      setActiveSyncId(syncId);
+      poll(); // Initial fetch
+      
+      // Clear any existing interval before setting a new one
+      stopPolling();
+      pollingIntervalRef.current = setInterval(poll, 2000);
     }
 
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
+      stopPolling();
     };
-  }, [syncId, isPolling, fetchProgress, setActiveSyncId]);
+  }, [syncId, poll, setActiveSyncId, stopPolling]);
 
-  // Handle success state - show for 5 seconds then notify parent
-  React.useEffect(() => {
-    if (showSuccess && progress) {
-      console.log('[EnhancedSyncStatus] Showing success UI for 5 seconds...');
-      
-      // Show success UI for 5 seconds before notifying parent
+  useEffect(() => {
+    if (showSuccess && progress?.status === 'completed') {
       const timer = setTimeout(() => {
-        console.log('[EnhancedSyncStatus] Success display complete, notifying parent...');
-        
-        // Clear global state
         setActiveSyncId(null);
         localStorage.removeItem('active_sync_id');
-        
-        // Notify parent component
         if (onComplete) {
-          onComplete(progress.steps);
+          onComplete(progress?.steps);
         }
-        
-        // Clear local state after parent is notified
         setShowSuccess(false);
         setProgress(null);
-      }, 5000); // 5 seconds to see success message
-      
+      }, 10000); // Show success for 10 seconds
       return () => clearTimeout(timer);
     }
-  }, [showSuccess, progress, onComplete, setActiveSyncId]);
+  }, [showSuccess, onComplete, setActiveSyncId, progress]);
 
   if (!progress) {
     return null;
@@ -149,7 +142,7 @@ export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSync
   const calculateOverallProgress = () => {
     if (!progress.steps) return progress.percentage;
 
-    const steps = Object.values(progress.steps);
+    const steps = Object.values(progress.steps).filter(step => step && typeof step.status === 'string');
     if (steps.length === 0) return progress.percentage;
 
     const completedSteps = steps.filter(step => step.status === 'completed').length;
@@ -159,221 +152,318 @@ export function EnhancedSyncStatus({ syncId, onComplete, onError }: EnhancedSync
     return Math.max(progress.percentage, Math.round(stepProgress));
   };
 
-  const getStepIcon = (stepName: string) => {
-    switch (stepName) {
-      case 'accounts': return <Database className="h-4 w-4" />;
-      case 'transactions': return <FileText className="h-4 w-4" />;
-      case 'invoices': return <Receipt className="h-4 w-4" />;
-      case 'bills': return <FileText className="h-4 w-4" />;
-      case 'contacts': return <Users className="h-4 w-4" />;
-      default: return <Loader2 className="h-4 w-4" />;
-    }
+  const getStepStatus = (stepKey: string) => {
+    if (!progress.steps) return 'pending';
+    const step = progress.steps[stepKey as keyof typeof progress.steps];
+    return step?.status || 'pending';
   };
 
-  const getStepLabel = (stepName: string) => {
-    switch (stepName) {
-      case 'accounts': return 'Chart of Accounts';
-      case 'transactions': return 'Transactions';
-      case 'invoices': return 'Sales Invoices';
-      case 'bills': return 'Bills';
-      case 'contacts': return 'Contacts';
-      default: return stepName;
-    }
+  const getStepCount = (stepKey: string) => {
+    if (!progress.steps) return 0;
+    const step = progress.steps[stepKey as keyof typeof progress.steps];
+    return step?.count || 0;
   };
 
-  if (progress.status === 'in_progress' || progress.status === 'pending') {
-    const overallProgress = calculateOverallProgress();
+  const overallProgress = calculateOverallProgress();
+  const isCompleted = progress.status === 'completed';
+  const isFailed = progress.status === 'failed';
 
-    return (
-      <>
-        {/* Full screen overlay to block navigation */}
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
-        
-        {/* Centered modal */}
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg">
-            <Alert className="border-blue-500/30 bg-blue-950/95 shadow-2xl">
-              <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
-              <AlertTitle className="text-blue-100">
-                {progress.status === 'pending' ? 'Preparing Sync' : 'Syncing with Xero'}
-              </AlertTitle>
-              <AlertDescription className="text-blue-200">
-            <div className="space-y-3">
-              <p className="text-sm">{progress.currentStep}</p>
-              
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span>Progress</span>
-                  <span>{overallProgress}%</span>
+  // Common layout for all states
+  return (
+    <>
+      {/* Full screen overlay */}
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" />
+      
+      {/* Centered modal */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-4xl">
+          <div className="bg-gray-900 rounded-lg shadow-2xl border border-gray-800 overflow-hidden">
+            {/* Header */}
+            <div className={`
+              p-6 transition-colors duration-500
+              ${isCompleted 
+                ? 'bg-gradient-to-r from-green-600 to-green-700' 
+                : isFailed
+                ? 'bg-gradient-to-r from-red-600 to-red-700'
+                : 'bg-gradient-to-r from-blue-600 to-blue-700'
+              }
+            `}>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-white/10 rounded-full">
+                  {isCompleted ? (
+                    <CheckCircle2 className="h-6 w-6 text-white" />
+                  ) : isFailed ? (
+                    <XCircle className="h-6 w-6 text-white" />
+                  ) : (
+                    <Loader2 className="h-6 w-6 animate-spin text-white" />
+                  )}
                 </div>
-                <Progress value={overallProgress} className="h-2" />
+                <div className="flex-1">
+                  <h2 className="text-xl font-semibold text-white">
+                    {isCompleted 
+                      ? 'Sync Completed Successfully' 
+                      : isFailed
+                      ? 'Sync Failed'
+                      : progress.status === 'pending' 
+                      ? 'Preparing Xero Sync' 
+                      : 'Syncing with Xero'
+                    }
+                  </h2>
+                  <p className="text-white/80 text-sm mt-1">
+                    {isCompleted
+                      ? 'All data has been synchronized'
+                      : isFailed
+                      ? 'An error occurred during synchronization'
+                      : progress.currentStep || 'Initializing synchronization...'
+                    }
+                  </p>
+                </div>
+                {isCompleted && (
+                  <button
+                    onClick={() => {
+                      setShowSuccess(false);
+                      setProgress(null);
+                      setActiveSyncId(null);
+                      localStorage.removeItem('active_sync_id');
+                      if (onComplete) {
+                        onComplete(progress?.steps);
+                      }
+                    }}
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                    aria-label="Close"
+                  >
+                    <XCircle className="h-5 w-5 text-white/80 hover:text-white" />
+                  </button>
+                )}
               </div>
 
-              {progress.steps && Object.keys(progress.steps).length > 0 && (
-                <div className="space-y-2 pt-2 border-t border-blue-800/50">
-                  {Object.entries(progress.steps).map(([stepName, stepData]) => (
-                    <div key={stepName} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          {getStepIcon(stepName)}
-                          <span>{getStepLabel(stepName)}</span>
+              {/* Overall Progress Bar */}
+              {!isCompleted && !isFailed && (
+                <div className="mt-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-white/80">Overall Progress</span>
+                    <span className="text-sm font-semibold text-white">{overallProgress}%</span>
+                  </div>
+                  <Progress value={overallProgress} className="h-2 bg-white/20" />
+                </div>
+              )}
+            </div>
+
+            {/* Body with two columns */}
+            <div className="flex">
+              {/* Left Menu - Sync Steps */}
+              <div className="w-80 bg-gray-950 p-6 border-r border-gray-800">
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+                  Sync Progress Menu
+                </h3>
+                <div className="space-y-2">
+                  {SYNC_STEPS.map((step) => {
+                    const status = getStepStatus(step.key);
+                    const count = getStepCount(step.key);
+                    const Icon = step.icon;
+                    
+                    return (
+                      <div
+                        key={step.key}
+                        className={`
+                          p-3 rounded-lg border transition-all duration-300
+                          ${status === 'completed' 
+                            ? 'bg-green-900/20 border-green-800/50' 
+                            : status === 'in_progress'
+                            ? 'bg-blue-900/20 border-blue-800/50 animate-pulse'
+                            : status === 'failed'
+                            ? 'bg-red-900/20 border-red-800/50'
+                            : 'bg-gray-800/30 border-gray-700/30'
+                          }
+                        `}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`
+                            p-2 rounded-lg
+                            ${status === 'completed' 
+                              ? 'bg-green-800/30 text-green-400' 
+                              : status === 'in_progress'
+                              ? 'bg-blue-800/30 text-blue-400'
+                              : status === 'failed'
+                              ? 'bg-red-800/30 text-red-400'
+                              : 'bg-gray-700/30 text-gray-500'
+                            }
+                          `}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-200">
+                              {step.label}
+                            </p>
+                            {count > 0 && (
+                              <p className="text-xs text-gray-400">
+                                {count.toLocaleString()} records
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            {status === 'completed' && (
+                              <CheckCircle2 className="h-4 w-4 text-green-400" />
+                            )}
+                            {status === 'in_progress' && (
+                              <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+                            )}
+                            {status === 'failed' && (
+                              <XCircle className="h-4 w-4 text-red-400" />
+                            )}
+                            {status === 'pending' && (
+                              <Clock className="h-4 w-4 text-gray-500" />
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {stepData.status === 'completed' && (
-                            <CheckCircle2 className="h-3 w-3 text-green-400" />
-                          )}
-                          {stepData.status === 'in_progress' && (
-                            <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
-                          )}
-                          {stepData.status === 'pending' && (
-                            <Clock className="h-3 w-3 text-gray-400" />
-                          )}
-                          <span className="text-gray-400">
-                            {stepData.count > 0 ? stepData.count.toLocaleString() : '-'}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Summary Stats */}
+                {progress.steps && (
+                  <div className="mt-6 pt-6 border-t border-gray-800">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-400">Total Records</span>
+                        <span className="font-semibold text-gray-200">
+                          {Object.values(progress.steps)
+                            .filter(step => step && typeof step.count === 'number')
+                            .reduce((sum, step) => sum + (step.count || 0), 0)
+                            .toLocaleString()}
+                        </span>
+                      </div>
+                      {progress.startedAt && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-400">Duration</span>
+                          <span className="text-gray-200">
+                            {isCompleted && progress.completedAt
+                              ? formatDistanceToNow(new Date(progress.startedAt), { addSuffix: false })
+                              : `${formatDistanceToNow(new Date(progress.startedAt), { addSuffix: false })} so far`
+                            }
                           </span>
                         </div>
-                      </div>
-                      {stepData.status === 'in_progress' && stepData.details && (
-                        <p className="text-xs text-blue-300/60 pl-6">
-                          {stepData.details}
-                        </p>
                       )}
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
 
-              {progress.startedAt && (
-                <p className="text-xs text-blue-300/70">
-                  Started {formatDistanceToNow(new Date(progress.startedAt), { addSuffix: true })}
-                </p>
-              )}
-              
-              {progress.checkpoint && (
-                <div className="space-y-1 pt-2 border-t border-blue-800/50">
-                  {progress.checkpoint.restoredFrom && (
-                    <p className="text-xs text-blue-300/60">
-                      ✅ Resumed from checkpoint saved {formatDistanceToNow(new Date(progress.checkpoint.restoredFrom), { addSuffix: true })}
-                    </p>
-                  )}
-                  {progress.checkpoint.lastSaved && (
-                    <p className="text-xs text-blue-300/60">
-                      💾 Last checkpoint: {formatDistanceToNow(new Date(progress.checkpoint.lastSaved), { addSuffix: true })}
-                    </p>
-                  )}
-                </div>
-              )}
-              
-              <p className="text-xs text-amber-300/80 font-medium">
-                ⚠️ Please wait for the sync to complete before navigating
-              </p>
-            </div>
-          </AlertDescription>
-        </Alert>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  if (progress.status === 'failed') {
-    return (
-      <>
-        {/* Full screen overlay */}
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
-        
-        {/* Centered modal */}
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg">
-            <Alert variant="destructive" className="shadow-2xl">
-              <XCircle className="h-4 w-4" />
-              <AlertTitle>Sync Failed</AlertTitle>
-              <AlertDescription>
-                <div className="space-y-3">
-                  <p>{progress.error || 'Unable to complete sync with Xero'}</p>
-                  
-                  <div className="flex gap-2 pt-2">
+              {/* Right Content Area */}
+              <div className="flex-1 p-6">
+                {isFailed ? (
+                  <div className="space-y-4">
+                    <div className="bg-red-900/20 border border-red-800/50 rounded-lg p-4">
+                      <p className="text-gray-300">
+                        {progress.error || 'An unexpected error occurred during synchronization.'}
+                      </p>
+                    </div>
                     <Button
                       variant="outline"
-                      size="sm"
                       onClick={() => {
                         setProgress(null);
-                        // Allow navigation after dismissing error
                         window.location.reload();
                       }}
-                      className="flex-1"
+                      className="w-full"
                     >
-                      Dismiss & Refresh
+                      Dismiss & Refresh Page
                     </Button>
                   </div>
-                </div>
-              </AlertDescription>
-            </Alert>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  if (progress.status === 'completed' && showSuccess) {
-    const summary = progress.steps || {};
-    const totalRecords = Object.values(summary).reduce((acc, step) => acc + (step.count || 0), 0);
-
-    return (
-      <div className="fixed top-4 right-4 w-96 z-50 animate-in fade-in slide-in-from-top-2">
-        <Alert className="border-green-500/30 bg-green-950/50 relative">
-          <CheckCircle2 className="h-4 w-4 text-green-400" />
-          <AlertTitle className="text-green-100 pr-8">
-            Sync Complete
-          </AlertTitle>
-          <AlertDescription className="text-green-200">
-            <div className="space-y-3">
-              <p>Your data is up to date</p>
-              
-              {Object.keys(summary).length > 0 && (
-                <div className="space-y-2 pt-2 border-t border-green-800/50">
-                  <p className="text-xs font-medium">Summary:</p>
-                  {Object.entries(summary).map(([stepName, stepData]) => (
-                    <div key={stepName} className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        {getStepIcon(stepName)}
-                        <span>{getStepLabel(stepName)}</span>
+                ) : isCompleted ? (
+                  <div className="space-y-6">
+                    <div className="text-center py-8">
+                      <div className="inline-flex items-center justify-center w-16 h-16 bg-green-900/20 rounded-full mb-4">
+                        <CheckCircle2 className="h-8 w-8 text-green-400" />
                       </div>
-                      <span className="text-green-300">
-                        {stepData.count?.toLocaleString() || 0} records
-                      </span>
+                      <h3 className="text-xl font-semibold text-gray-200 mb-2">
+                        All Done!
+                      </h3>
+                      <p className="text-gray-400">
+                        Your Xero data has been successfully synchronized
+                      </p>
                     </div>
-                  ))}
-                  <div className="pt-2 border-t border-green-800/50">
-                    <div className="flex items-center justify-between text-xs font-medium">
-                      <span>Total</span>
-                      <span className="text-green-300">{totalRecords.toLocaleString()} records</span>
+
+                    {/* Detailed Summary */}
+                    {progress.steps?.summary?.details && (
+                      <div className="bg-gray-800/30 rounded-lg p-6">
+                        <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">
+                          Synchronization Summary
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          {Object.entries(JSON.parse(progress.steps.summary.details)).map(([entity, count]) => (
+                            <div key={entity} className="bg-gray-900/50 rounded-lg p-4">
+                              <p className="text-sm text-gray-400 capitalize">{entity}</p>
+                              <p className="text-2xl font-semibold text-green-400 mt-1">
+                                {Number(count).toLocaleString()}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="text-center text-sm text-gray-500">
+                      This window will close automatically in a few seconds
                     </div>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="space-y-6">
+                    {/* Current Activity */}
+                    <div className="bg-blue-900/20 border border-blue-800/50 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <Activity className="h-5 w-5 text-blue-400 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-blue-200">
+                            Current Activity
+                          </p>
+                          <p className="text-sm text-blue-300/80 mt-1">
+                            {progress.currentStep || 'Processing...'}
+                          </p>
+                          {progress.steps && Object.entries(progress.steps).map(([key, step]) => {
+                            if (step.status === 'in_progress' && step.details) {
+                              return (
+                                <p key={key} className="text-xs text-blue-400 mt-2">
+                                  {step.details}
+                                </p>
+                              );
+                            }
+                            return null;
+                          })}
+                        </div>
+                      </div>
+                    </div>
 
-              {progress.completedAt && progress.startedAt && (
-                <p className="text-xs text-green-300/70">
-                  Completed in {formatDistanceToNow(new Date(progress.startedAt), { addSuffix: false })}
-                </p>
-              )}
+                    {/* Checkpoint Info */}
+                    {progress.checkpoint?.lastSaved && (
+                      <div className="bg-gray-800/30 rounded-lg p-4">
+                        <p className="text-sm text-gray-400 flex items-center gap-2">
+                          <Database className="h-4 w-4" />
+                          Progress automatically saved {formatDistanceToNow(new Date(progress.checkpoint.lastSaved), { addSuffix: true })}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Warning */}
+                    <div className="bg-amber-900/20 border border-amber-800/50 rounded-lg p-4 flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-200">
+                          Important
+                        </p>
+                        <p className="text-xs text-amber-300/80 mt-1">
+                          Please keep this window open until the synchronization is complete. 
+                          Your progress is being saved automatically.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </AlertDescription>
-          <button
-            onClick={() => {
-              setShowSuccess(false);
-              setProgress(null);
-            }}
-            className="absolute top-2 right-2 p-1 hover:bg-green-900/50 rounded transition-colors"
-            aria-label="Dismiss notification"
-          >
-            <XCircle className="h-4 w-4 text-green-400/60 hover:text-green-400" />
-          </button>
-        </Alert>
+          </div>
+        </div>
       </div>
-    );
-  }
-
-  return null;
+    </>
+  );
 }

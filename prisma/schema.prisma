@@ -25,6 +25,7 @@ model User {
   tenantType      String?
   xeroAccessToken String?  // Encrypted in production
   xeroRefreshToken String? // Encrypted in production
+  xeroPassword    String?  // Xero login password (encrypted in production)
   tokenExpiresAt  DateTime?
   hasCompletedSetup Boolean @default(false)
   setupCompletedAt  DateTime?

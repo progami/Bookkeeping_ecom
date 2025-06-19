@@ -16,7 +16,7 @@ import {
   Zap,
   X
 } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
+import { apiRequest } from '@/lib/api-client';
 
 interface SyncProgress {
   syncId: string;
@@ -68,18 +68,19 @@ export function ModernSyncStatus({ syncId }: { syncId?: string }) {
 
     const fetchProgress = async () => {
       try {
-        const response = await apiClient.get<SyncProgress>('/api/v1/sync/progress');
+        const response = await apiRequest(`/api/v1/xero/sync/progress/${syncId}`);
         
         console.log('Sync progress response:', response);
         
-        if (response.data) {
-          setProgress(response.data);
+        if (response.ok) {
+          const data = await response.json();
+          setProgress(data);
           setIsVisible(true);
 
           // Calculate estimated time
-          if (response.data.status === 'in_progress' && response.data.percentage > 0) {
+          if (data.status === 'in_progress' && data.percentage > 0) {
             const elapsed = Date.now() - startTime;
-            const estimatedTotal = elapsed / (response.data.percentage / 100);
+            const estimatedTotal = elapsed / (data.percentage / 100);
             const remaining = estimatedTotal - elapsed;
             const remainingMinutes = Math.ceil(remaining / 60000);
             
@@ -91,16 +92,16 @@ export function ModernSyncStatus({ syncId }: { syncId?: string }) {
           }
 
           // Stop polling if completed or failed
-          if (response.data.status === 'completed' || response.data.status === 'failed') {
+          if (data.status === 'completed' || data.status === 'failed') {
             clearInterval(pollInterval);
             
             // Auto-hide after 10 seconds for completed syncs
-            if (response.data.status === 'completed') {
+            if (data.status === 'completed') {
               setTimeout(() => setIsVisible(false), 10000);
             }
           }
-        } else if (response.error) {
-          console.error('API error:', response.error);
+        } else {
+          console.error('API error:', response.status, response.statusText);
           // Don't stop polling on error - keep trying
         }
       } catch (error) {

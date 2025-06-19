@@ -3,7 +3,7 @@ import { z } from 'zod';
 // Common schemas
 export const paginationSchema = z.object({
   page: z.string().transform(Number).pipe(z.number().int().min(1)).optional(),
-  limit: z.string().transform(Number).pipe(z.number().int().min(1).max(1000)).optional(),
+  limit: z.string().transform(Number).pipe(z.number().int().min(1).max(10000)).optional(),
   sort: z.string().optional(),
   order: z.enum(['asc', 'desc']).optional()
 });

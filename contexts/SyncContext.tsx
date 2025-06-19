@@ -75,11 +75,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         }
       });
 
-      if (response.error) {
+      if (!response.ok) {
+        const errorData = await response.json();
         const error = {
-          message: response.error.message || 'Sync failed',
-          code: response.error.code,
-          retryable: response.error.code !== 'RATE_LIMITED'
+          message: errorData.error?.message || 'Sync failed',
+          code: errorData.error?.code,
+          retryable: errorData.error?.code !== 'RATE_LIMITED'
         };
 
         const newStatus: SyncStatus = {
@@ -92,10 +93,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      const data = await response.json();
+
       // If we get a syncId, it means the sync was queued for background processing
-      if (response.data?.syncId) {
+      if (data.syncId) {
         // Store the syncId for tracking
-        localStorage.setItem('active_sync_id', response.data.syncId);
+        localStorage.setItem('active_sync_id', data.syncId);
         
         // The sync status will be tracked by the ModernSyncStatus component
         const newStatus: SyncStatus = {
@@ -107,7 +110,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('xero_sync_status', JSON.stringify(newStatus));
         
         // Return the syncId so components can track progress
-        return response.data.syncId;
+        return data.syncId;
       }
 
       // For immediate syncs (non-historical), handle the response
@@ -115,9 +118,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         status: 'success',
         lastSyncAt: new Date(),
         data: {
-          recordsCreated: response.data?.recordsCreated,
-          recordsUpdated: response.data?.recordsUpdated,
-          syncDuration: response.data?.duration
+          recordsCreated: data.recordsCreated,
+          recordsUpdated: data.recordsUpdated,
+          syncDuration: data.duration
         }
       };
 

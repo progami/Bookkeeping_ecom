@@ -24,7 +24,7 @@ interface SyncProgress {
 
 export default function ManualSyncPage() {
   const router = useRouter();
-  const { hasActiveToken } = useAuth();
+  const { hasActiveToken, checkAuthStatus } = useAuth();
   const { isAnySyncActive } = useGlobalSync();
   const [isLoading, setIsLoading] = useState(false);
   const [syncId, setSyncId] = useState<string | null>(null);
@@ -33,13 +33,17 @@ export default function ManualSyncPage() {
   const [checkpointInfo, setCheckpointInfo] = useState<any>(null);
   const [lastSyncId, setLastSyncId] = useState<string | null>(null);
 
-  const handleSyncComplete = (summary: any) => {
+  const handleSyncComplete = async (summary: any) => {
     setSyncResult({ summary });
     toast.success('Sync completed successfully! Redirecting...');
     
     // Clear localStorage
     localStorage.removeItem('active_sync_id');
     console.log('[ManualSyncPage] Cleared active sync ID on completion');
+    
+    // Update auth context to refresh lastSync time
+    console.log('[ManualSyncPage] Sync completed, updating auth status...');
+    await checkAuthStatus();
     
     // Redirect after a brief delay
     setTimeout(() => {

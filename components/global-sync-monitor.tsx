@@ -4,11 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { EnhancedSyncStatus } from './sync-status-enhanced';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { useSync } from '@/contexts/SyncContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { apiRequest } from '@/lib/api-client';
 
 export function GlobalSyncMonitor() {
   const { activeSyncId, setActiveSyncId } = useGlobalSync();
   const { syncStatus } = useSync();
+  const { checkAuthStatus } = useAuth();
   const [localSyncId, setLocalSyncId] = useState<string | null>(null);
   const [isCheckingSync, setIsCheckingSync] = useState(false);
 
@@ -73,10 +75,14 @@ export function GlobalSyncMonitor() {
     }
   }, [syncStatus.status, setActiveSyncId, localSyncId]);
 
-  const handleComplete = (summary: any) => {
+  const handleComplete = async (summary: any) => {
     // Clear the sync ID
     localStorage.removeItem('active_sync_id');
     setLocalSyncId(null);
+    
+    // Update auth context to refresh lastSync time
+    console.log('[GlobalSyncMonitor] Sync completed, updating auth status...');
+    await checkAuthStatus();
     
     // Refresh the page to show updated data
     setTimeout(() => {
